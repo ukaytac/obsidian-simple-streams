@@ -1,0 +1,75 @@
+# Pushing a tag that matches the manifest version builds the plugin and opens a
+# draft release with the three files Obsidian installs. The release is a draft on
+# purpose: the assets are worth looking at before anyone can download them.
+name: Release
+
+on:
+  push:
+    tags:
+      - "*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      # Both are required to sign an attestation: id-token to get the OIDC token
+      # proving which workflow is running, attestations to record the result.
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+
+      - run: npm ci
+
+      # Type check and unit tests gate the release. A tag that does not build
+      # should not become a downloadable release.
+      - run: npm test
+      - run: npm run build
+
+      # Signs a provenance statement tying these exact bytes to this repository,
+      # this workflow and this commit, so anyone can verify a downloaded asset
+      # was built from the source here rather than assembled by hand:
+      #   gh attestation verify main.js --repo ukaytac/obsidian-simple-streams
+      # Attested before the release is created, so no asset is ever downloadable
+      # without one.
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: |
+            main.js
+            manifest.json
+            styles.css
+
+      - name: Create draft release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+          manifest_version="$(node -p "require('./manifest.json').version")"
+          if [[ "$tag" != "$manifest_version" ]]; then
+            echo "Tag $tag does not match manifest version $manifest_version." >&2
+            exit 1
+          fi
+          # Re-tagging is normal before a release goes out. Replace a draft's
+          # assets, but never a published release's: someone may already have
+          # installed from it, and swapping the files under them would ship two
+          # different builds under one version number.
+          if gh release view "$tag" >/dev/null 2>&1; then
+            if [[ "$(gh release view "$tag" --json isDraft -q .isDraft)" != "true" ]]; then
+              echo "Release $tag is already published. Refusing to overwrite it." >&2
+              echo "Cut a new version instead." >&2
+              exit 1
+            fi
+            echo "Draft $tag already exists; replacing its assets."
+            gh release upload "$tag" main.js manifest.json styles.css --clobber
+          else
+            gh release create "$tag" \
+              --title="$tag" \
+              --draft \
+              main.js manifest.json styles.css
+          fi
