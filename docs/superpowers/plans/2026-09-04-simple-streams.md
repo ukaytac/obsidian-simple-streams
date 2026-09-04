@@ -230,7 +230,14 @@ export interface NoteMeta {
   basename: string;
   /** Normalized tags: no leading "#", lower case, e.g. ["project/streams"] */
   tags: string[];
-  frontmatter: Record<string, unknown>;
+  /**
+   * Read-only because the adapter hands over a live reference into Obsidian's
+   * own metadata cache rather than a copy. The engine only ever reads it, and
+   * the type is what keeps that true — writing here would corrupt Obsidian's
+   * cache, and copying every note's frontmatter on every render to avoid the
+   * risk would cost more than the guarantee is worth.
+   */
+  frontmatter: Readonly<Record<string, unknown>>;
   /** Creation time, ms since epoch */
   ctime: number;
   /** Modification time, ms since epoch */
@@ -3174,11 +3181,13 @@ git commit -m "feat: group stream notes into date headers"
 
 ```ts
 import { describe, expect, it } from "vitest";
-import { runStream } from "../../src/engine/run";
+import { runStream, type StreamResult } from "../../src/engine/run";
 import { parseQuery } from "../../src/query/parse";
 import { localDate, note } from "../fixtures/notes";
 
 const NOW = new Date(2026, 8, 4);
+
+const kinds = (result: StreamResult): string[] => result.notices.map((notice) => notice.kind);
 
 const NOTES = [
   note({ path: "Journal/03.md", tags: ["daily"], ctime: localDate(2026, 9, 3) }),
@@ -3194,14 +3203,14 @@ describe("runStream", () => {
     expect(result.groups[0].notes.map((n) => n.path)).toEqual(["Journal/04a.md", "Journal/04b.md"]);
     expect(result.matched).toBe(3);
     expect(result.shown).toBe(3);
-    expect(result.truncated).toBe(false);
+    expect(kinds(result)).not.toContain("truncated");
   });
 
   it("applies the limit after sorting and reports truncation", () => {
     const result = runStream(NOTES, parseQuery("limit: 2"), NOW, "en-GB");
     expect(result.shown).toBe(2);
     expect(result.matched).toBe(4);
-    expect(result.truncated).toBe(true);
+    expect(result.notices).toContainEqual({ kind: "truncated", shown: 2, matched: 4 });
     expect(result.groups[0].notes.map((n) => n.path)).toEqual(["Journal/04a.md", "Journal/04b.md"]);
   });
 
@@ -3231,13 +3240,13 @@ describe("runStream", () => {
     expect(result.groups).toEqual([]);
     expect(result.matched).toBe(0);
     expect(result.shown).toBe(0);
-    expect(result.truncated).toBe(false);
+    expect(result.notices).toEqual([]);
   });
 
   it("reports a date fallback when a declared date-field reaches no note", () => {
     // The signature of `date-field: dat` — every note falls back to ctime.
     const result = runStream(NOTES, parseQuery("date-field: dat"), NOW, "en-GB");
-    expect(result.dateFallback).toBe(true);
+    expect(result.notices).toContainEqual({ kind: "dateFallback", field: "dat" });
   });
 
   it("still reports a date fallback when the range emptied the result", () => {
@@ -3250,7 +3259,7 @@ describe("runStream", () => {
     const query = parseQuery("date-field: dat\nfrom: 2026-06-01\nto: 2026-06-30");
     const result = runStream(january, query, NOW, "en-GB");
     expect(result.shown).toBe(0);
-    expect(result.dateFallback).toBe(true);
+    expect(result.notices).toContainEqual({ kind: "dateFallback", field: "dat" });
   });
 
   it("keeps days contiguous even when the date field resolves for nothing", () => {
@@ -3286,21 +3295,21 @@ describe("runStream", () => {
     ];
     const result = runStream(notes, parseQuery("sort: [status asc, rating desc]\nlimit: 3"), NOW);
     expect(result.shown).toBe(3);
-    expect(result.unresolvedSort).toEqual([]);
+    expect(kinds(result)).not.toContain("unresolvedSort");
   });
 
   it("leaves a declared sort on the date field to the date notice", () => {
     // Both diagnostics fired for one cause, wording it two different ways.
     const result = runStream(NOTES, parseQuery("date-field: dat\nsort: dat desc"), NOW, "en-GB");
-    expect(result.dateFallback).toBe(true);
-    expect(result.unresolvedSort).toEqual([]);
+    expect(kinds(result)).toContain("dateFallback");
+    expect(kinds(result)).not.toContain("unresolvedSort");
   });
 
   it("reports a sort field that resolved for no note", () => {
     // `file.ctim` is a typo for `file.ctime`; every note ties and the order
     // silently falls through to the path tie-break.
     const result = runStream(NOTES, parseQuery("sort: file.ctim desc"), NOW, "en-GB");
-    expect(result.unresolvedSort).toEqual(["file.ctim"]);
+    expect(result.notices).toContainEqual({ kind: "unresolvedSort", fields: ["file.ctim"] });
   });
 
   it("reports no unresolved sort when the field resolves for some note", () => {
@@ -3308,25 +3317,26 @@ describe("runStream", () => {
       note({ path: "a.md", frontmatter: { rating: 5 } }),
       note({ path: "b.md" }),
     ];
-    expect(runStream(mixed, parseQuery("sort: rating desc"), NOW, "en-GB").unresolvedSort).toEqual(
-      [],
+    expect(kinds(runStream(mixed, parseQuery("sort: rating desc"), NOW, "en-GB"))).not.toContain(
+      "unresolvedSort",
     );
-    expect(runStream(NOTES, parseQuery(""), NOW, "en-GB").unresolvedSort).toEqual([]);
+    expect(kinds(runStream(NOTES, parseQuery(""), NOW, "en-GB"))).not.toContain("unresolvedSort");
     expect(
-      runStream(NOTES, parseQuery("tags: nonexistent\nsort: file.ctim"), NOW, "en-GB")
-        .unresolvedSort,
-    ).toEqual([]);
+      kinds(runStream(NOTES, parseQuery("tags: nonexistent\nsort: file.ctim"), NOW, "en-GB")),
+    ).not.toContain("unresolvedSort");
   });
 
   it("reports no date fallback when the field resolves, or when it is the default", () => {
     const dated = [note({ path: "a.md", frontmatter: { date: "2026-09-04" } })];
-    expect(runStream(dated, parseQuery("date-field: date"), NOW, "en-GB").dateFallback).toBe(false);
+    expect(kinds(runStream(dated, parseQuery("date-field: date"), NOW, "en-GB"))).not.toContain(
+      "dateFallback",
+    );
     // Only a *declared* field can be a typo; the default is nobody's mistake.
-    expect(runStream(NOTES, parseQuery(""), NOW, "en-GB").dateFallback).toBe(false);
+    expect(kinds(runStream(NOTES, parseQuery(""), NOW, "en-GB"))).not.toContain("dateFallback");
     // Nor is an empty stream evidence of one.
     expect(
-      runStream(NOTES, parseQuery("tags: nonexistent\ndate-field: dat"), NOW, "en-GB").dateFallback,
-    ).toBe(false);
+      kinds(runStream(NOTES, parseQuery("tags: nonexistent\ndate-field: dat"), NOW, "en-GB")),
+    ).not.toContain("dateFallback");
   });
 });
 ```
@@ -3383,32 +3393,42 @@ function arrange(notes: NoteMeta[], query: StreamQuery, locale?: string): NoteMe
   );
 }
 
+/**
+ * A fact the view has to tell the reader.
+ *
+ * A tagged list rather than a set of flags, because a flag has to be
+ * remembered and this project has twice failed to: `truncated` was computed
+ * and never rendered anywhere, and the date notice was rendered in a branch
+ * that an empty result skipped — which was exactly the case it existed for.
+ * With a union the view switches exhaustively, so a fourth notice fails to
+ * compile until someone gives it words. These carry facts, never sentences:
+ * the engine holds no user-facing English, and the view owns every word.
+ *
+ * - `dateFallback` — a declared `date-field` yielded a usable date for no note
+ *   the query reached, the signature of a typo in the field name. Judged before
+ *   the date range narrowed the result, since a typo sends every note onto the
+ *   `file.ctime` fallback and the range can then empty the stream.
+ * - `unresolvedSort` — declared sort fields that resolved for no matched note.
+ *   A missing value sorts last, so such a key leaves every note tied and the
+ *   order falls through to the `file.path` tie-break: `sort: file.ctim desc`
+ *   quietly becomes alphabetical by path. Judged on matched rather than shown,
+ *   because a field resolving only below the `limit` is not a typo. A declared
+ *   sort on the `date-field` is left out, since `dateFallback` tells that story.
+ * - `truncated` — the `limit` cut notes off, so a group header can show two of
+ *   a day's five notes and otherwise read as a complete day.
+ */
+export type StreamNotice =
+  | { kind: "dateFallback"; field: string }
+  | { kind: "unresolvedSort"; fields: string[] }
+  | { kind: "truncated"; shown: number; matched: number };
+
 export interface StreamResult {
   groups: StreamGroup[];
   /** How many notes matched, before the limit. */
   matched: number;
   /** How many notes the groups actually hold. */
   shown: number;
-  truncated: boolean;
-  /**
-   * True when a declared `date-field` yielded a usable date for no note on
-   * screen — the signature of a typo in the field name, which would otherwise
-   * order the whole stream by file creation time with nothing to say so.
-   */
-  dateFallback: boolean;
-  /**
-   * Declared sort fields that resolved for no note the query matched. A missing
-   * value sorts last, so a key nothing resolves leaves every note tied and the
-   * order falls through to the `file.path` tie-break: `sort: file.ctim desc`
-   * quietly becomes alphabetical by path, which looks like a working stream.
-   *
-   * Judged on the matched notes rather than the shown ones, because a field
-   * that resolves only below the `limit` is not a typo — reporting it sent the
-   * reader hunting a mistake they had not made. A declared sort on the
-   * `date-field` is left out entirely, since `dateFallback` already tells that
-   * story and saying it twice reads like two problems.
-   */
-  unresolvedSort: string[];
+  notices: StreamNotice[];
 }
 
 export function runStream(
@@ -3429,24 +3449,36 @@ export function runStream(
       ? matched
       : filterNotes(notes, { ...query, from: null, to: null }, now);
 
+  const notices: StreamNotice[] = [];
+
+  if (
+    query.dateField !== "file.ctime" &&
+    reached.length > 0 &&
+    reached.every((note) => coerceDate(resolveField(note, query.dateField)) === null)
+  ) {
+    notices.push({ kind: "dateFallback", field: query.dateField });
+  }
+
+  const unresolved =
+    matched.length === 0
+      ? []
+      : query.sort
+          .filter((spec) => spec.field !== query.dateField)
+          .filter((spec) => matched.every((note) => resolveField(note, spec.field) === undefined))
+          .map((spec) => spec.field);
+  if (unresolved.length > 0) {
+    notices.push({ kind: "unresolvedSort", fields: unresolved });
+  }
+
+  if (matched.length > shown.length) {
+    notices.push({ kind: "truncated", shown: shown.length, matched: matched.length });
+  }
+
   return {
     groups: groupNotes(shown, query, locale),
     matched: matched.length,
     shown: shown.length,
-    truncated: matched.length > shown.length,
-    dateFallback:
-      query.dateField !== "file.ctime" &&
-      reached.length > 0 &&
-      reached.every((note) => coerceDate(resolveField(note, query.dateField)) === null),
-    unresolvedSort:
-      matched.length === 0
-        ? []
-        : query.sort
-            .filter((spec) => spec.field !== query.dateField)
-            .filter((spec) =>
-              matched.every((note) => resolveField(note, spec.field) === undefined),
-            )
-            .map((spec) => spec.field),
+    notices,
   };
 }
 ```
@@ -4042,6 +4074,8 @@ import { getAllTags, type App, type CachedMetadata, type TFile } from "obsidian"
 import { normalizeTag, type NoteMeta } from "../engine/note";
 
 export function toNoteMeta(file: TFile, cache: CachedMetadata | null): NoteMeta {
+  // `frontmatter` below is Obsidian's own object, not a copy. NoteMeta types it
+  // read-only for that reason; see the comment there.
   const tags = cache === null ? [] : (getAllTags(cache) ?? []);
   return {
     path: file.path,
@@ -4381,7 +4415,7 @@ This owns the DOM for one block: parse once in the constructor, render on load, 
 
 ```ts
 import { MarkdownRenderChild, type App } from "obsidian";
-import { runStream, type StreamResult } from "../engine/run";
+import { runStream, type StreamNotice, type StreamResult } from "../engine/run";
 import { collectNotes } from "../obsidian/adapter";
 import { describeQuery } from "../query/describe";
 import { parseQuery } from "../query/parse";
@@ -4496,7 +4530,7 @@ export class StreamChild extends MarkdownRenderChild {
     // typo'd date-field needs explaining, and runStream judges that check
     // before the date range for the same reason — rendering the notices only
     // alongside results would undo it one layer up.
-    renderNotices(root, this.query, result);
+    renderNotices(root, result);
 
     if (this.rows.length === 0) {
       root.createDiv({ cls: "ss-empty", text: "No notes match this stream." });
@@ -4565,32 +4599,36 @@ export class StreamChild extends MarkdownRenderChild {
   }
 }
 
+/** Say each of the engine's notices once, for the whole block. */
+function renderNotices(root: HTMLElement, result: StreamResult): void {
+  for (const notice of result.notices) {
+    root.createDiv({ cls: "ss-notice", text: describeNotice(notice) });
+  }
+}
+
 /**
- * Say once, for the whole block, when a field the query declared reached no
- * note. Both cases otherwise look like a working stream in the wrong order.
+ * The engine reports facts; the words live here. Exhaustive on purpose: a new
+ * notice kind fails to compile until someone gives it a sentence, which is the
+ * whole reason the engine returns a tagged list instead of flags.
  */
-function renderNotices(root: HTMLElement, query: StreamQuery, result: StreamResult): void {
-  if (result.dateFallback) {
-    root.createDiv({
-      cls: "ss-notice",
-      text: `No note here has a usable \`${query.dateField}\`, so this stream is ordered and grouped by file creation time.`,
-    });
+function describeNotice(notice: StreamNotice): string {
+  switch (notice.kind) {
+    case "dateFallback":
+      return `No note here has a usable \`${notice.field}\`, so this stream is ordered and grouped by file creation time.`;
+    case "unresolvedSort": {
+      const fields = notice.fields.map((field) => `\`${field}\``).join(" or ");
+      return `No note here has ${fields}, so that part of the sort had no effect.`;
+    }
+    case "truncated":
+      return `Showing ${notice.shown} of ${notice.matched} notes. Raise \`limit\` to see more.`;
+    default:
+      return assertNeverNotice(notice);
   }
-  if (result.unresolvedSort.length > 0) {
-    const fields = result.unresolvedSort.map((field) => `\`${field}\``).join(" or ");
-    root.createDiv({
-      cls: "ss-notice",
-      text: `No note here has ${fields}, so that part of the sort had no effect.`,
-    });
-  }
-  if (result.truncated) {
-    // Without this a cut-off stream looks complete, and a group header can show
-    // two of a day's five notes with nothing to say the day continues.
-    root.createDiv({
-      cls: "ss-notice",
-      text: `Showing ${result.shown} of ${result.matched} notes. Raise \`limit\` to see more.`,
-    });
-  }
+}
+
+/** Unreachable. A new StreamNotice kind fails to compile until described above. */
+function assertNeverNotice(notice: never): never {
+  throw new Error(`Undescribed stream notice: ${JSON.stringify(notice)}`);
 }
 
 function toRows(result: StreamResult): Row[] {
