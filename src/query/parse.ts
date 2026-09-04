@@ -276,9 +276,15 @@ function toPositiveInt(field: string, value: unknown): number {
  * turns all of those into one clear error.
  */
 const COMPARISON = /^(>=|<=|!=|>|<)\s*(.*)$/;
+const RESERVED = new Set(["exists", "missing"]);
 
 function parseWhere(value: unknown): WhereClause[] {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+  if (value === null || value === undefined) {
+    throw new QueryError(
+      "`where` has no value. Give it at least one `field: condition` line, or leave it out.",
+    );
+  }
+  if (typeof value !== "object" || Array.isArray(value)) {
     throw new QueryError("`where` expects a map of `field: condition` entries");
   }
   return Object.entries(value as Record<string, unknown>).map(([field, raw]) => ({
@@ -289,7 +295,12 @@ function parseWhere(value: unknown): WhereClause[] {
 
 function parseCondition(field: string, raw: unknown): WhereCondition {
   if (Array.isArray(raw)) {
-    return { kind: "anyOf", values: raw.map((item) => asScalar(field, item)) };
+    if (raw.length === 0) {
+      throw new QueryError(
+        `\`where.${field}\` has no values to match. Give it at least one, or leave the field out.`,
+      );
+    }
+    return { kind: "anyOf", values: raw.map((item) => asAnyOfValue(field, item)) };
   }
 
   if (typeof raw === "string") {
@@ -316,9 +327,33 @@ function parseCondition(field: string, raw: unknown): WhereCondition {
   return { kind: "equals", value: asScalar(field, raw) };
 }
 
+/**
+ * A list is any-of and nothing else. A comparison or a reserved word inside one
+ * loses its meaning in silence: `rating: [">3", "<10"]` is how a user reaches
+ * for a range, and unchecked it asks for notes whose rating is the literal text
+ * `">3"`, matching nothing.
+ */
+function asAnyOfValue(field: string, item: unknown): string | number | boolean {
+  const value = asScalar(field, item);
+  if (typeof value === "string") {
+    const text = value.trim();
+    if (COMPARISON.test(text) || RESERVED.has(text.toLowerCase())) {
+      throw new QueryError(
+        `\`where.${field}\` cannot use \`${text}\` inside a list. A list means "any of these values"; a comparison or \`exists\`/\`missing\` has to be the whole condition.`,
+      );
+    }
+  }
+  return value;
+}
+
 function asScalar(field: string, value: unknown): string | number | boolean {
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
     return value;
+  }
+  if (value === null || value === undefined) {
+    // The same answer every other field gives, so `where: { status: #idea }`
+    // and `tags: #idea` explain the same mistake to the same standard.
+    throw new QueryError(`\`where.${field}\` has no value. ${hashHint(field)}`);
   }
   throw new QueryError(
     `\`where.${field}\` expects text, a number, a boolean, or a list of them`,

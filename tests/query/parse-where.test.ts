@@ -66,6 +66,31 @@ describe("parseQuery — where", () => {
     );
   });
 
+  it("rejects a comparison or a reserved word inside a list", () => {
+    // A range is the first thing a user reaches for, and left alone this asks
+    // for notes whose rating is the literal text ">3".
+    expect(() => parseQuery('where:\n  rating: [">3", "<10"]')).toThrow(
+      /`where.rating` cannot use `>3` inside a list/,
+    );
+    expect(() => parseQuery("where:\n  status: [exists, done]")).toThrow(
+      /cannot use `exists` inside a list/,
+    );
+    expect(() => parseQuery("where:\n  status: [done, MISSING]")).toThrow(/inside a list/);
+  });
+
+  it("rejects an empty list, which could only ever match nothing", () => {
+    // `tags: []` legally means no constraint. A named `where` field with no
+    // values cannot mean that, so it is always a mistake.
+    expect(() => parseQuery("where:\n  type: []")).toThrow(/`where.type` has no values to match/);
+  });
+
+  it("explains a missing value the way every other field does", () => {
+    expect(() => parseQuery("where:\n  status: #idea")).toThrow(
+      /`where.status` has no value.*as in status: "#book"/s,
+    );
+    expect(() => parseQuery("where:")).toThrow(/`where` has no value/);
+  });
+
   it("rejects an operator with nothing to compare against", () => {
     // `">="` used to backtrack into `>` and compare against the string "=",
     // and `"> "` compared against nothing. Both silently matched the wrong notes.
