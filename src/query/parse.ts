@@ -179,7 +179,13 @@ function normalizeFolder(path: string): string {
 
 function toSingleString(field: string, value: unknown): string {
   if (typeof value === "string") {
-    return value.trim();
+    const text = value.trim();
+    if (text === "") {
+      // `title: ""` matches every note, so the field reads as a filter and
+      // behaves as if it were absent. The list fields already reject this.
+      throw new QueryError(`\`${field}\` is empty. Give it a value, or leave the field out.`);
+    }
+    return text;
   }
   if (typeof value === "number" || typeof value === "boolean") {
     return String(value);

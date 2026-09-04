@@ -50,6 +50,14 @@ describe("parseQuery — a missing value explains itself the same way everywhere
   it("still rejects a structured value as the wrong shape", () => {
     expect(() => parseQuery("date-field:\n  a: 1")).toThrow(/expects a single piece of text/);
   });
+
+  it("rejects an empty single value, which would filter on nothing", () => {
+    // `title: ""` matched every note, so the field looked like a filter and
+    // behaved as if it were absent.
+    expect(() => parseQuery('title: ""')).toThrow(/`title` is empty/);
+    expect(() => parseQuery('title: "   "')).toThrow(/`title` is empty/);
+    expect(() => parseQuery('date-field: ""')).toThrow(/`date-field` is empty/);
+  });
 });
 
 describe("parseQuery — date-field, from and to", () => {
