@@ -4460,7 +4460,7 @@ This owns the DOM for one block: parse once in the constructor, render on load, 
 - [ ] **Step 1: Write `src/view/StreamChild.ts`**
 
 ```ts
-import { MarkdownRenderChild, type App } from "obsidian";
+import { Component, MarkdownRenderChild, type App } from "obsidian";
 import { runStream, type StreamNotice, type StreamResult } from "../engine/run";
 import { collectNotes } from "../obsidian/adapter";
 import { describeQuery } from "../query/describe";
@@ -4492,6 +4492,20 @@ export class StreamChild extends MarkdownRenderChild {
   private listEl: HTMLElement | null = null;
   private sentinelEl: HTMLElement | null = null;
   private observer: IntersectionObserver | null = null;
+  /**
+   * One throwaway parent per render pass, holding that pass's per-item render
+   * children. `render()` runs again on every refresh, so adding those children
+   * straight to this long-lived child would pile up a fresh batch each time and
+   * never drop the old one — a leak that grows with every vault change while
+   * the note stays open, which is the very thing parenting them was for.
+   *
+   * Emptying the container is not enough on its own. A MarkdownRenderChild does
+   * auto-unload when its element stops being live, but that mechanism is
+   * Obsidian's own and is not part of the public declarations, so its timing
+   * for a plugin calling `empty()` on its own container is unverifiable.
+   * Unloading a parent we own is deterministic and synchronous.
+   */
+  private items: Component | null = null;
 
   constructor(containerEl: HTMLElement, app: App, source: string, sourcePath: string) {
     super(containerEl);
@@ -4551,6 +4565,11 @@ export class StreamChild extends MarkdownRenderChild {
   private async render(): Promise<void> {
     this.observer?.disconnect();
     this.observer = null;
+    // Unload the previous pass's item children before their DOM goes away.
+    if (this.items !== null) {
+      this.removeChild(this.items);
+      this.items = null;
+    }
     this.containerEl.empty();
 
     if (this.query === null) {
@@ -4586,6 +4605,8 @@ export class StreamChild extends MarkdownRenderChild {
       return;
     }
 
+    this.items = new Component();
+    this.addChild(this.items);
     this.listEl = root.createDiv({ cls: "ss-list" });
     this.sentinelEl = root.createDiv({ cls: "ss-sentinel" });
     await this.renderUpTo(this.pages);
@@ -4608,7 +4629,7 @@ export class StreamChild extends MarkdownRenderChild {
       await renderItem(list, row.note, {
         app: this.app,
         query,
-        parent: this,
+        parent: this.items ?? this,
         sourcePath: this.sourcePath,
       });
       this.rendered += 1;
@@ -5212,6 +5233,7 @@ Confirm each of these, and fix what fails before moving on:
 - [ ] The invalid-YAML block shows a parser message with a line number.
 - [ ] The `display: everything` block lists the three valid modes.
 - [ ] Editing `2026-09-04.md` and saving updates its preview in the stream within about a second, and the scroll position does not jump.
+- [ ] With the `display: full` block open, edit and save a note in `Journal/` a dozen times. The stream should keep working and memory should not climb — each refresh re-renders, and each render used to add a fresh batch of markdown render children to a parent that never dropped the old ones.
 - [ ] Creating a new note in `Journal/` with a `date` adds it to the day-grouped stream.
 - [ ] Deleting that note removes it from the stream.
 - [ ] Renaming it updates the title shown in the stream.
