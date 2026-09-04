@@ -340,10 +340,17 @@ and tag chips. Then the body:
 
 Lazy loading renders the first 20 items, then a sentinel element watched by an
 `IntersectionObserver` (`rootMargin: 200px`) renders the next 20 as it
-approaches. `limit` caps the total.
+approaches. `limit` caps the total. The observer's `root` is the pane's own
+scroll container, not the default viewport: an observer clips its target
+against every overflow-clipping ancestor using those ancestors' unexpanded
+bounds and expands only the final root rect, so with `root` left implicit the
+preload margin has no effect at all.
 
 An empty result renders a muted "No notes match this stream." plus a one-line
-summary of the resolved query, so the reader can see what was actually asked.
+summary of the query's **filters**, so the reader can see what was actually
+asked. Only what can exclude a note appears there. `sort`, `group` and `limit`
+cannot empty a stream, and on a default query they took two of the summary's
+three segments — padding the one line whose whole job is explaining an absence.
 **The notices render above it either way** — an empty stream is exactly when a
 typo'd `date-field` needs explaining, and rendering them only alongside results
 would undo the reason the check is judged before the date range at all.
