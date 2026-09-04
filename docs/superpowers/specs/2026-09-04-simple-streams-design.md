@@ -155,10 +155,13 @@ an error instead.
 The date a note is filtered and grouped by is the value of `date-field`. If that
 field is missing or unparseable, the note falls back to `file.ctime`.
 An ISO-shaped triple that is not a real date — `2026-02-30`, `2026-13-40` —
-counts as unparseable and falls back too. It must not be accepted, because
-JavaScript rolls such a triple over into a different real date: `2026-02-30`
-becomes 1 March, which would then sort and group as 1 March with nothing on
-screen to say so.
+counts as unparseable and falls back too, **with or without a time of day**.
+It must not be accepted, because JavaScript rolls such a triple over into a
+different real date: `2026-02-30` becomes 1 March, which would then sort and
+group as 1 March with nothing on screen to say so. The time-of-day form needs
+saying separately because `Date.parse` validates the hour but not the day, so
+guarding only the bare `YYYY-MM-DD` form leaves `2026-02-30T08:30` rolling over
+exactly as before.
 
 ### 3.5 Sorting and grouping
 

@@ -609,6 +609,15 @@ describe("coerceDate", () => {
     expect(coerceDate("2026-99-99")).toBeNull();
     expect(dateValue("2026-13-40")).toBeNull();
   });
+
+  it("returns null for a date-time whose day does not exist", () => {
+    // Date.parse checks the hour but not the day, so these roll over unless the
+    // date part is validated separately from the bare-date form.
+    expect(coerceDate("2026-02-30T08:30")).toBeNull();
+    expect(coerceDate("2026-04-31T00:00")).toBeNull();
+    expect(coerceDate("2027-02-29T10:00")).toBeNull();
+    expect(coerceDate("2026-02-30 08:30")).toBeNull();
+  });
 });
 
 describe("looksLikeDate / dateValue", () => {
@@ -684,6 +693,8 @@ export type GroupMode = "day" | "month" | "year" | "none";
 
 const ISO_PREFIX = /^\d{4}-\d{2}-\d{2}/;
 const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
+/** The date part of a date-time string, so an impossible day can be caught there too. */
+const ISO_HEAD = /^(\d{4})-(\d{2})-(\d{2})(?=[T ]|$)/;
 
 /**
  * Turn a declared date value into a timestamp. Permissive on purpose: this runs
@@ -694,6 +705,9 @@ export function coerceDate(value: unknown): number | null {
     return Number.isNaN(value.getTime()) ? null : value.getTime();
   }
   if (typeof value === "number") {
+    // Milliseconds since the epoch, matching Date.prototype.getTime(). A field
+    // holding Unix *seconds* resolves to January 1970 rather than being
+    // rejected, so point `date-field` at a field that really holds a date.
     return Number.isFinite(value) ? value : null;
   }
   if (typeof value !== "string") {
@@ -711,11 +725,23 @@ export function coerceDate(value: unknown): number | null {
     return d === null ? null : d.getTime();
   }
 
+  // Date.parse validates the time fields but rolls an impossible day over:
+  // "2026-02-30T08:30" becomes 2 March. Guarding only the bare date above
+  // would leave that hole wide open.
+  const head = ISO_HEAD.exec(text);
+  if (head !== null && localDateFrom(Number(head[1]), Number(head[2]), Number(head[3])) === null) {
+    return null;
+  }
+
   const parsed = Date.parse(text);
   return Number.isNaN(parsed) ? null : parsed;
 }
 
-/** Is this value shaped like an ISO date? Used to keep Date.parse away from plain words. */
+/**
+ * Is this value shaped like an ISO date? Used to keep Date.parse away from
+ * plain words. A syntactic check only: `2026-99-99` passes this and is still
+ * rejected by `coerceDate`, which is where validity is decided.
+ */
 export function looksLikeDate(value: unknown): boolean {
   return typeof value === "string" && ISO_PREFIX.test(value.trim());
 }
@@ -764,7 +790,7 @@ export function formatGroupHeader(ms: number, mode: GroupMode, locale?: string):
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/engine/dates-values.test.ts`
-Expected: PASS, 15 tests.
+Expected: PASS, 16 tests.
 
 - [ ] **Step 5: Commit**
 
