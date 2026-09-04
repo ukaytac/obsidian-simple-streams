@@ -17,7 +17,18 @@ describe("parseDateExpr", () => {
     expect(parseDateExpr("-30d")).toEqual({ kind: "offset", amount: -30, unit: "d" });
     expect(parseDateExpr("-2w")).toEqual({ kind: "offset", amount: -2, unit: "w" });
     expect(parseDateExpr("+6m")).toEqual({ kind: "offset", amount: 6, unit: "m" });
-    expect(parseDateExpr("1y")).toEqual({ kind: "offset", amount: 1, unit: "y" });
+    expect(parseDateExpr("+1y")).toEqual({ kind: "offset", amount: 1, unit: "y" });
+  });
+
+  it("requires a sign on an offset, rather than guessing a direction", () => {
+    expect(() => parseDateExpr("1y")).toThrow(/needs a sign: -1y for the past, \+1y for the future/);
+    expect(() => parseDateExpr("30d")).toThrow(/needs a sign/);
+  });
+
+  it("rejects an offset too large to resolve to a real date", () => {
+    expect(() => parseDateExpr("-999999999d")).toThrow(/too large an offset/);
+    expect(() => parseDateExpr("+100001d")).toThrow(/too large an offset/);
+    expect(parseDateExpr("-100000d")).toEqual({ kind: "offset", amount: -100000, unit: "d" });
   });
 
   it("rejects a date that does not exist", () => {
@@ -65,5 +76,30 @@ describe("resolveDateExpr", () => {
   it("resolves an ISO date to the end of that day when asked for the end bound", () => {
     expect(resolveDateExpr({ kind: "iso", year: 2026, month: 1, day: 1 }, NOW, "end"))
       .toBe(new Date(2026, 0, 1, 23, 59, 59, 999).getTime());
+  });
+
+  it("clamps a month offset to the end of a shorter month", () => {
+    // Naive setMonth computes 31 February and rolls forward to 3 March.
+    const endOfMarch = new Date(2026, 2, 31, 9, 0);
+    expect(resolveDateExpr({ kind: "offset", amount: -1, unit: "m" }, endOfMarch, "start"))
+      .toBe(new Date(2026, 1, 28).getTime());
+  });
+
+  it("never lets a month offset land back inside the month it started in", () => {
+    // Naive setMonth turns 31 May minus one month into 1 May.
+    const endOfMay = new Date(2026, 4, 31, 9, 0);
+    expect(resolveDateExpr({ kind: "offset", amount: -1, unit: "m" }, endOfMay, "start"))
+      .toBe(new Date(2026, 3, 30).getTime());
+  });
+
+  it("clamps a year offset from a leap day", () => {
+    const leapDay = new Date(2028, 1, 29, 9, 0);
+    expect(resolveDateExpr({ kind: "offset", amount: -1, unit: "y" }, leapDay, "start"))
+      .toBe(new Date(2027, 1, 28).getTime());
+  });
+
+  it("resolves the largest allowed offset to a real date, not NaN", () => {
+    const result = resolveDateExpr({ kind: "offset", amount: -100000, unit: "d" }, NOW, "start");
+    expect(Number.isNaN(result)).toBe(false);
   });
 });

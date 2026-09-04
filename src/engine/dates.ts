@@ -5,7 +5,10 @@ export type DateExpr =
   | { kind: "offset"; amount: number; unit: "d" | "w" | "m" | "y" };
 
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
-const OFFSET = /^([+-]?\d+)([dwmy])$/;
+const OFFSET = /^([+-]\d+)([dwmy])$/;
+const UNSIGNED_OFFSET = /^\d+[dwmy]$/;
+/** Past this, Date arithmetic overflows to NaN and a bound would silently vanish. */
+const MAX_OFFSET = 100000;
 
 export function parseDateExpr(input: string): DateExpr {
   const text = input.trim().toLowerCase();
@@ -32,11 +35,21 @@ export function parseDateExpr(input: string): DateExpr {
 
   const offset = OFFSET.exec(text);
   if (offset) {
-    return { kind: "offset", amount: Number(offset[1]), unit: offset[2] as "d" | "w" | "m" | "y" };
+    const amount = Number(offset[1]);
+    if (Math.abs(amount) > MAX_OFFSET) {
+      throw new Error(`"${input}" is too large an offset. Keep it under ${MAX_OFFSET} units`);
+    }
+    return { kind: "offset", amount, unit: offset[2] as "d" | "w" | "m" | "y" };
+  }
+
+  // A bare "30d" is ambiguous, and guessing a direction turns a typo into an
+  // empty stream with no explanation.
+  if (UNSIGNED_OFFSET.test(text)) {
+    throw new Error(`"${input}" needs a sign: -${text} for the past, +${text} for the future`);
   }
 
   throw new Error(
-    `"${input}" is not a date. Use YYYY-MM-DD, today, yesterday, or an offset like -30d`,
+    `"${input}" is not a date. Use YYYY-MM-DD, today, yesterday, or a signed offset like -30d`,
   );
 }
 
@@ -72,12 +85,29 @@ function resolveToDay(expr: DateExpr, now: Date): Date {
           today.setDate(today.getDate() + expr.amount * 7);
           break;
         case "m":
-          today.setMonth(today.getMonth() + expr.amount);
+          addMonths(today, expr.amount);
           break;
         case "y":
-          today.setFullYear(today.getFullYear() + expr.amount);
+          addMonths(today, expr.amount * 12);
           break;
       }
       return today;
   }
+}
+
+/**
+ * Shift by whole months, clamping to the end of the target month, in place.
+ * `setMonth` alone overflows: 31 March minus one month computes 31 February and
+ * rolls forward to 3 March, and 31 May minus one month lands back on 1 May.
+ */
+function addMonths(date: Date, months: number): void {
+  const day = date.getDate();
+  date.setDate(1);
+  date.setMonth(date.getMonth() + months);
+  date.setDate(Math.min(day, daysInMonth(date.getFullYear(), date.getMonth())));
+}
+
+/** Day 0 of the next month is the last day of this one. */
+function daysInMonth(year: number, monthIndex: number): number {
+  return new Date(year, monthIndex + 1, 0).getDate();
 }
