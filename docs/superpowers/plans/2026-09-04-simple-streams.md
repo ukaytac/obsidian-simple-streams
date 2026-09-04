@@ -4708,10 +4708,18 @@ function toRows(result: StreamResult): Row[] {
   return rows;
 }
 
+/**
+ * What has to change for a re-render to be worth doing. The shown notes and
+ * their mtimes, plus the notices — the notices because `matched` can move while
+ * the shown list does not: one more note arriving beyond the `limit` leaves the
+ * list identical and the "Showing 50 of 60" line wrong, and a `date:` added to
+ * a note past the limit can flip the date-fallback notice the same way.
+ */
 function signatureOf(result: StreamResult): string {
-  return result.groups
-    .flatMap((group) => group.notes.map((note) => `${note.path}:${note.mtime}`))
-    .join("|");
+  const notes = result.groups.flatMap((group) =>
+    group.notes.map((note) => `${note.path}:${note.mtime}`),
+  );
+  return [...notes, JSON.stringify(result.notices)].join("|");
 }
 ```
 
