@@ -207,8 +207,13 @@ A `sort` field has the same failure and gets the same treatment. Because a
 missing value sorts last, a sort key that resolves for *no* note leaves every
 note tied and the order falls through to the `file.path` tie-break — so
 `sort: file.ctim desc` silently becomes alphabetical-by-path, looking like a
-working stream in the wrong order. Any sort field that resolved for nothing on
-screen is named in the same notice.
+working stream in the wrong order. Any sort field that resolved for nothing the
+query **matched** is named in the same notice — matched rather than shown,
+because a field that resolves only for notes below the `limit` is not a typo,
+and blaming it would send the reader hunting for a mistake they did not make.
+A declared sort on the `date-field` itself is left out: the date notice already
+tells that story, and saying it twice in different words reads like two
+problems.
 An ISO-shaped triple that is not a real date — `2026-02-30`, `2026-13-40` —
 counts as unparseable and falls back too, **with or without a time of day**.
 It must not be accepted, because JavaScript rolls such a triple over into a
@@ -240,8 +245,18 @@ from the previous item. Headers are formatted with `Intl.DateTimeFormat` in the
 app's locale: `4 September 2026` for `day`, `September 2026` for `month`, `2026`
 for `year`.
 
-**When grouping is on, the resolved date leads the sort** and the declared
-`sort` keys order notes within each group. The direction comes from the declared
+**When grouping is on, the notes are arranged in two passes** — the declared
+`sort` keys first, then a stable re-sort by the resolved date — so each group
+arrives as one contiguous run and the declared order survives inside it.
+
+Two passes rather than one lead sort key, and the difference is not cosmetic.
+A lead key can only name a field, and a named field is resolved without the
+`file.ctime` fallback that grouping reads. So with a typo'd `date-field` the key
+tied for every note, the order fell through to the next declared key, and the
+days fragmented exactly as before — five notes across two days came out as five
+headers, while the notice claimed the stream was ordered by creation time when
+it was ordered by file name. Sorting on the resolved *value* makes the sort and
+the grouping agree by construction. The direction comes from the declared
 sort when its first key is the date field, and is newest-first otherwise. This
 is not a nicety: headers come from item-to-item transitions, so without it
 `group: day` with `sort: title asc` scatters the days and emits one header per

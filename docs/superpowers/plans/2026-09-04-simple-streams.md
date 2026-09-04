@@ -3253,6 +3253,49 @@ describe("runStream", () => {
     expect(result.dateFallback).toBe(true);
   });
 
+  it("keeps days contiguous even when the date field resolves for nothing", () => {
+    // The lead-sort-key version tied every note on the unresolved field, let
+    // the order fall to `file.name`, and split two days into five headers.
+    const journal = [
+      note({ path: "a.md", basename: "alpha", ctime: localDate(2026, 9, 1) }),
+      note({ path: "b.md", basename: "bravo", ctime: localDate(2026, 9, 2) }),
+      note({ path: "c.md", basename: "charlie", ctime: localDate(2026, 9, 1) }),
+      note({ path: "d.md", basename: "delta", ctime: localDate(2026, 9, 2) }),
+      note({ path: "e.md", basename: "echo", ctime: localDate(2026, 9, 1) }),
+    ];
+    const query = parseQuery("date-field: dat\ngroup: day\nsort: file.name asc");
+    const result = runStream(journal, query, NOW, "en-GB");
+    expect(result.groups.map((g) => g.header)).toEqual([
+      "2 September 2026",
+      "1 September 2026",
+    ]);
+    expect(result.groups.map((g) => g.notes.map((n) => n.basename))).toEqual([
+      ["bravo", "delta"],
+      ["alpha", "charlie", "echo"],
+    ]);
+  });
+
+  it("does not blame a sort field the limit merely cut off", () => {
+    // `rating` resolves for d.md, which the limit excludes. Judging on the
+    // shown notes called it unresolved and sent the reader hunting a typo.
+    const notes = [
+      note({ path: "a.md", frontmatter: { status: "a" } }),
+      note({ path: "b.md", frontmatter: { status: "a" } }),
+      note({ path: "c.md", frontmatter: { status: "a" } }),
+      note({ path: "d.md", frontmatter: { status: "b", rating: 9 } }),
+    ];
+    const result = runStream(notes, parseQuery("sort: [status asc, rating desc]\nlimit: 3"), NOW);
+    expect(result.shown).toBe(3);
+    expect(result.unresolvedSort).toEqual([]);
+  });
+
+  it("leaves a declared sort on the date field to the date notice", () => {
+    // Both diagnostics fired for one cause, wording it two different ways.
+    const result = runStream(NOTES, parseQuery("date-field: dat\nsort: dat desc"), NOW, "en-GB");
+    expect(result.dateFallback).toBe(true);
+    expect(result.unresolvedSort).toEqual([]);
+  });
+
   it("reports a sort field that resolved for no note", () => {
     // `file.ctim` is a typo for `file.ctime`; every note ties and the order
     // silently falls through to the path tie-break.
@@ -3299,30 +3342,45 @@ Expected: FAIL — cannot resolve `../../src/engine/run`.
 
 ```ts
 import { coerceDate } from "./dates";
-import { resolveField } from "./fields";
+import { resolveField, resolveNoteDate } from "./fields";
 import { filterNotes } from "./filter";
 import { groupNotes, type StreamGroup } from "./group";
 import { sortNotes } from "./sort";
 import type { NoteMeta } from "./note";
-import type { SortSpec, StreamQuery } from "../query/types";
+import type { StreamQuery } from "../query/types";
 
 /**
- * Grouping only reads chronologically, so when it is on the resolved date leads
- * the sort and the declared keys order notes inside each group. Without this,
- * `group: day` with `sort: title asc` scatters the days and emits one header per
- * note — five notes across three days gave five headers, two dates repeating
- * non-adjacently. The direction follows the declared sort when its first key is
- * the date field, and is newest-first otherwise.
+ * Arrange the notes the way the view reads them: the declared sort keys first,
+ * then — when grouping is on — a stable re-sort by the same date the grouping
+ * reads, so each group arrives as one contiguous run.
+ *
+ * Two passes rather than one synthetic lead sort key, and that is the point. A
+ * sort key can only name a field, and `sortNotes` resolves a named field with
+ * no fallback, while `groupNotes` reads `resolveNoteDate`, which falls back to
+ * `file.ctime`. So a lead key naming a field nothing resolves tied for every
+ * note, the order fell through to the next declared key, and the days
+ * fragmented again — five notes across two days came out as five headers,
+ * while the notice claimed creation-time order when the order was by file name.
+ * Sorting on the resolved value makes the two agree by construction.
+ *
+ * `Array.prototype.sort` is stable, so the declared order survives inside each
+ * group. The date direction follows the declared sort when its first key is the
+ * date field, and is newest-first otherwise.
  */
-function effectiveSort(query: StreamQuery): SortSpec[] {
+function arrange(notes: NoteMeta[], query: StreamQuery, locale?: string): NoteMeta[] {
+  const ordered = sortNotes(notes, query.sort, locale);
   if (query.group === "none") {
-    return query.sort;
+    return ordered;
   }
   const [first] = query.sort;
-  const direction =
-    first !== undefined && first.field === query.dateField ? first.direction : "desc";
-  const within = query.sort.filter((spec) => spec.field !== query.dateField);
-  return [{ field: query.dateField, direction }, ...within];
+  const ascending =
+    first !== undefined && first.field === query.dateField && first.direction === "asc";
+  const sign = ascending ? 1 : -1;
+  return [...ordered].sort(
+    (a, b) =>
+      sign *
+      Math.sign(resolveNoteDate(a, query.dateField) - resolveNoteDate(b, query.dateField)),
+  );
 }
 
 export interface StreamResult {
@@ -3339,10 +3397,16 @@ export interface StreamResult {
    */
   dateFallback: boolean;
   /**
-   * Sort fields that resolved for no note on screen. A missing value sorts
-   * last, so a key nothing resolves leaves every note tied and the order falls
-   * through to the `file.path` tie-break: `sort: file.ctim desc` quietly
-   * becomes alphabetical by path, which looks like a working stream.
+   * Declared sort fields that resolved for no note the query matched. A missing
+   * value sorts last, so a key nothing resolves leaves every note tied and the
+   * order falls through to the `file.path` tie-break: `sort: file.ctim desc`
+   * quietly becomes alphabetical by path, which looks like a working stream.
+   *
+   * Judged on the matched notes rather than the shown ones, because a field
+   * that resolves only below the `limit` is not a typo — reporting it sent the
+   * reader hunting a mistake they had not made. A declared sort on the
+   * `date-field` is left out entirely, since `dateFallback` already tells that
+   * story and saying it twice reads like two problems.
    */
   unresolvedSort: string[];
 }
@@ -3354,7 +3418,7 @@ export function runStream(
   locale?: string,
 ): StreamResult {
   const matched = filterNotes(notes, query, now);
-  const shown = sortNotes(matched, effectiveSort(query), locale).slice(0, query.limit);
+  const shown = arrange(matched, query, locale).slice(0, query.limit);
 
   // The date-field check is judged against the notes the query reached *before*
   // its range narrowed them. A typo'd date-field puts every note on the ctime
@@ -3375,11 +3439,12 @@ export function runStream(
       reached.length > 0 &&
       reached.every((note) => coerceDate(resolveField(note, query.dateField)) === null),
     unresolvedSort:
-      shown.length === 0
+      matched.length === 0
         ? []
         : query.sort
+            .filter((spec) => spec.field !== query.dateField)
             .filter((spec) =>
-              shown.every((note) => resolveField(note, spec.field) === undefined),
+              matched.every((note) => resolveField(note, spec.field) === undefined),
             )
             .map((spec) => spec.field),
   };
@@ -3389,7 +3454,7 @@ export function runStream(
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/engine/run.test.ts`
-Expected: PASS, 10 tests.
+Expected: PASS, 13 tests.
 
 - [ ] **Step 5: Commit**
 
