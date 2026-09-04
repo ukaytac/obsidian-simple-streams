@@ -118,4 +118,12 @@ describe("extractPreview", () => {
       "This is italic and bold and both.",
     );
   });
+
+  it("treats a dunder name the way a markdown renderer does", () => {
+    // Markdown reads `__init__` as bold, so `display: full` shows `init` too.
+    // Matching the renderer is the standard here, not preserving the source.
+    expect(extractPreview("__init__ and __main__ are hooks.", "note", 200)).toBe(
+      "init and main are hooks.",
+    );
+  });
 });

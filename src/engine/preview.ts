@@ -40,6 +40,8 @@ function stripMarkup(body: string): string {
       // unguarded rule paired the two underscores with each other and merged
       // three words into one. No delimiter may be followed by a space either,
       // so `2 * 3 * 4` stays arithmetic instead of losing its asterisks.
+      // `__init__` does still become `init`, and that is right rather than a
+      // gap: markdown reads it as bold, so `display: full` shows `init` too.
       .replace(/(^|[^\w])___([^\s_][^_]*?)___(?=[^\w]|$)/g, "$1$2")
       .replace(/(^|[^\w])__([^\s_][^_]*?)__(?=[^\w]|$)/g, "$1$2")
       .replace(/(^|[^\w])_([^\s_][^_]*?)_(?=[^\w]|$)/g, "$1$2")
