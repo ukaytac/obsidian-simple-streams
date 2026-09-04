@@ -3522,7 +3522,7 @@ export function extractPreview(content: string, basename: string, length: number
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/engine/preview.test.ts`
-Expected: PASS, 13 tests.
+Expected: PASS, 12 tests.
 
 - [ ] **Step 5: Commit**
 
