@@ -4418,6 +4418,15 @@ function renderHeader(item: HTMLElement, note: NoteMeta, ctx: ItemContext): void
   }
 }
 
+/**
+ * The host locale, deliberately, and this has to stay in step with
+ * `formatGroupHeader`'s default and with `sortNotes`'s — both take an optional
+ * locale so a test can pin one, and nothing in the view passes it, so all three
+ * follow the host and agree. Adding a `locale` to `ItemContext` with no caller
+ * to supply it would be plumbing without a source; the coupling is recorded
+ * here instead, because a stream whose headers and item dates disagreed about
+ * the reader's language is exactly the kind of split this project keeps finding.
+ */
 function formatItemDate(ms: number): string {
   return new Intl.DateTimeFormat(undefined, {
     year: "numeric",
