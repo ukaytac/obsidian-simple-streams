@@ -5493,13 +5493,41 @@ where:
 sort: rating desc
 ```
 
-## Everything from the last 30 days, grouped by month
+## Everything in September 2026, grouped by month
+
+Pinned to a fixed range rather than `from: -30d / to: today`. The fixture notes
+are dated September 2026, so a relative range would have quietly emptied this
+block once that month passed — directly above a block that is *meant* to be
+empty, leaving a later reader unable to tell which of the two was the bug.
 
 ```stream
 date-field: date
-from: -30d
-to: today
+from: 2026-09-01
+to: 2026-09-30
 group: month
+display: title
+```
+
+## Tagged `book`, whole vault
+
+Named by the tag-shape check in Task 23: a note using a singular `tag: book`
+key must show up here. The test mock reads only the plural `tags`, so a real
+vault is the only place that difference is visible.
+
+```stream
+tags: book
+display: title
+```
+
+## A sort field no note has — should say so
+
+The `unresolvedSort` notice is otherwise the one notice nobody ever reads on
+screen. `file.ctim` is a typo for `file.ctime`, and a missing sort key leaves
+every note tied, so the order silently falls through to the path tie-break.
+
+```stream
+folder: Journal
+sort: file.ctim desc
 display: title
 ```
 
@@ -5554,7 +5582,7 @@ Confirm each of these, and fix what fails before moving on:
 - [ ] Ascending and descending blocks are exact mirrors of each other.
 - [ ] Clicking a title opens that note; cmd/ctrl-click opens it in a new tab.
 - [ ] The Books block shows only `dune`. That alone proves only `where`: `draft-idea.md` has no `rating`, and an absent field fails every comparison, so `rating: ">3"` drops it with or without `exclude-tags`. To isolate the exclusion, delete the `where` clause from that block — `draft-idea` must stay absent — and then delete `exclude-tags` too, at which point it must appear.
-- [ ] The relative-range block includes the September journal notes and excludes `dune` (January).
+- [ ] The September 2026 block includes the three journal notes and excludes `dune` (January) and `draft-idea` (February).
 - [ ] The empty block shows "No notes match this stream." plus a readable query summary.
 - [ ] Add `date-field: dat` and `from: 2026-01-01` / `to: 2026-01-02` to a Journal block, and confirm the stream is empty **and** still says it fell back to file creation time. This is the case the notice exists for, and it was rendering after the empty branch's early return.
 - [ ] Set `limit: 1` on the day-grouped block and confirm it says "Showing 1 of N notes."
@@ -5566,6 +5594,13 @@ Confirm each of these, and fix what fails before moving on:
 - [ ] Creating a new note in `Journal/` with a `date` adds it to the day-grouped stream.
 - [ ] Deleting that note removes it from the stream.
 - [ ] Renaming it updates the title shown in the stream.
+- [ ] The `file.ctim` block says "No note here has `file.ctim`, so that part of the sort had no effect." It is the only notice kind that had no fixture and no check, which is how the wording bug in its sibling notice survived.
+- [ ] The `tags: book` block lists both Books notes. Then give a Journal note a singular `tag: book` and confirm it joins them.
+- [ ] Break a block's YAML, confirm the error box, then fix it and save. The box must clear and the stream must come back. Nothing else tests this, and it is the entire reason `showError` resets the signature — without that reset the box outlived its own cause until the note was closed.
+- [ ] Put `where:\n  rating: >3\n` in a block, unquoted. It must show an error naming the quoting, not an empty stream. Unquoted, YAML reads `>3` as a folded block scalar and the condition used to become "equals empty string" — an empty stream with no explanation.
+- [ ] Delete a note's file outside Obsidian while a stream still lists it, then let the stream refresh. The row must say "Could not open …" or "Could not read …" rather than vanishing or breaking the block.
+- [ ] Walk the whole list a second time in **Live Preview**, not just reading view. `scrollerEl()` looks for `.cm-scroller` *or* `.markdown-preview-view`; only Live Preview has the first, so half of that check is unreachable in reading view alone.
+- [ ] Open the vault on a phone or tablet if you can. `manifest.json` claims `isDesktopOnly: false` and nothing else tests that claim.
 - [ ] Both themes: switch between light and dark; every colour still reads correctly.
 - [ ] With a `display: full` stream of 100+ notes, scroll down several pages, then edit and save a note so the stream re-renders. `scrollTop` is restored the moment `render()` resolves, but images without dimensions, embeds and mermaid all grow the content *after* `MarkdownRenderer.render` resolves, so the content can still be shorter than the saved offset and the browser clamps the write. Confirm the view does not jump to a different place than it was.
 - [ ] Set the last-30-days block to `display: full`. It has no `folder`, so it matches `Streams.md` itself. The row for `Streams.md` must show a preview and the warning that rendering it in full would nest the stream inside itself — and Obsidian must stay responsive. Then make two notes whose streams each show the other in full: the inner one must print "This stream sits inside a note that another stream is showing" instead of running. Whether Obsidian's code block processors fire on `MarkdownRenderer.render` output is not stated in `obsidian.d.ts`, so this is the only place the recursion and its two guards can actually be observed.
@@ -5590,11 +5625,25 @@ Journal-shaped, but not journal-only: the filter decides what the stream is.
 ```stream
 folder: Journal
 tags: [book]
+date-field: date
 sort: date desc
 group: day
 display: preview
 limit: 50
 ```
+
+## Installing
+
+Simple Streams is not in the community plugin list yet. To install it:
+
+1. Download `main.js`, `manifest.json` and `styles.css` from a release, or
+   build them yourself (see [Development](#development)).
+2. Put all three in `<your vault>/.obsidian/plugins/simple-streams/`.
+3. In Obsidian, open **Settings → Community plugins**, turn off Restricted
+   Mode if it is on, then enable **Simple Streams**.
+4. Add a `stream` block to any note.
+
+Requires Obsidian 1.5.7 or newer. Works on desktop and mobile.
 
 ## Fields
 
@@ -5609,8 +5658,8 @@ limit: 50
 | `where`          | map                      | —                 | Frontmatter conditions |
 | `date-field`     | text                     | `file.ctime`      | Which field is "the date" |
 | `from`, `to`     | date                     | —                 | Inclusive date bounds |
-| `sort`           | text or list             | `file.ctime desc` | `"<field> <asc\|desc>"` |
-| `group`          | `day\|month\|year\|none` | `none`            | Date headers |
+| `sort`           | text or list             | `file.ctime desc` | `"<field> <asc\|desc>"`, direction defaults to `asc` |
+| `group`          | `day\|month\|year\|none` | `none`            | Date headers, using `date-field` |
 | `display`        | `full\|preview\|title`   | `preview`         | How much of the body to show |
 | `preview-length` | number                   | `200`             | Character budget for previews |
 | `limit`          | number                   | `50`              | Maximum items |
@@ -5618,14 +5667,40 @@ limit: 50
 Fields addressable in `sort` and `where`: any frontmatter key by name, plus
 `file.ctime`, `file.mtime`, `file.name` and `file.path`.
 
+Two things worth knowing about `date-field`, because they surprise people:
+
+- **`group` reads `date-field`, not your `sort` field.** If you sort by a
+  frontmatter `date` but leave `date-field` at its default, the headers say
+  file-creation dates and the stream is reordered to match them — your declared
+  sort survives only inside each group. Set `date-field` to the same field you
+  sort by, as the example above does.
+- **`from` and `to` also read `date-field`**, and so does the date shown beside
+  each item.
+
+## Matching rules
+
+Tags match their descendants: `tags: project` also matches a note tagged
+`project/streams`.
+
+Folder paths, tag names, `title` text and `where` equality are all
+case-insensitive. A `title` **regex** is not — write `/weekly/i` if you want it
+to be.
+
 A tag written with its hash must be quoted — `tags: ["#book"]` — because YAML
 reads a bare `#` as a comment. Writing the tag without the hash needs no quotes.
 
 `where` conditions: `field: value` (equality), `field: [a, b]` (any of),
-`field: exists` / `field: missing`, and quoted comparisons —
-`field: ">3"`, `">=3"`, `"<3"`, `"<=3"`, `"!=done"`. The quotes are required
-because `field: >3` is not valid YAML. A field with no value matches only
-`missing`.
+`field: exists` / `field: missing`, and comparisons —
+`field: ">3"`, `">=3"`, `"<3"`, `"<=3"`, `"!=done"`.
+
+**Comparisons must be quoted.** Unquoted, YAML reads `>` and `!` as its own
+syntax and your condition becomes something else entirely; Simple Streams
+rejects the result with an error rather than showing you an empty stream. A
+field with no value matches only `missing`.
+
+Equality looks inside a frontmatter list too: `where: {tags: book}` matches a
+note whose `tags` are `[Book, Read]`. Numbers compare as numbers and booleans
+as booleans.
 
 Dates accept `YYYY-MM-DD`, `today`, `yesterday`, and signed offsets like `-30d`,
 `-2w`, `-6m`, `+1y`. The sign is required — a bare `30d` is an error rather than
@@ -5637,10 +5712,14 @@ year and 29 February in a leap year.
 
 ```bash
 npm install
-npm test          # engine and parser tests
+npm test          # engine, parser and one budget test
 npm run dev       # watch build
 npm run build     # type-check and bundle
 ```
+
+`main.js` is a build artifact and is not in the repository — `npm run build`
+writes it at the root, next to the `manifest.json` and `styles.css` a user
+installs alongside it.
 
 `test-vault/` is a sample vault with a `Streams.md` page exercising every
 display mode, grouping and error case. To try the plugin there:
@@ -5651,8 +5730,16 @@ mkdir -p test-vault/.obsidian/plugins/simple-streams
 cp main.js manifest.json styles.css test-vault/.obsidian/plugins/simple-streams/
 ```
 
+Then open `test-vault` in Obsidian, enable **Simple Streams** under Settings →
+Community plugins, and open `Streams.md`. `npm run dev` writes to the repo root,
+so re-run that `cp` after each change.
+
 Design: [docs/superpowers/specs/2026-09-04-simple-streams-design.md](docs/superpowers/specs/2026-09-04-simple-streams-design.md)
 Plan: [docs/superpowers/plans/2026-09-04-simple-streams.md](docs/superpowers/plans/2026-09-04-simple-streams.md)
+
+## License
+
+MIT — see [LICENSE](LICENSE).
 ````
 
 - [ ] **Step 6: Final verification**
