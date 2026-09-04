@@ -192,8 +192,16 @@ annotating individual items would be noise. But it hides one real mistake —
 a typo in the field name itself, `date-field: dat`, leaves every note falling
 back and the whole stream ordered by file creation time with nothing to say
 so. So the view says it once, in aggregate: when a **non-default**
-`date-field` yields no parseable value for any note on screen, the stream
-notes that it fell back. One line for the whole block, not one per item.
+`date-field` yields no parseable value for any note the query reached, the
+stream notes that it fell back. One line for the whole block, not one per item.
+
+"Reached" means before the date range narrowed the result, not after, and that
+distinction is the whole point. A typo'd `date-field` sends every note onto the
+`file.ctime` fallback; a `from`/`to` range then filters on creation time and can
+exclude everything; and an empty result would suppress the very notice meant to
+explain the typo. Measured on two notes created in January with
+`date-field: dat` and a June range: judged after the range the notice is
+silent, judged before it the notice fires.
 
 A `sort` field has the same failure and gets the same treatment. Because a
 missing value sorts last, a sort key that resolves for *no* note leaves every
@@ -316,8 +324,10 @@ Every failure is visible in the block, never only in the console.
   three characters gets a guess.
 - **Invalid value** — `display: foo`, a bad date expression, a bad sort direction:
   names the field and lists the accepted values.
-- **An empty entry** — `tags: ""`, or `tags: [book, ""]`. This is an error, not
-  a value to drop. Dropping it silently would turn the first into no tag filter
+- **An empty value** — `tags: ""`, `tags: [book, ""]`, or `title: ""`. This is
+  an error, not a value to drop. An empty `title` is the quieter half of the
+  same mistake: it matches every note, so the field reads as a filter and
+  behaves as if it were absent. Dropping it silently would turn the first into no tag filter
   at all and quietly delete one constraint from the second, which is the
   unfiltered-vault outcome again. An explicitly empty list, `tags: []`, is
   still an unambiguous way to say "no constraint" and stays legal.

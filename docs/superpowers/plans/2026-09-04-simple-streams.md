@@ -1593,6 +1593,14 @@ describe("parseQuery — a missing value explains itself the same way everywhere
   it("still rejects a structured value as the wrong shape", () => {
     expect(() => parseQuery("date-field:\n  a: 1")).toThrow(/expects a single piece of text/);
   });
+
+  it("rejects an empty single value, which would filter on nothing", () => {
+    // `title: ""` matched every note, so the field looked like a filter and
+    // behaved as if it were absent.
+    expect(() => parseQuery('title: ""')).toThrow(/`title` is empty/);
+    expect(() => parseQuery('title: "   "')).toThrow(/`title` is empty/);
+    expect(() => parseQuery('date-field: ""')).toThrow(/`date-field` is empty/);
+  });
 });
 
 describe("parseQuery — date-field, from and to", () => {
@@ -1765,7 +1773,13 @@ Append at the end of the file:
 ```ts
 function toSingleString(field: string, value: unknown): string {
   if (typeof value === "string") {
-    return value.trim();
+    const text = value.trim();
+    if (text === "") {
+      // `title: ""` matches every note, so the field reads as a filter and
+      // behaves as if it were absent. The list fields already reject this.
+      throw new QueryError(`\`${field}\` is empty. Give it a value, or leave the field out.`);
+    }
+    return text;
   }
   if (typeof value === "number" || typeof value === "boolean") {
     return String(value);
@@ -1859,7 +1873,7 @@ function toPositiveInt(field: string, value: unknown): number {
 - [ ] **Step 5: Run test to verify it passes**
 
 Run: `npx vitest run tests/query/parse-scalars.test.ts tests/query/parse-lists.test.ts`
-Expected: PASS, both files — 25 tests in `parse-scalars`, 22 in `parse-lists`.
+Expected: PASS, both files — 26 tests in `parse-scalars`, 22 in `parse-lists`.
 
 - [ ] **Step 6: Commit**
 
@@ -2247,9 +2261,11 @@ describe("hasTag", () => {
     expect(hasTag(["bookmark"], "book")).toBe(false);
   });
 
-  it("normalizes its own argument", () => {
+  it("normalizes both of its arguments", () => {
     expect(hasTag(["book"], "#Book")).toBe(true);
     expect(hasTag(["project/streams"], "#Project")).toBe(true);
+    expect(hasTag(["Book"], "book")).toBe(true);
+    expect(hasTag(["#Project/Streams"], "project")).toBe(true);
   });
 });
 
@@ -2359,7 +2375,13 @@ function trimSlashes(value: string): string {
  */
 export function hasTag(tags: string[], wanted: string): boolean {
   const needle = normalizeTag(wanted);
-  return tags.some((tag) => tag === needle || tag.startsWith(`${needle}/`));
+  // Both sides again. A NoteMeta's tags arrive normalized from the adapter, but
+  // nothing enforces that, and an unnormalized tag would drop its note out of
+  // every tag query in silence — the same asymmetry inFolder had.
+  return tags.some((tag) => {
+    const held = normalizeTag(tag);
+    return held === needle || held.startsWith(`${needle}/`);
+  });
 }
 
 export function matchesTitle(note: NoteMeta, matcher: TitleMatcher | null): boolean {
@@ -2379,6 +2401,12 @@ export function matchesTitle(note: NoteMeta, matcher: TitleMatcher | null): bool
   return note.basename.toLowerCase().includes(matcher.value);
 }
 
+/**
+ * Query terms are re-normalized per note rather than hoisted, matching the
+ * choice made in matchesTitle and for the same measured reason: 5000 notes with
+ * five folders, five tags and four exclusions cost 4.19ms this way against
+ * 1.99ms hoisted — 2.5x, and 1.4% of the view's 300ms refresh debounce.
+ */
 export function filterNotes(notes: NoteMeta[], query: StreamQuery, now: Date): NoteMeta[] {
   const from = query.from === null ? null : resolveDateExpr(query.from, now, "start");
   const to = query.to === null ? null : resolveDateExpr(query.to, now, "end");
@@ -3132,6 +3160,19 @@ describe("runStream", () => {
     expect(result.dateFallback).toBe(true);
   });
 
+  it("still reports a date fallback when the range emptied the result", () => {
+    // The typo puts every note on the ctime fallback, the June range then
+    // excludes them all, and judging after the range would go quiet.
+    const january = [
+      note({ path: "a.md", ctime: localDate(2026, 1, 5) }),
+      note({ path: "b.md", ctime: localDate(2026, 1, 9) }),
+    ];
+    const query = parseQuery("date-field: dat\nfrom: 2026-06-01\nto: 2026-06-30");
+    const result = runStream(january, query, NOW, "en-GB");
+    expect(result.shown).toBe(0);
+    expect(result.dateFallback).toBe(true);
+  });
+
   it("reports a sort field that resolved for no note", () => {
     // `file.ctim` is a typo for `file.ctime`; every note ties and the order
     // silently falls through to the path tie-break.
@@ -3215,6 +3256,16 @@ export function runStream(
 ): StreamResult {
   const matched = filterNotes(notes, query, now);
   const shown = sortNotes(matched, query.sort).slice(0, query.limit);
+
+  // The date-field check is judged against the notes the query reached *before*
+  // its range narrowed them. A typo'd date-field puts every note on the ctime
+  // fallback, the range then filters on creation time and can exclude them all,
+  // and an empty result would suppress the very notice that explains the typo.
+  const reached =
+    query.from === null && query.to === null
+      ? matched
+      : filterNotes(notes, { ...query, from: null, to: null }, now);
+
   return {
     groups: groupNotes(shown, query, locale),
     matched: matched.length,
@@ -3222,8 +3273,8 @@ export function runStream(
     truncated: matched.length > shown.length,
     dateFallback:
       query.dateField !== "file.ctime" &&
-      shown.length > 0 &&
-      shown.every((note) => coerceDate(resolveField(note, query.dateField)) === null),
+      reached.length > 0 &&
+      reached.every((note) => coerceDate(resolveField(note, query.dateField)) === null),
     unresolvedSort:
       shown.length === 0
         ? []
@@ -3239,7 +3290,7 @@ export function runStream(
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/engine/run.test.ts`
-Expected: PASS, 8 tests.
+Expected: PASS, 9 tests.
 
 - [ ] **Step 5: Commit**
 
