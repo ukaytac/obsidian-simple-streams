@@ -5486,13 +5486,13 @@ Then open `test-vault` in Obsidian, enable **Simple Streams** in Settings → Co
 
 Confirm each of these, and fix what fails before moving on:
 
-- [ ] Day-grouped block shows three headers, newest first, each with a preview that trails off with an ellipsis.
+- [ ] Day-grouped block shows three headers, newest first, each with a readable preview. Only `2026-09-03` trails off with an ellipsis — measured against these fixtures at `preview-length: 120`, the three previews come out at 80, 119 (truncated) and 96 characters, because `2026-09-02`'s `# 2026-09-02` heading is dropped as matching the basename and `2026-09-04`'s fenced block collapses to a space. Three ellipses would mean the stripping is not working.
 - [ ] Group headers stay pinned while scrolling the block.
 - [ ] `display: full` renders the list, the fenced code block, and the final paragraph — no raw frontmatter anywhere.
 - [ ] `display: title` shows one row per note with no body.
 - [ ] Ascending and descending blocks are exact mirrors of each other.
 - [ ] Clicking a title opens that note; cmd/ctrl-click opens it in a new tab.
-- [ ] The Books block shows only `dune`, proving `where` and the draft exclusion both bite.
+- [ ] The Books block shows only `dune`. That alone proves only `where`: `draft-idea.md` has no `rating`, and an absent field fails every comparison, so `rating: ">3"` drops it with or without `exclude-tags`. To isolate the exclusion, delete the `where` clause from that block — `draft-idea` must stay absent — and then delete `exclude-tags` too, at which point it must appear.
 - [ ] The relative-range block includes the September journal notes and excludes `dune` (January).
 - [ ] The empty block shows "No notes match this stream." plus a readable query summary.
 - [ ] Add `date-field: dat` and `from: 2026-01-01` / `to: 2026-01-02` to a Journal block, and confirm the stream is empty **and** still says it fell back to file creation time. This is the case the notice exists for, and it was rendering after the empty branch's early return.
@@ -5568,7 +5568,8 @@ because `field: >3` is not valid YAML. A field with no value matches only
 Dates accept `YYYY-MM-DD`, `today`, `yesterday`, and signed offsets like `-30d`,
 `-2w`, `-6m`, `+1y`. The sign is required — a bare `30d` is an error rather than
 a guess at which direction you meant. Month and year offsets clamp to the end of
-the target month, so one month before 31 March is 28 February.
+the target month, so one month before 31 March is 28 February in a common
+year and 29 February in a leap year.
 
 ## Development
 

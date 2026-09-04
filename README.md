@@ -48,7 +48,8 @@ because `field: >3` is not valid YAML. A field with no value matches only
 Dates accept `YYYY-MM-DD`, `today`, `yesterday`, and signed offsets like `-30d`,
 `-2w`, `-6m`, `+1y`. The sign is required — a bare `30d` is an error rather than
 a guess at which direction you meant. Month and year offsets clamp to the end of
-the target month, so one month before 31 March is 28 February.
+the target month, so one month before 31 March is 28 February in a common
+year and 29 February in a leap year.
 
 ## Development
 
