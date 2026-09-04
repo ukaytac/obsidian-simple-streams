@@ -26,6 +26,15 @@ describe("coerceDate", () => {
     expect(coerceDate({})).toBeNull();
     expect(coerceDate(Number.NaN)).toBeNull();
   });
+
+  it("returns null for an ISO-shaped triple that is not a real date", () => {
+    // Left unchecked, JavaScript rolls these over: 2026-02-30 becomes 1 March
+    // and the note would sort and group as 1 March with nothing to explain it.
+    expect(coerceDate("2026-02-30")).toBeNull();
+    expect(coerceDate("2026-13-40")).toBeNull();
+    expect(coerceDate("2026-99-99")).toBeNull();
+    expect(dateValue("2026-13-40")).toBeNull();
+  });
 });
 
 describe("looksLikeDate / dateValue", () => {

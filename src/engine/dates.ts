@@ -24,10 +24,7 @@ export function parseDateExpr(input: string): DateExpr {
     const year = Number(iso[1]);
     const month = Number(iso[2]);
     const day = Number(iso[3]);
-    const probe = new Date(year, month - 1, day);
-    const real =
-      probe.getFullYear() === year && probe.getMonth() === month - 1 && probe.getDate() === day;
-    if (!real) {
+    if (localDateFrom(year, month, day) === null) {
       throw new Error(`"${input}" is not a real date`);
     }
     return { kind: "iso", year, month, day };
@@ -112,6 +109,20 @@ function daysInMonth(year: number, monthIndex: number): number {
   return new Date(year, monthIndex + 1, 0).getDate();
 }
 
+/**
+ * Local midnight for a Y-M-D triple, or null when the triple is not a real
+ * date. The round trip is the check: JavaScript rolls 2026-02-30 over into
+ * 1 March rather than rejecting it, so comparing the components back out is
+ * the only way to tell the difference. Both halves of this module rely on
+ * this one definition of "a real date".
+ */
+function localDateFrom(year: number, month: number, day: number): Date | null {
+  const probe = new Date(year, month - 1, day);
+  const real =
+    probe.getFullYear() === year && probe.getMonth() === month - 1 && probe.getDate() === day;
+  return real ? probe : null;
+}
+
 export type GroupMode = "day" | "month" | "year" | "none";
 
 const ISO_PREFIX = /^\d{4}-\d{2}-\d{2}/;
@@ -136,9 +147,11 @@ export function coerceDate(value: unknown): number | null {
   const dateOnly = DATE_ONLY.exec(text);
   if (dateOnly) {
     // Local midnight on purpose: new Date("2026-09-04") is UTC midnight, which
-    // lands on the previous day for anyone west of UTC.
-    const d = new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]));
-    return Number.isNaN(d.getTime()) ? null : d.getTime();
+    // lands on the previous day for anyone west of UTC. An impossible triple is
+    // unparseable rather than rolled over, so the caller falls back to
+    // file.ctime instead of silently sorting the note as 1 March.
+    const d = localDateFrom(Number(dateOnly[1]), Number(dateOnly[2]), Number(dateOnly[3]));
+    return d === null ? null : d.getTime();
   }
 
   const parsed = Date.parse(text);
