@@ -143,6 +143,28 @@ describe("extractPreview", () => {
     expect(extractPreview("2 < 3 and 4 > 5 is true", "note", 200)).toBe("2 < 3 and 4 > 5 is true");
   });
 
+  it("strips a nested quote or callout down to its words", () => {
+    // A single pass over `>` leaves a stray marker that then reads as content,
+    // and it hides the inner `[!warning]` from the callout rule that follows.
+    expect(
+      extractPreview("> [!note] Outer\n> > [!warning] Inner\n> > inner body\n> outer body", "note", 200),
+    ).toBe("Outer Inner inner body outer body");
+    expect(extractPreview("> > quoted twice", "note", 200)).toBe("quoted twice");
+  });
+
+  it("keeps a pipe that is not table syntax", () => {
+    // The inline-code strip runs first, so a shell pipe reaches the table rule
+    // as bare text; collapsing every pipe quietly rewrote the command.
+    expect(extractPreview("Use \`grep foo | wc -l\` here.", "note", 200)).toBe(
+      "Use grep foo | wc -l here.",
+    );
+    expect(extractPreview("Either a | b works.", "note", 200)).toBe("Either a | b works.");
+  });
+
+  it("still spaces out a real table", () => {
+    expect(extractPreview("| a | b |\n|---|---|\n| 1 | 2 |", "note", 200)).toBe("a b 1 2");
+  });
+
   it("treats a dunder name the way a markdown renderer does", () => {
     // Markdown reads `__init__` as bold, so `display: full` shows `init` too.
     // Matching the renderer is the standard here, not preserving the source.

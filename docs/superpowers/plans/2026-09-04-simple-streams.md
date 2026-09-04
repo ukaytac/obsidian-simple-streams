@@ -3657,6 +3657,28 @@ describe("extractPreview", () => {
     expect(extractPreview("2 < 3 and 4 > 5 is true", "note", 200)).toBe("2 < 3 and 4 > 5 is true");
   });
 
+  it("strips a nested quote or callout down to its words", () => {
+    // A single pass over `>` leaves a stray marker that then reads as content,
+    // and it hides the inner `[!warning]` from the callout rule that follows.
+    expect(
+      extractPreview("> [!note] Outer\n> > [!warning] Inner\n> > inner body\n> outer body", "note", 200),
+    ).toBe("Outer Inner inner body outer body");
+    expect(extractPreview("> > quoted twice", "note", 200)).toBe("quoted twice");
+  });
+
+  it("keeps a pipe that is not table syntax", () => {
+    // The inline-code strip runs first, so a shell pipe reaches the table rule
+    // as bare text; collapsing every pipe quietly rewrote the command.
+    expect(extractPreview("Use \`grep foo | wc -l\` here.", "note", 200)).toBe(
+      "Use grep foo | wc -l here.",
+    );
+    expect(extractPreview("Either a | b works.", "note", 200)).toBe("Either a | b works.");
+  });
+
+  it("still spaces out a real table", () => {
+    expect(extractPreview("| a | b |\n|---|---|\n| 1 | 2 |", "note", 200)).toBe("a b 1 2");
+  });
+
   it("treats a dunder name the way a markdown renderer does", () => {
     // Markdown reads `__init__` as bold, so `display: full` shows `init` too.
     // Matching the renderer is the standard here, not preserving the source.
@@ -3714,8 +3736,11 @@ function stripMarkup(body: string): string {
       .replace(/\[\[([^\]]*)\]\]/g, "$1")
       .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
       .replace(/`([^`]*)`/g, "$1")
-      // Line-leading markers: quotes, bullets, numbers, headings.
-      .replace(/^[ \t]*>[ \t]?/gm, "")
+      // Line-leading markers: quotes, bullets, numbers, headings. The quote
+      // marker repeats, because `> > [!warning] Inner` is a callout nested in
+      // a quote: a single pass leaves a stray `>` that then reads as content,
+      // and it also hides the inner `[!warning]` from the callout rule below.
+      .replace(/^[ \t]*(?:>[ \t]?)+/gm, "")
       // A callout's `[!note]` is syntax; its title is words. After the quote
       // strip, because the marker sits behind the `>`.
       .replace(/^\[!\w+\][-+]?[ \t]*/gm, "")
@@ -3723,7 +3748,13 @@ function stripMarkup(body: string): string {
       .replace(/^#{1,6}[ \t]+/gm, "")
       // A table's rule row says nothing; its pipes become spacing.
       .replace(/^[ \t]*\|?[ \t]*:?-{3,}:?[ \t]*(?:\|[ \t]*:?-{3,}:?[ \t]*)*\|?[ \t]*$/gm, " ")
-      .replace(/[ \t]*\|[ \t]*/g, "  ")
+      // Pipes collapse only on a line shaped like a table row. A pipe is also
+      // ordinary prose (`Either a | b works.`) and a shell pipe outlives the
+      // inline-code strip above, so an unscoped rule silently ate the `|` out
+      // of `grep foo | wc -l`.
+      .replace(/^[ \t]*\|(.*)\|[ \t]*$/gm, (_match, inner: string) =>
+        inner.replace(/[ \t]*\|[ \t]*/g, "  "),
+      )
       // Emphasis, longest marker first so `***x***` leaves no strays. An
       // underscore only counts at a word boundary, which is what CommonMark
       // says and what keeps `get_user_data` from becoming `getuserdata` — an
@@ -3772,7 +3803,7 @@ export function extractPreview(content: string, basename: string, length: number
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/engine/preview.test.ts`
-Expected: PASS, 22 tests.
+Expected: PASS, 25 tests.
 
 - [ ] **Step 5: Commit**
 
@@ -3806,7 +3837,7 @@ function summaryOf(source: string) {
 
 describe("describeQuery", () => {
   it("describes the default query", () => {
-    expect(summaryOf("")).toBe("whole vault · sorted by file.ctime desc · limit 50");
+    expect(summaryOf("")).toBe("whole vault");
   });
 
   it("names folders and tags", () => {
@@ -3844,9 +3875,16 @@ describe("describeQuery", () => {
     expect(summaryOf("to: 2026-01-01")).toContain("file.ctime up to 2026-01-01");
   });
 
-  it("describes grouping when it is on", () => {
-    expect(summaryOf("group: month")).toContain("grouped by month");
-    expect(summaryOf("")).not.toContain("grouped by");
+  it("omits presentation, which can never empty a stream", () => {
+    // The summary only ever appears in place of results, so a segment that
+    // cannot exclude a note is noise competing with the reason for the absence.
+    expect(summaryOf("group: month\nsort: title asc\nlimit: 5")).toBe("whole vault");
+  });
+
+  it("keeps every filter that can empty a stream", () => {
+    expect(summaryOf("folder: Journal\ntags: book\nwhere:\n  status: done")).toBe(
+      "folders journal · all tags book · status = done",
+    );
   });
 });
 ```
@@ -3864,6 +3902,12 @@ Expected: FAIL — cannot resolve `../../src/query/describe`.
 import type { DateExpr } from "../engine/dates";
 import type { StreamQuery, WhereCondition } from "./types";
 
+/**
+ * The stream's filters on one line, shown when nothing matched. Only what can
+ * empty a stream belongs here: `sort`, `group` and `limit` never exclude a
+ * note, so naming them would pad the line whose whole job is explaining the
+ * absence — on a default query they were two of its three segments.
+ */
 export function describeQuery(query: StreamQuery): string {
   const parts: string[] = [];
 
@@ -3901,14 +3945,6 @@ export function describeQuery(query: StreamQuery): string {
     parts.push(`${query.dateField} up to ${describeDate(query.to)}`);
   }
 
-  parts.push(
-    `sorted by ${query.sort.map((spec) => `${spec.field} ${spec.direction}`).join(", ")}`,
-  );
-  if (query.group !== "none") {
-    parts.push(`grouped by ${query.group}`);
-  }
-  parts.push(`limit ${query.limit}`);
-
   return parts.join(" · ");
 }
 
@@ -3944,7 +3980,7 @@ function describeDate(expr: DateExpr): string {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/query/describe.test.ts`
-Expected: PASS, 7 tests.
+Expected: PASS, 8 tests.
 
 - [ ] **Step 5: Commit**
 
@@ -3974,6 +4010,16 @@ export interface MockCachedMetadata {
   tags?: Array<{ tag: string }>;
 }
 
+/**
+ * Enough of Obsidian's `getAllTags` for the adapter's tests: frontmatter tags
+ * plus inline tags, each hash-prefixed, or `null` when a note has none.
+ *
+ * Fidelity caveat: this reads only the plural `tags` key. Obsidian's own
+ * `parseFrontMatterTags` also accepts a singular `tag`, so a note using that
+ * key looks untagged here and tagged in a real vault. Task 23's manual pass
+ * over a live vault is what covers the difference; nothing in the engine
+ * branches on which key was used.
+ */
 export function getAllTags(cache: MockCachedMetadata): string[] | null {
   const tags: string[] = [];
 
@@ -3981,7 +4027,10 @@ export function getAllTags(cache: MockCachedMetadata): string[] | null {
   if (typeof fromFrontmatter === "string") {
     tags.push(...fromFrontmatter.split(/[,\s]+/).filter((tag) => tag.length > 0));
   } else if (Array.isArray(fromFrontmatter)) {
-    tags.push(...fromFrontmatter.map(String));
+    // Strings only. `String()` coerces a nested `["book", "read"]` into the
+    // single tag `"book,read"` and `null` into `"null"`, inventing tags the
+    // real `getAllTags` would never report from the same frontmatter.
+    tags.push(...fromFrontmatter.filter((tag): tag is string => typeof tag === "string"));
   }
 
   for (const inline of cache.tags ?? []) {
@@ -4486,6 +4535,13 @@ export class StreamChild extends MarkdownRenderChild {
 
   private rows: Row[] = [];
   private rendered = 0;
+  /**
+   * Bumped by every `render()`. `renderUpTo` awaits `renderItem` per row, so a
+   * refresh landing mid-loop leaves the older loop suspended over state the
+   * newer pass now owns; the older loop compares this against the generation it
+   * captured and stops instead of writing to it.
+   */
+  private generation = 0;
   private pages = 1;
   private signature = "";
 
@@ -4563,6 +4619,7 @@ export class StreamChild extends MarkdownRenderChild {
   }
 
   private async render(): Promise<void> {
+    const generation = ++this.generation;
     this.observer?.disconnect();
     this.observer = null;
     // Unload the previous pass's item children before their DOM goes away.
@@ -4609,19 +4666,31 @@ export class StreamChild extends MarkdownRenderChild {
     this.addChild(this.items);
     this.listEl = root.createDiv({ cls: "ss-list" });
     this.sentinelEl = root.createDiv({ cls: "ss-sentinel" });
-    await this.renderUpTo(this.pages);
+    await this.renderUpTo(this.pages, generation);
     this.watchSentinel();
   }
 
-  private async renderUpTo(pages: number): Promise<void> {
+  private async renderUpTo(pages: number, generation: number): Promise<void> {
     const list = this.listEl;
     const query = this.query;
-    if (list === null || query === null) {
+    // Captured, not read per row: a pass that loses the race must parent its
+    // last in-flight item to its own component, which is already unloaded,
+    // rather than hang a stale note's render child on the live one.
+    const parent = this.items;
+    if (list === null || query === null || parent === null) {
       return;
     }
 
     const target = Math.min(pages * PAGE_SIZE, this.rows.length);
     while (this.rendered < target) {
+      // A refresh can start a new pass while this one waits on renderItem.
+      // `rendered`, `rows` and `listEl` all belong to whichever pass is
+      // current, so an unguarded stale loop appends to detached DOM and walks
+      // `rendered` past what the new pass actually drew — which surfaces as
+      // gaps or wrong items the moment the new pass resumes.
+      if (generation !== this.generation) {
+        return;
+      }
       const row = this.rows[this.rendered];
       if (row.header !== null) {
         list.createDiv({ cls: "ss-group", text: row.header });
@@ -4629,9 +4698,12 @@ export class StreamChild extends MarkdownRenderChild {
       await renderItem(list, row.note, {
         app: this.app,
         query,
-        parent: this.items ?? this,
+        parent,
         sourcePath: this.sourcePath,
       });
+      if (generation !== this.generation) {
+        return;
+      }
       this.rendered += 1;
     }
 
@@ -4654,9 +4726,16 @@ export class StreamChild extends MarkdownRenderChild {
           return;
         }
         this.pages += 1;
-        void this.renderUpTo(this.pages);
+        void this.renderUpTo(this.pages, this.generation);
       },
-      { rootMargin: "200px" },
+      // `root` has to be the scroller, not the implicit viewport. An observer
+      // clips the target against every overflow-clipping ancestor using those
+      // ancestors' own unexpanded bounds, and expands only the final root rect
+      // by `rootMargin`. Left implicit, `.cm-scroller` clips the sentinel
+      // first and the 200px preload buffer does nothing — the next page starts
+      // loading exactly when the sentinel is already on screen. A null scroller
+      // falls back to the viewport, which is what an unscrolled pane wants.
+      { root: this.scrollerEl(), rootMargin: "200px" },
     );
     this.observer.observe(sentinel);
   }

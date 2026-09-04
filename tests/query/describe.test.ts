@@ -8,7 +8,7 @@ function summaryOf(source: string) {
 
 describe("describeQuery", () => {
   it("describes the default query", () => {
-    expect(summaryOf("")).toBe("whole vault · sorted by file.ctime desc · limit 50");
+    expect(summaryOf("")).toBe("whole vault");
   });
 
   it("names folders and tags", () => {
@@ -46,8 +46,15 @@ describe("describeQuery", () => {
     expect(summaryOf("to: 2026-01-01")).toContain("file.ctime up to 2026-01-01");
   });
 
-  it("describes grouping when it is on", () => {
-    expect(summaryOf("group: month")).toContain("grouped by month");
-    expect(summaryOf("")).not.toContain("grouped by");
+  it("omits presentation, which can never empty a stream", () => {
+    // The summary only ever appears in place of results, so a segment that
+    // cannot exclude a note is noise competing with the reason for the absence.
+    expect(summaryOf("group: month\nsort: title asc\nlimit: 5")).toBe("whole vault");
+  });
+
+  it("keeps every filter that can empty a stream", () => {
+    expect(summaryOf("folder: Journal\ntags: book\nwhere:\n  status: done")).toBe(
+      "folders journal · all tags book · status = done",
+    );
   });
 });

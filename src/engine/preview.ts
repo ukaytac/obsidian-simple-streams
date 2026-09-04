@@ -35,8 +35,11 @@ function stripMarkup(body: string): string {
       .replace(/\[\[([^\]]*)\]\]/g, "$1")
       .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
       .replace(/`([^`]*)`/g, "$1")
-      // Line-leading markers: quotes, bullets, numbers, headings.
-      .replace(/^[ \t]*>[ \t]?/gm, "")
+      // Line-leading markers: quotes, bullets, numbers, headings. The quote
+      // marker repeats, because `> > [!warning] Inner` is a callout nested in
+      // a quote: a single pass leaves a stray `>` that then reads as content,
+      // and it also hides the inner `[!warning]` from the callout rule below.
+      .replace(/^[ \t]*(?:>[ \t]?)+/gm, "")
       // A callout's `[!note]` is syntax; its title is words. After the quote
       // strip, because the marker sits behind the `>`.
       .replace(/^\[!\w+\][-+]?[ \t]*/gm, "")
@@ -44,7 +47,13 @@ function stripMarkup(body: string): string {
       .replace(/^#{1,6}[ \t]+/gm, "")
       // A table's rule row says nothing; its pipes become spacing.
       .replace(/^[ \t]*\|?[ \t]*:?-{3,}:?[ \t]*(?:\|[ \t]*:?-{3,}:?[ \t]*)*\|?[ \t]*$/gm, " ")
-      .replace(/[ \t]*\|[ \t]*/g, "  ")
+      // Pipes collapse only on a line shaped like a table row. A pipe is also
+      // ordinary prose (`Either a | b works.`) and a shell pipe outlives the
+      // inline-code strip above, so an unscoped rule silently ate the `|` out
+      // of `grep foo | wc -l`.
+      .replace(/^[ \t]*\|(.*)\|[ \t]*$/gm, (_match, inner: string) =>
+        inner.replace(/[ \t]*\|[ \t]*/g, "  "),
+      )
       // Emphasis, longest marker first so `***x***` leaves no strays. An
       // underscore only counts at a word boundary, which is what CommonMark
       // says and what keeps `get_user_data` from becoming `getuserdata` — an

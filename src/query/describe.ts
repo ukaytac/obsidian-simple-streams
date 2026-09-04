@@ -1,6 +1,12 @@
 import type { DateExpr } from "../engine/dates";
 import type { StreamQuery, WhereCondition } from "./types";
 
+/**
+ * The stream's filters on one line, shown when nothing matched. Only what can
+ * empty a stream belongs here: `sort`, `group` and `limit` never exclude a
+ * note, so naming them would pad the line whose whole job is explaining the
+ * absence — on a default query they were two of its three segments.
+ */
 export function describeQuery(query: StreamQuery): string {
   const parts: string[] = [];
 
@@ -37,14 +43,6 @@ export function describeQuery(query: StreamQuery): string {
   } else if (query.to !== null) {
     parts.push(`${query.dateField} up to ${describeDate(query.to)}`);
   }
-
-  parts.push(
-    `sorted by ${query.sort.map((spec) => `${spec.field} ${spec.direction}`).join(", ")}`,
-  );
-  if (query.group !== "none") {
-    parts.push(`grouped by ${query.group}`);
-  }
-  parts.push(`limit ${query.limit}`);
 
   return parts.join(" · ");
 }

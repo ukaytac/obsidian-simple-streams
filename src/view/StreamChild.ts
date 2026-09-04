@@ -24,6 +24,13 @@ export class StreamChild extends MarkdownRenderChild {
 
   private rows: Row[] = [];
   private rendered = 0;
+  /**
+   * Bumped by every `render()`. `renderUpTo` awaits `renderItem` per row, so a
+   * refresh landing mid-loop leaves the older loop suspended over state the
+   * newer pass now owns; the older loop compares this against the generation it
+   * captured and stops instead of writing to it.
+   */
+  private generation = 0;
   private pages = 1;
   private signature = "";
 
@@ -101,6 +108,7 @@ export class StreamChild extends MarkdownRenderChild {
   }
 
   private async render(): Promise<void> {
+    const generation = ++this.generation;
     this.observer?.disconnect();
     this.observer = null;
     // Unload the previous pass's item children before their DOM goes away.
@@ -147,19 +155,31 @@ export class StreamChild extends MarkdownRenderChild {
     this.addChild(this.items);
     this.listEl = root.createDiv({ cls: "ss-list" });
     this.sentinelEl = root.createDiv({ cls: "ss-sentinel" });
-    await this.renderUpTo(this.pages);
+    await this.renderUpTo(this.pages, generation);
     this.watchSentinel();
   }
 
-  private async renderUpTo(pages: number): Promise<void> {
+  private async renderUpTo(pages: number, generation: number): Promise<void> {
     const list = this.listEl;
     const query = this.query;
-    if (list === null || query === null) {
+    // Captured, not read per row: a pass that loses the race must parent its
+    // last in-flight item to its own component, which is already unloaded,
+    // rather than hang a stale note's render child on the live one.
+    const parent = this.items;
+    if (list === null || query === null || parent === null) {
       return;
     }
 
     const target = Math.min(pages * PAGE_SIZE, this.rows.length);
     while (this.rendered < target) {
+      // A refresh can start a new pass while this one waits on renderItem.
+      // `rendered`, `rows` and `listEl` all belong to whichever pass is
+      // current, so an unguarded stale loop appends to detached DOM and walks
+      // `rendered` past what the new pass actually drew — which surfaces as
+      // gaps or wrong items the moment the new pass resumes.
+      if (generation !== this.generation) {
+        return;
+      }
       const row = this.rows[this.rendered];
       if (row.header !== null) {
         list.createDiv({ cls: "ss-group", text: row.header });
@@ -167,9 +187,12 @@ export class StreamChild extends MarkdownRenderChild {
       await renderItem(list, row.note, {
         app: this.app,
         query,
-        parent: this.items ?? this,
+        parent,
         sourcePath: this.sourcePath,
       });
+      if (generation !== this.generation) {
+        return;
+      }
       this.rendered += 1;
     }
 
@@ -192,9 +215,16 @@ export class StreamChild extends MarkdownRenderChild {
           return;
         }
         this.pages += 1;
-        void this.renderUpTo(this.pages);
+        void this.renderUpTo(this.pages, this.generation);
       },
-      { rootMargin: "200px" },
+      // `root` has to be the scroller, not the implicit viewport. An observer
+      // clips the target against every overflow-clipping ancestor using those
+      // ancestors' own unexpanded bounds, and expands only the final root rect
+      // by `rootMargin`. Left implicit, `.cm-scroller` clips the sentinel
+      // first and the 200px preload buffer does nothing — the next page starts
+      // loading exactly when the sentinel is already on screen. A null scroller
+      // falls back to the viewport, which is what an unscrolled pane wants.
+      { root: this.scrollerEl(), rootMargin: "200px" },
     );
     this.observer.observe(sentinel);
   }
