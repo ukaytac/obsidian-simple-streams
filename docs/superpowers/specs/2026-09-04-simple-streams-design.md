@@ -177,6 +177,13 @@ back and the whole stream ordered by file creation time with nothing to say
 so. So the view says it once, in aggregate: when a **non-default**
 `date-field` yields no parseable value for any note on screen, the stream
 notes that it fell back. One line for the whole block, not one per item.
+
+A `sort` field has the same failure and gets the same treatment. Because a
+missing value sorts last, a sort key that resolves for *no* note leaves every
+note tied and the order falls through to the `file.path` tie-break — so
+`sort: file.ctim desc` silently becomes alphabetical-by-path, looking like a
+working stream in the wrong order. Any sort field that resolved for nothing on
+screen is named in the same notice.
 An ISO-shaped triple that is not a real date — `2026-02-30`, `2026-13-40` —
 counts as unparseable and falls back too, **with or without a time of day**.
 It must not be accepted, because JavaScript rolls such a triple over into a

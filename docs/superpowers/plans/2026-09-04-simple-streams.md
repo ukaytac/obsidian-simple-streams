@@ -689,7 +689,9 @@ Expected: FAIL — `coerceDate` is not exported.
 - [ ] **Step 3: Append the implementation to `src/engine/dates.ts`**
 
 ```ts
-export type GroupMode = "day" | "month" | "year" | "none";
+/** The list and the type are one thing, so neither can drift from the other. */
+export const GROUP_MODES = ["day", "month", "year", "none"] as const;
+export type GroupMode = (typeof GROUP_MODES)[number];
 
 const ISO_PREFIX = /^\d{4}-\d{2}-\d{2}/;
 const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -1122,7 +1124,10 @@ import type { DateExpr, GroupMode } from "../engine/dates";
 
 export type { GroupMode };
 
-export type DisplayMode = "full" | "preview" | "title";
+/** As with GROUP_MODES: one list, and the type derived from it. */
+export const DISPLAY_MODES = ["full", "preview", "title"] as const;
+export type DisplayMode = (typeof DISPLAY_MODES)[number];
+
 export type SortDirection = "asc" | "desc";
 export type CompareOp = ">" | ">=" | "<" | "<=" | "!=";
 
@@ -1512,7 +1517,9 @@ git commit -m "feat: parse folder and tag fields of a stream query"
 
 ```ts
 import { describe, expect, it } from "vitest";
+import { GROUP_MODES } from "../../src/engine/dates";
 import { parseQuery } from "../../src/query/parse";
+import { DISPLAY_MODES } from "../../src/query/types";
 
 describe("parseQuery — title", () => {
   it("treats plain text as a lower-cased substring match", () => {
@@ -1628,6 +1635,16 @@ describe("parseQuery — group, display and numbers", () => {
     expect(() => parseQuery("group: week")).toThrow(/`group`.*day, month, year, none/s);
   });
 
+  it("accepts exactly the modes the shared lists declare", () => {
+    // The lists are the source of the types, so this cannot fall out of step.
+    for (const mode of GROUP_MODES) {
+      expect(parseQuery(`group: ${mode}`).group, mode).toBe(mode);
+    }
+    for (const mode of DISPLAY_MODES) {
+      expect(parseQuery(`display: ${mode}`).display, mode).toBe(mode);
+    }
+  });
+
   it("parses the display modes", () => {
     expect(parseQuery("display: full").display).toBe("full");
     expect(parseQuery("display: title").display).toBe("title");
@@ -1678,10 +1695,10 @@ Insert these cases immediately before `default:`:
       query.sort = parseSort(value);
       return;
     case "group":
-      query.group = parseChoice(key, value, ["day", "month", "year", "none"]) as GroupMode;
+      query.group = parseChoice(key, value, GROUP_MODES);
       return;
     case "display":
-      query.display = parseChoice(key, value, ["full", "preview", "title"]) as DisplayMode;
+      query.display = parseChoice(key, value, DISPLAY_MODES);
       return;
     case "preview-length":
       query.previewLength = toPositiveInt(key, value);
@@ -1700,19 +1717,23 @@ the import block reads:
 
 ```ts
 import { parse as parseYamlText, YAMLParseError } from "yaml";
-import { parseDateExpr, type DateExpr, type GroupMode } from "../engine/dates";
+import { GROUP_MODES, parseDateExpr, type DateExpr } from "../engine/dates";
 import { normalizeTag } from "../engine/note";
 import { nearestField } from "./suggest";
 import {
+  DISPLAY_MODES,
   QueryError,
   QUERY_FIELDS,
   defaultQuery,
-  type DisplayMode,
   type SortSpec,
   type StreamQuery,
   type TitleMatcher,
 } from "./types";
 ```
+
+`GroupMode` and `DisplayMode` are no longer imported: `parseChoice` is generic
+over the choice list, so the types come from `GROUP_MODES` and `DISPLAY_MODES`
+themselves rather than from a cast.
 
 Append at the end of the file:
 
@@ -1787,12 +1808,18 @@ function parseSort(value: unknown): SortSpec[] {
   });
 }
 
-function parseChoice(field: string, value: unknown, choices: readonly string[]): string {
+/**
+ * Generic on the choice list, so the returned type comes from the list itself.
+ * A cast here would let the list and the union type drift: adding a mode to one
+ * and not the other compiled clean and lied at runtime.
+ */
+function parseChoice<T extends string>(field: string, value: unknown, choices: readonly T[]): T {
   const text = toSingleString(field, value).toLowerCase();
-  if (!choices.includes(text)) {
+  const match = choices.find((choice) => choice === text);
+  if (match === undefined) {
     throw new QueryError(`\`${field}\` must be one of: ${choices.join(", ")}`);
   }
-  return text;
+  return match;
 }
 
 function toPositiveInt(field: string, value: unknown): number {
@@ -1807,7 +1834,7 @@ function toPositiveInt(field: string, value: unknown): number {
 - [ ] **Step 5: Run test to verify it passes**
 
 Run: `npx vitest run tests/query/parse-scalars.test.ts tests/query/parse-lists.test.ts`
-Expected: PASS, both files — 24 tests in `parse-scalars`, 22 in `parse-lists`.
+Expected: PASS, both files — 25 tests in `parse-scalars`, 22 in `parse-lists`.
 
 - [ ] **Step 6: Commit**
 
@@ -2983,6 +3010,28 @@ describe("runStream", () => {
     expect(result.dateFallback).toBe(true);
   });
 
+  it("reports a sort field that resolved for no note", () => {
+    // `file.ctim` is a typo for `file.ctime`; every note ties and the order
+    // silently falls through to the path tie-break.
+    const result = runStream(NOTES, parseQuery("sort: file.ctim desc"), NOW, "en-GB");
+    expect(result.unresolvedSort).toEqual(["file.ctim"]);
+  });
+
+  it("reports no unresolved sort when the field resolves for some note", () => {
+    const mixed = [
+      note({ path: "a.md", frontmatter: { rating: 5 } }),
+      note({ path: "b.md" }),
+    ];
+    expect(runStream(mixed, parseQuery("sort: rating desc"), NOW, "en-GB").unresolvedSort).toEqual(
+      [],
+    );
+    expect(runStream(NOTES, parseQuery(""), NOW, "en-GB").unresolvedSort).toEqual([]);
+    expect(
+      runStream(NOTES, parseQuery("tags: nonexistent\nsort: file.ctim"), NOW, "en-GB")
+        .unresolvedSort,
+    ).toEqual([]);
+  });
+
   it("reports no date fallback when the field resolves, or when it is the default", () => {
     const dated = [note({ path: "a.md", frontmatter: { date: "2026-09-04" } })];
     expect(runStream(dated, parseQuery("date-field: date"), NOW, "en-GB").dateFallback).toBe(false);
@@ -3027,6 +3076,13 @@ export interface StreamResult {
    * order the whole stream by file creation time with nothing to say so.
    */
   dateFallback: boolean;
+  /**
+   * Sort fields that resolved for no note on screen. A missing value sorts
+   * last, so a key nothing resolves leaves every note tied and the order falls
+   * through to the `file.path` tie-break: `sort: file.ctim desc` quietly
+   * becomes alphabetical by path, which looks like a working stream.
+   */
+  unresolvedSort: string[];
 }
 
 export function runStream(
@@ -3046,6 +3102,14 @@ export function runStream(
       query.dateField !== "file.ctime" &&
       shown.length > 0 &&
       shown.every((note) => coerceDate(resolveField(note, query.dateField)) === null),
+    unresolvedSort:
+      shown.length === 0
+        ? []
+        : query.sort
+            .filter((spec) =>
+              shown.every((note) => resolveField(note, spec.field) === undefined),
+            )
+            .map((spec) => spec.field),
   };
 }
 ```
@@ -3053,7 +3117,7 @@ export function runStream(
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/engine/run.test.ts`
-Expected: PASS, 6 tests.
+Expected: PASS, 8 tests.
 
 - [ ] **Step 5: Commit**
 
@@ -3674,6 +3738,15 @@ Every colour comes from an Obsidian theme variable, so the stream follows the us
   font-size: var(--font-ui-small);
 }
 
+.ss-notice {
+  padding: var(--size-2-2) var(--size-4-2);
+  border-left: 2px solid var(--text-accent);
+  border-radius: var(--radius-s);
+  background: var(--background-modifier-hover);
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+
 .ss-empty-summary {
   color: var(--text-faint);
   font-family: var(--font-monospace);
@@ -3971,6 +4044,7 @@ export class StreamChild extends MarkdownRenderChild {
       return;
     }
 
+    renderNotices(root, this.query, result);
     this.listEl = root.createDiv({ cls: "ss-list" });
     this.sentinelEl = root.createDiv({ cls: "ss-sentinel" });
     await this.renderUpTo(this.pages);
@@ -4027,6 +4101,26 @@ export class StreamChild extends MarkdownRenderChild {
 
   private scrollerEl(): HTMLElement | null {
     return this.containerEl.closest<HTMLElement>(".markdown-preview-view, .cm-scroller");
+  }
+}
+
+/**
+ * Say once, for the whole block, when a field the query declared reached no
+ * note. Both cases otherwise look like a working stream in the wrong order.
+ */
+function renderNotices(root: HTMLElement, query: StreamQuery, result: StreamResult): void {
+  if (result.dateFallback) {
+    root.createDiv({
+      cls: "ss-notice",
+      text: `No note here has a usable \`${query.dateField}\`, so this stream is ordered and grouped by file creation time.`,
+    });
+  }
+  if (result.unresolvedSort.length > 0) {
+    const fields = result.unresolvedSort.map((field) => `\`${field}\``).join(" or ");
+    root.createDiv({
+      cls: "ss-notice",
+      text: `No note here has ${fields}, so that part of the sort had no effect.`,
+    });
   }
 }
 
