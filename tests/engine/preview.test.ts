@@ -17,6 +17,10 @@ describe("stripFrontmatter", () => {
   it("does not remove a horizontal rule further down", () => {
     expect(stripFrontmatter("Body\n\n---\n\nMore")).toBe("Body\n\n---\n\nMore");
   });
+
+  it("removes an empty frontmatter block", () => {
+    expect(stripFrontmatter("---\n---\nBody")).toBe("Body");
+  });
 });
 
 describe("extractPreview", () => {
@@ -55,5 +59,42 @@ describe("extractPreview", () => {
 
   it("returns an empty string for an empty note", () => {
     expect(extractPreview("---\ndate: x\n---\n", "note", 200)).toBe("");
+  });
+
+  it("reads a real note as a sentence rather than as source", () => {
+    const content = [
+      "Read **two chapters** of [[Dune]] on the tram, see [notes](https://x.com).",
+      "",
+      "- bullet one",
+      "- bullet two",
+      "",
+      "> a blockquote line",
+      "",
+      "```js",
+      "const x = 1;",
+      "```",
+      "",
+      "| a | b |",
+      "|---|---|",
+      "| 1 | 2 |",
+      "",
+      "![[cover.png]]",
+      "",
+      "Final *paragraph* with `inline code` and ~~struck~~ text.",
+    ].join("\n");
+    expect(extractPreview(content, "note", 400)).toBe(
+      "Read two chapters of Dune on the tram, see notes. bullet one bullet two " +
+        "a blockquote line a b 1 2 Final paragraph with inline code and struck text.",
+    );
+  });
+
+  it("keeps a wiki link's alias rather than its target", () => {
+    expect(extractPreview("See [[2026-09-04|yesterday]] for context.", "note", 200)).toBe(
+      "See yesterday for context.",
+    );
+  });
+
+  it("drops an embed entirely", () => {
+    expect(extractPreview("![[cover.png]] Text after.", "note", 200)).toBe("Text after.");
   });
 });
