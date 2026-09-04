@@ -109,6 +109,11 @@ Each key is a field reference; the value is one of:
 If the note's own value is an array, the condition matches when **any** element
 matches.
 
+A field that is absent (or null) matches only `missing`. It fails equality,
+any-of and every comparison, including `!=` — a field with no value is not a
+value, so `status: "!=done"` does not pull in notes that have no `status` at
+all.
+
 Comparison operators must be quoted, because `rating: >3` is not valid YAML.
 This is the accepted cost of a plain-YAML schema; the alternative
 (`rating: {gt: 3}`) is cleaner to parse but noisier to write.
