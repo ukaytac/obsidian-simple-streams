@@ -109,9 +109,11 @@ describe("filterNotes — date range", () => {
     note({ path: "d.md", ctime: localDate(2026, 6, 1) }),
   ];
 
-  it("filters on the named date field", () => {
+  it("filters on the named date field, fallback included", () => {
+    // d.md has no `date`, so it is judged on its ctime — 1 June, which is
+    // inside this range. The fallback takes part in the range like any value.
     const query = parseQuery("date-field: date\nfrom: 2026-02-01\nto: 2026-10-01");
-    expect(filterNotes(notes, query, NOW).map((n) => n.path)).toEqual(["b.md"]);
+    expect(filterNotes(notes, query, NOW).map((n) => n.path)).toEqual(["b.md", "d.md"]);
   });
 
   it("includes both bounds as whole days", () => {
