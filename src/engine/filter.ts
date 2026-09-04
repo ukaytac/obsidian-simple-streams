@@ -1,8 +1,8 @@
-import { resolveDateExpr } from "./dates";
-import { resolveNoteDate } from "./fields";
+import { dateValue, resolveDateExpr } from "./dates";
+import { resolveField, resolveNoteDate } from "./fields";
 import { normalizeTag } from "./note";
 import type { NoteMeta } from "./note";
-import type { StreamQuery, TitleMatcher } from "../query/types";
+import type { CompareOp, StreamQuery, TitleMatcher, WhereClause } from "../query/types";
 
 /**
  * Path prefix match that breaks on a slash, so "journal" never matches
@@ -60,12 +60,13 @@ export function matchesTitle(note: NoteMeta, matcher: TitleMatcher | null): bool
 
 /**
  * Query terms are re-normalized per note rather than hoisted, matching the
- * choice made in matchesTitle and for the same measured reason. Benchmarked
- * head to head on 5000 notes with five folders, five any-tags and four
- * exclusions, 200 iterations per trial: 5.1-5.4ms this way against 1.56-1.62ms
- * with every term and every note's tags normalized once up front. That is 3.3x,
- * and 1.7% of the view's 300ms refresh debounce. Worth revisiting only if a
- * measurement puts it near that budget.
+ * choice made in matchesTitle and for the same measured reason. On 5000 notes
+ * with five folders, five any-tags and four exclusions, 200 iterations per
+ * trial, this costs 5.1-5.4ms — about 1.7% of the view's 300ms refresh
+ * debounce. Hoisting every term and every note's tags is roughly three times
+ * faster; two independent runs put the ratio at 2.8x and 3.3x, the spread
+ * coming from how much one hoists. The cost, not the ratio, is what decides it:
+ * revisit only if a measurement puts it near that budget.
  */
 export function filterNotes(notes: NoteMeta[], query: StreamQuery, now: Date): NoteMeta[] {
   const from = query.from === null ? null : resolveDateExpr(query.from, now, "start");
@@ -90,6 +91,9 @@ export function filterNotes(notes: NoteMeta[], query: StreamQuery, now: Date): N
     if (!matchesTitle(note, query.title)) {
       return false;
     }
+    if (!query.where.every((clause) => matchesClause(note, clause))) {
+      return false;
+    }
     if (from !== null || to !== null) {
       const date = resolveNoteDate(note, query.dateField);
       if (from !== null && date < from) {
@@ -101,4 +105,88 @@ export function filterNotes(notes: NoteMeta[], query: StreamQuery, now: Date): N
     }
     return true;
   });
+}
+
+export function matchesClause(note: NoteMeta, clause: WhereClause): boolean {
+  const raw = resolveField(note, clause.field);
+  const condition = clause.condition;
+
+  if (condition.kind === "exists") {
+    return raw !== undefined && raw !== null;
+  }
+  if (condition.kind === "missing") {
+    return raw === undefined || raw === null;
+  }
+  // An absent field is not a value: it fails equality, any-of and every
+  // comparison, including "!=".
+  if (raw === undefined || raw === null) {
+    return false;
+  }
+
+  const values = Array.isArray(raw) ? raw : [raw];
+  switch (condition.kind) {
+    case "equals":
+      return values.some((value) => scalarEquals(value, condition.value));
+    case "anyOf":
+      return values.some((value) =>
+        condition.values.some((wanted) => scalarEquals(value, wanted)),
+      );
+    case "compare":
+      return values.some((value) => compareValue(value, condition.op, condition.operand));
+  }
+}
+
+function scalarEquals(left: unknown, right: string | number | boolean): boolean {
+  if (typeof right === "number") {
+    const asNumber = toNumber(left);
+    return asNumber !== null && asNumber === right;
+  }
+  if (typeof right === "boolean") {
+    return typeof left === "boolean" ? left === right : String(left).toLowerCase() === String(right);
+  }
+  return String(left).trim().toLowerCase() === String(right).trim().toLowerCase();
+}
+
+function compareValue(left: unknown, op: CompareOp, operand: string): boolean {
+  const order = compareOrder(left, operand);
+  switch (op) {
+    case ">":
+      return order > 0;
+    case ">=":
+      return order >= 0;
+    case "<":
+      return order < 0;
+    case "<=":
+      return order <= 0;
+    case "!=":
+      return order !== 0;
+  }
+}
+
+/** Negative, zero or positive, comparing as numbers, then dates, then text. */
+function compareOrder(left: unknown, operand: string): number {
+  const leftNumber = toNumber(left);
+  const rightNumber = toNumber(operand);
+  if (leftNumber !== null && rightNumber !== null) {
+    return Math.sign(leftNumber - rightNumber);
+  }
+
+  const leftDate = dateValue(left);
+  const rightDate = dateValue(operand);
+  if (leftDate !== null && rightDate !== null) {
+    return Math.sign(leftDate - rightDate);
+  }
+
+  return String(left).trim().toLowerCase().localeCompare(String(operand).trim().toLowerCase());
+}
+
+function toNumber(value: unknown): number | null {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value !== "string" || value.trim() === "") {
+    return null;
+  }
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
 }
