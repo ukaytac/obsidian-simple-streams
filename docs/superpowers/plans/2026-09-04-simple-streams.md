@@ -3015,7 +3015,9 @@ git commit -m "feat: sort notes with missing values last and stable ties"
 - Create: `src/engine/group.ts`
 - Create: `tests/engine/group.test.ts`
 
-Groups come from item-to-item transitions, not from bucketing. That is deliberate: sorting by something other than the date field then produces a repeated header, which is faithful to the order on screen.
+Groups come from item-to-item transitions, not from bucketing: a run of consecutive notes sharing a key becomes one group, and a key that reappears later starts a new one. So this function describes the order it is handed rather than reorganising it.
+
+That means it can emit a repeated header, and the test below pins that behaviour. It is a property of this function, not something a reader will see: `runStream` puts the resolved date at the head of the sort whenever grouping is on, precisely so the input arrives date-ordered and the runs are contiguous. Keeping `groupNotes` honest about its input is what lets that guarantee live in one place instead of two.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -3078,6 +3080,8 @@ describe("groupNotes", () => {
   });
 
   it("repeats a header when the order revisits a day", () => {
+    // A property of this function, not something a reader sees: runStream
+    // sorts by the resolved date when grouping is on, so runs stay contiguous.
     const notes = [
       note({ path: "a.md", ctime: localDate(2026, 9, 4) }),
       note({ path: "b.md", ctime: localDate(2026, 9, 3) }),
