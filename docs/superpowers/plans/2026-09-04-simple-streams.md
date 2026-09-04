@@ -1321,7 +1321,7 @@ describe("parseQuery — a bare hash is a YAML comment", () => {
   });
 
   it("names the field at fault, not always tags", () => {
-    expect(() => parseQuery("folder: #Archive")).toThrow(/as in folder: \["#book"\]/);
+    expect(() => parseQuery("folder: #Archive")).toThrow(/as in folder: "#book"/);
   });
 });
 
@@ -1382,7 +1382,10 @@ export function parseQuery(source: string): StreamQuery {
  * sends them to the wrong line.
  */
 function hashHint(field = "tags"): string {
-  return `If you wrote a bare \`#tag\`, YAML read it as a comment — quote it, as in ${field}: ["#book"].`;
+  // The example has no brackets on purpose: a quoted scalar is valid for a
+  // list field and a single-value field alike, whereas `date-field: ["#book"]`
+  // would send the reader straight into a second error.
+  return `If you wrote a bare \`#tag\`, YAML read it as a comment — quote it, as in ${field}: "#book".`;
 }
 
 /** Rephrase the library's own messages where they address a programmer, not a note-writer. */
@@ -1545,6 +1548,14 @@ describe("parseQuery — a missing value explains itself the same way everywhere
     expect(() => parseQuery("date-field: #x")).toThrow(/`date-field` has no value.*quote it/s);
     expect(() => parseQuery("title:")).toThrow(/`title` has no value/);
     expect(() => parseQuery("group: #x")).toThrow(/`group` has no value/);
+  });
+
+  it("suggests a form the field actually accepts", () => {
+    // Bracketed advice on a single-value field would land the reader in a
+    // second error: `date-field: ["#book"]` is the wrong shape.
+    expect(() => parseQuery("date-field: #x")).toThrow(/as in date-field: "#book"/);
+    expect(() => parseQuery('date-field: ["#book"]')).toThrow(/expects a single piece of text/);
+    expect(parseQuery('date-field: "#book"').dateField).toBe("#book");
   });
 
   it("still rejects a structured value as the wrong shape", () => {
@@ -1796,7 +1807,7 @@ function toPositiveInt(field: string, value: unknown): number {
 - [ ] **Step 5: Run test to verify it passes**
 
 Run: `npx vitest run tests/query/parse-scalars.test.ts tests/query/parse-lists.test.ts`
-Expected: PASS, both files — 23 tests in `parse-scalars`, 22 in `parse-lists`.
+Expected: PASS, both files — 24 tests in `parse-scalars`, 22 in `parse-lists`.
 
 - [ ] **Step 6: Commit**
 
