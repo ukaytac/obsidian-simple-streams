@@ -223,16 +223,38 @@ exactly as before.
 Sort keys apply in the order given. Missing values sort **last** in both
 directions — a note with no `rating` should not lead a `rating desc` stream nor a
 `rating asc` one. A value that is not finite — `NaN`, `Infinity` — counts as
-missing too, since there is no position on a number line to give it. Ties break on `file.path` ascending so the order is stable
+missing too, since there is no position on a number line to give it.
+
+Only a decimal numeral is read as a number. An ISO date stays text, because
+ISO-8601 already sorts chronologically under numeric collation and converting
+it to a timestamp put it on the same axis as ordinary numbers: a `year: 2026`
+field landed about fifty-six years from a `year: "2026-01-01"` one, since 2026
+as a timestamp is two seconds into 1970. Vaults accumulate exactly that kind of
+drift as templates change. For the same reason `0x10` stays the text it looks
+like rather than becoming 16. Ties break on `file.path` ascending so the order is stable
 across renders. Numbers compare numerically, dates chronologically, strings via
 `localeCompare` with numeric collation.
 
 Grouping reads the resolved date and emits a header whenever the key differs
 from the previous item. Headers are formatted with `Intl.DateTimeFormat` in the
 app's locale: `4 September 2026` for `day`, `September 2026` for `month`, `2026`
-for `year`. Because headers come from item-to-item transitions, sorting by
-something other than the date field can produce a repeated header — that is
-faithful to the data, not a bug.
+for `year`.
+
+**When grouping is on, the resolved date leads the sort** and the declared
+`sort` keys order notes within each group. The direction comes from the declared
+sort when its first key is the date field, and is newest-first otherwise. This
+is not a nicety: headers come from item-to-item transitions, so without it
+`group: day` with `sort: title asc` scatters the days and emits one header per
+note. Measured on five notes across three days, that produced five headers with
+two dates repeating non-adjacently — a grouping feature that looks broken
+rather than faithful. A title-sorted journal is an ordinary thing to ask for,
+so the two settings have to compose.
+
+Text is compared with the host's collation, not a pinned locale, because a
+Turkish or Swedish user sorting their own notes wants their own alphabet. The
+consequence is that two machines with different system locales can order the
+same ties differently — `ıyı` and `Iyi` swap between Turkish and English — and
+that is accepted. The sort takes an explicit locale so a test can pin one.
 
 ## 4. Architecture
 
