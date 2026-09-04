@@ -1,8 +1,6 @@
 import { coerceDate } from "./dates";
 import type { NoteMeta } from "./note";
 
-export const FILE_FIELDS = ["file.ctime", "file.mtime", "file.name", "file.path"] as const;
-
 /**
  * Resolve a field reference against a note. `file.` is a reserved prefix: an
  * unknown `file.something` is undefined rather than a frontmatter lookup, so a
