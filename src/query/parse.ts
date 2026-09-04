@@ -1,7 +1,16 @@
 import { parse as parseYamlText, YAMLParseError } from "yaml";
+import { parseDateExpr, type DateExpr, type GroupMode } from "../engine/dates";
 import { normalizeTag } from "../engine/note";
 import { nearestField } from "./suggest";
-import { QueryError, QUERY_FIELDS, defaultQuery, type StreamQuery } from "./types";
+import {
+  QueryError,
+  QUERY_FIELDS,
+  defaultQuery,
+  type DisplayMode,
+  type SortSpec,
+  type StreamQuery,
+  type TitleMatcher,
+} from "./types";
 
 export function parseQuery(source: string): StreamQuery {
   const raw = readYaml(source);
@@ -74,6 +83,33 @@ function applyField(query: StreamQuery, key: string, value: unknown): void {
     case "exclude-tags":
       query.excludeTags = toStringList(key, value).map(normalizeTag);
       return;
+    case "title":
+      query.title = parseTitle(value);
+      return;
+    case "date-field":
+      query.dateField = toSingleString(key, value);
+      return;
+    case "from":
+      query.from = parseDateBound(key, value);
+      return;
+    case "to":
+      query.to = parseDateBound(key, value);
+      return;
+    case "sort":
+      query.sort = parseSort(value);
+      return;
+    case "group":
+      query.group = parseChoice(key, value, ["day", "month", "year", "none"]) as GroupMode;
+      return;
+    case "display":
+      query.display = parseChoice(key, value, ["full", "preview", "title"]) as DisplayMode;
+      return;
+    case "preview-length":
+      query.previewLength = toPositiveInt(key, value);
+      return;
+    case "limit":
+      query.limit = toPositiveInt(key, value);
+      return;
     default:
       throw unknownField(key);
   }
@@ -118,4 +154,82 @@ function toStringList(field: string, value: unknown): string[] {
 
 function normalizeFolder(path: string): string {
   return path.replace(/^\/+/, "").replace(/\/+$/, "").toLowerCase();
+}
+
+function toSingleString(field: string, value: unknown): string {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  throw new QueryError(`\`${field}\` expects a single piece of text`);
+}
+
+function parseTitle(value: unknown): TitleMatcher {
+  const text = toSingleString("title", value);
+  const regex = /^\/(.*)\/([gimsuy]*)$/.exec(text);
+  if (!regex) {
+    return { kind: "text", value: text.toLowerCase() };
+  }
+  try {
+    new RegExp(regex[1], regex[2]);
+  } catch (error) {
+    throw new QueryError(
+      `\`title\` has an invalid regex: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+  return { kind: "regex", source: regex[1], flags: regex[2] };
+}
+
+function parseDateBound(field: string, value: unknown): DateExpr {
+  // YAML 1.2's core schema has no timestamp type, so `from: 2026-01-01` arrives
+  // as a string. Handle a Date anyway in case a future schema change says otherwise.
+  const text =
+    value instanceof Date
+      ? `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(
+          value.getDate(),
+        ).padStart(2, "0")}`
+      : toSingleString(field, value);
+  try {
+    return parseDateExpr(text);
+  } catch (error) {
+    throw new QueryError(
+      `\`${field}\`: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+}
+
+function parseSort(value: unknown): SortSpec[] {
+  const entries = toStringList("sort", value);
+  if (entries.length === 0) {
+    throw new QueryError("`sort` needs at least one field");
+  }
+  return entries.map((entry) => {
+    const parts = entry.split(/\s+/);
+    if (parts.length > 2) {
+      throw new QueryError(`\`sort\` entry "${entry}" should be "<field> <asc|desc>"`);
+    }
+    const direction = (parts[1] ?? "asc").toLowerCase();
+    if (direction !== "asc" && direction !== "desc") {
+      throw new QueryError(`\`sort\` direction "${parts[1]}" is not valid. Use asc or desc`);
+    }
+    return { field: parts[0], direction };
+  });
+}
+
+function parseChoice(field: string, value: unknown, choices: readonly string[]): string {
+  const text = toSingleString(field, value).toLowerCase();
+  if (!choices.includes(text)) {
+    throw new QueryError(`\`${field}\` must be one of: ${choices.join(", ")}`);
+  }
+  return text;
+}
+
+function toPositiveInt(field: string, value: unknown): number {
+  const n = typeof value === "number" ? value : Number(toSingleString(field, value));
+  if (!Number.isInteger(n) || n <= 0) {
+    throw new QueryError(`\`${field}\` expects a whole number above zero`);
+  }
+  return n;
 }
