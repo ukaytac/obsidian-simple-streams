@@ -9,7 +9,9 @@ export function toNoteMeta(file: TFile, cache: CachedMetadata | null): NoteMeta 
     path: file.path,
     basename: file.basename,
     tags: tags.map(normalizeTag),
-    frontmatter: (cache?.frontmatter ?? {}) as Record<string, unknown>,
+    // No cast: `FrontMatterCache` is an index signature of `any`, which a
+    // `Record<string, unknown>` parameter accepts on its own.
+    frontmatter: cache?.frontmatter ?? {},
     ctime: file.stat.ctime,
     mtime: file.stat.mtime,
   };
