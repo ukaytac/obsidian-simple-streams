@@ -94,4 +94,32 @@ describe("parseQuery — a bare hash is a YAML comment", () => {
     expect(parseQuery('tags: "#book"').tags).toEqual(["book"]);
     expect(parseQuery('exclude-tags: ["#draft"]').excludeTags).toEqual(["draft"]);
   });
+
+  it("names the field at fault, not always tags", () => {
+    expect(() => parseQuery("folder: #Archive")).toThrow(/as in folder: \["#book"\]/);
+  });
+});
+
+describe("parseQuery — an empty entry is a mistake, not a filter", () => {
+  it("rejects an empty scalar", () => {
+    expect(() => parseQuery('tags: ""')).toThrow(/`tags` has an empty entry/);
+  });
+
+  it("rejects an empty entry sitting among real ones", () => {
+    // Dropping it would quietly remove one of the two constraints.
+    expect(() => parseQuery('tags: [book, ""]')).toThrow(/empty entry/);
+    expect(() => parseQuery('tags: ["   "]')).toThrow(/empty entry/);
+  });
+
+  it("still accepts an explicitly empty list as no constraint", () => {
+    expect(parseQuery("tags: []").tags).toEqual([]);
+  });
+});
+
+describe("parseQuery — messages written for a note-writer", () => {
+  it("explains a second YAML document instead of naming a JS API", () => {
+    const source = "folder: a\n---\nfolder: b";
+    expect(() => parseQuery(source)).toThrow(/single set of `field: value` lines/);
+    expect(() => parseQuery(source)).not.toThrow(/parseAllDocuments/);
+  });
 });
