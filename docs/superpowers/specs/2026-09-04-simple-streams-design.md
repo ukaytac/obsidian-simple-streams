@@ -329,6 +329,14 @@ approaches. `limit` caps the total.
 
 An empty result renders a muted "No notes match this stream." plus a one-line
 summary of the resolved query, so the reader can see what was actually asked.
+**The notices render above it either way** — an empty stream is exactly when a
+typo'd `date-field` needs explaining, and rendering them only alongside results
+would undo the reason the check is judged before the date range at all.
+
+When the `limit` cut notes off, the stream says so once: `Showing 50 of 60
+notes.` Without it a truncated stream is indistinguishable from a complete one,
+and a group header can show two of a day's five notes with nothing to say the
+day continues.
 
 ## 6. Live updates
 

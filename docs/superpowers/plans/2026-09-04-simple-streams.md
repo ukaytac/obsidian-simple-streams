@@ -4387,6 +4387,13 @@ export class StreamChild extends MarkdownRenderChild {
     this.rendered = 0;
 
     const root = this.containerEl.createDiv({ cls: "simple-streams" });
+
+    // Before the empty branch, not after. An empty stream is exactly when a
+    // typo'd date-field needs explaining, and runStream judges that check
+    // before the date range for the same reason — rendering the notices only
+    // alongside results would undo it one layer up.
+    renderNotices(root, this.query, result);
+
     if (this.rows.length === 0) {
       root.createDiv({ cls: "ss-empty", text: "No notes match this stream." });
       root.createDiv({ cls: "ss-empty-summary", text: describeQuery(this.query) });
@@ -4395,7 +4402,6 @@ export class StreamChild extends MarkdownRenderChild {
       return;
     }
 
-    renderNotices(root, this.query, result);
     this.listEl = root.createDiv({ cls: "ss-list" });
     this.sentinelEl = root.createDiv({ cls: "ss-sentinel" });
     await this.renderUpTo(this.pages);
@@ -4471,6 +4477,14 @@ function renderNotices(root: HTMLElement, query: StreamQuery, result: StreamResu
     root.createDiv({
       cls: "ss-notice",
       text: `No note here has ${fields}, so that part of the sort had no effect.`,
+    });
+  }
+  if (result.truncated) {
+    // Without this a cut-off stream looks complete, and a group header can show
+    // two of a day's five notes with nothing to say the day continues.
+    root.createDiv({
+      cls: "ss-notice",
+      text: `Showing ${result.shown} of ${result.matched} notes. Raise \`limit\` to see more.`,
     });
   }
 }
@@ -5004,6 +5018,8 @@ Confirm each of these, and fix what fails before moving on:
 - [ ] The Books block shows only `dune`, proving `where` and the draft exclusion both bite.
 - [ ] The relative-range block includes the September journal notes and excludes `dune` (January).
 - [ ] The empty block shows "No notes match this stream." plus a readable query summary.
+- [ ] Add `date-field: dat` and `from: 2026-01-01` / `to: 2026-01-02` to a Journal block, and confirm the stream is empty **and** still says it fell back to file creation time. This is the case the notice exists for, and it was rendering after the empty branch's early return.
+- [ ] Set `limit: 1` on the day-grouped block and confirm it says "Showing 1 of N notes."
 - [ ] The `tag: book` block shows "Unknown field `tag`. Did you mean `tags`?"
 - [ ] The invalid-YAML block shows a parser message with a line number.
 - [ ] The `display: everything` block lists the three valid modes.
