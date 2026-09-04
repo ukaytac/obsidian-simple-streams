@@ -4221,8 +4221,7 @@ Every colour comes from an Obsidian theme variable, so the stream follows the us
 }
 
 .ss-item-warning,
-.ss-empty,
-.ss-empty-summary {
+.ss-empty {
   color: var(--text-muted);
   font-size: var(--font-ui-small);
 }
@@ -4238,7 +4237,10 @@ Every colour comes from an Obsidian theme variable, so the stream follows the us
 
 .ss-empty-summary {
   color: var(--text-faint);
-  font-family: var(--font-monospace);
+  /* Obsidian documents --font-monospace-theme but not the plain name, so the
+     plain one is used with a real fallback rather than assumed to exist. An
+     undefined custom property renders as nothing, silently. */
+  font-family: var(--font-monospace, monospace);
   font-size: var(--font-ui-smaller);
   overflow-wrap: anywhere;
 }
@@ -4265,7 +4267,7 @@ Every colour comes from an Obsidian theme variable, so the stream follows the us
 .ss-error-message {
   margin-top: var(--size-2-2);
   color: var(--text-normal);
-  font-family: var(--font-monospace);
+  font-family: var(--font-monospace, monospace);
   font-size: var(--font-ui-small);
   overflow-wrap: anywhere;
 }
@@ -5170,6 +5172,7 @@ Confirm each of these, and fix what fails before moving on:
 - [ ] Deleting that note removes it from the stream.
 - [ ] Renaming it updates the title shown in the stream.
 - [ ] Both themes: switch between light and dark; every colour still reads correctly.
+- [ ] The query summary under an empty stream and the error message both render in a monospace face. Obsidian's docs name `--font-monospace-theme` but not the plain `--font-monospace` the stylesheet uses, so this is the one variable a real vault has to settle. The fallback means the worst case is the platform's default monospace rather than nothing.
 
 - [ ] **Step 5: Add usage and development docs to the README**
 
