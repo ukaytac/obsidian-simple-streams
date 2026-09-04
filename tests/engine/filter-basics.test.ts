@@ -53,9 +53,11 @@ describe("hasTag", () => {
     expect(hasTag(["bookmark"], "book")).toBe(false);
   });
 
-  it("normalizes its own argument", () => {
+  it("normalizes both of its arguments", () => {
     expect(hasTag(["book"], "#Book")).toBe(true);
     expect(hasTag(["project/streams"], "#Project")).toBe(true);
+    expect(hasTag(["Book"], "book")).toBe(true);
+    expect(hasTag(["#Project/Streams"], "project")).toBe(true);
   });
 });
 
