@@ -96,7 +96,7 @@ describe("parseQuery — a bare hash is a YAML comment", () => {
   });
 
   it("names the field at fault, not always tags", () => {
-    expect(() => parseQuery("folder: #Archive")).toThrow(/as in folder: \["#book"\]/);
+    expect(() => parseQuery("folder: #Archive")).toThrow(/as in folder: "#book"/);
   });
 });
 

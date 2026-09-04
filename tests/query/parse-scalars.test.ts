@@ -37,6 +37,14 @@ describe("parseQuery — a missing value explains itself the same way everywhere
     expect(() => parseQuery("group: #x")).toThrow(/`group` has no value/);
   });
 
+  it("suggests a form the field actually accepts", () => {
+    // Bracketed advice on a single-value field would land the reader in a
+    // second error: `date-field: ["#book"]` is the wrong shape.
+    expect(() => parseQuery("date-field: #x")).toThrow(/as in date-field: "#book"/);
+    expect(() => parseQuery('date-field: ["#book"]')).toThrow(/expects a single piece of text/);
+    expect(parseQuery('date-field: "#book"').dateField).toBe("#book");
+  });
+
   it("still rejects a structured value as the wrong shape", () => {
     expect(() => parseQuery("date-field:\n  a: 1")).toThrow(/expects a single piece of text/);
   });

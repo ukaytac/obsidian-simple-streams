@@ -29,7 +29,10 @@ export function parseQuery(source: string): StreamQuery {
  * sends them to the wrong line.
  */
 function hashHint(field = "tags"): string {
-  return `If you wrote a bare \`#tag\`, YAML read it as a comment — quote it, as in ${field}: ["#book"].`;
+  // The example has no brackets on purpose: a quoted scalar is valid for a
+  // list field and a single-value field alike, whereas `date-field: ["#book"]`
+  // would send the reader straight into a second error.
+  return `If you wrote a bare \`#tag\`, YAML read it as a comment — quote it, as in ${field}: "#book".`;
 }
 
 /** Rephrase the library's own messages where they address a programmer, not a note-writer. */
