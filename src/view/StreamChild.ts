@@ -85,9 +85,11 @@ export class StreamChild extends MarkdownRenderChild {
     // in-flight pass outlives the unload: measured 15 further items rendered
     // into a detached tree after the block was gone, each one free to pull in
     // embeds and other plugins' post-processors, and 16 render children left
-    // added to an already-unloaded parent — never loaded, per obsidian.d.ts
-    // 1868, and so never unloaded, per 1855. That is the leak `items` exists
-    // to prevent, reopened from the other end.
+    // added to an already-unloaded parent — `addChild` "adds a child
+    // component, loading it if this component is loaded", and `unload` unloads
+    // "this component and its children", so such a child is never loaded and
+    // therefore never unloaded. That is the leak `items` exists to prevent,
+    // reopened from the other end.
     this.dead = true;
     this.generation += 1;
     this.observer?.disconnect();
