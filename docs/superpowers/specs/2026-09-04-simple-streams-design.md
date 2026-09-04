@@ -79,6 +79,12 @@ Both `sort` and `where` address the same namespace:
 A frontmatter key that collides with a `file.*` name is reachable as written in
 the note; `file.` is a reserved prefix and is never read from frontmatter.
 
+Only a note's **own** frontmatter keys are visible. A plain JavaScript object
+inherits `toString`, `constructor`, `hasOwnProperty` and friends, so an
+unguarded lookup would report those as present on every note — `where:
+{ toString: exists }` would match the whole vault, and a sort on one would hand
+a function to the comparator and order notes by its source text.
+
 Note the one name used two ways: the top-level `title` **filter** always matches
 the note's basename, while `title` as a **field reference** inside `sort` or
 `where` reads frontmatter `title`. Use `file.name` when you mean the basename in

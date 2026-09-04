@@ -962,6 +962,22 @@ describe("resolveField", () => {
   it("returns undefined for a missing frontmatter key", () => {
     expect(resolveField(note(), "nope")).toBeUndefined();
   });
+
+  it("does not let inherited object members pose as frontmatter", () => {
+    // Otherwise `where: { toString: exists }` matches every note, and sorting
+    // on one hands a function to the comparator.
+    const n = note();
+    for (const key of [
+      "constructor",
+      "toString",
+      "hasOwnProperty",
+      "valueOf",
+      "isPrototypeOf",
+      "__proto__",
+    ]) {
+      expect(resolveField(n, key), key).toBeUndefined();
+    }
+  });
 });
 
 describe("resolveNoteDate", () => {
@@ -1018,7 +1034,14 @@ export function resolveField(note: NoteMeta, field: string): unknown {
     case "file.path":
       return note.path;
     default:
-      return field.startsWith("file.") ? undefined : note.frontmatter[field];
+      if (field.startsWith("file.")) {
+        return undefined;
+      }
+      // Own keys only. A plain object inherits `toString`, `constructor` and
+      // friends, so a bare index would report them present on every note.
+      return Object.prototype.hasOwnProperty.call(note.frontmatter, field)
+        ? note.frontmatter[field]
+        : undefined;
   }
 }
 
@@ -1031,7 +1054,7 @@ export function resolveNoteDate(note: NoteMeta, dateField: string): number {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/engine/fields.test.ts`
-Expected: PASS, 8 tests.
+Expected: PASS, 9 tests.
 
 - [ ] **Step 5: Commit**
 
