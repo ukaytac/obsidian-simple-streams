@@ -265,9 +265,14 @@ note that appears in the stream stays calm. Streams unregister in
 Every failure is visible in the block, never only in the console.
 
 - **Invalid YAML** — the parser message and the offending line.
-- **Unknown field** — names the field and the nearest valid one by edit distance.
-  This is the `tag` vs `tags` case, and it is a hard error: silently rendering an
-  unfiltered vault is the worst possible outcome.
+- **Unknown field** — names the field, the nearest valid one by edit distance,
+  and the full list of valid fields. This is the `tag` vs `tags` case, and it is
+  a hard error: silently rendering an unfiltered vault is the worst possible
+  outcome. The full list is always shown, even alongside a confident guess,
+  because no edit-distance rule over a list containing a two-letter field name
+  (`to`) is free of false positives — and a wrong guess that hides the real
+  list is worse than no guess at all. For the same reason nothing shorter than
+  three characters gets a guess.
 - **Invalid value** — `display: foo`, a bad date expression, a bad sort direction:
   names the field and lists the accepted values.
 - **A note that fails to read** — degrades to one muted warning row; the rest of

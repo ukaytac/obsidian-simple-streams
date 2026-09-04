@@ -819,6 +819,25 @@ import { editDistance, nearestField } from "../../src/query/suggest";
 
 const FIELDS = ["folder", "tags", "tags-any", "exclude-folder", "sort", "group", "display", "limit"];
 
+/** The list Task 7 actually passes in. Kept in sync with QUERY_FIELDS by hand. */
+const REAL_FIELDS = [
+  "folder",
+  "tags",
+  "tags-any",
+  "exclude-folder",
+  "exclude-tags",
+  "title",
+  "where",
+  "date-field",
+  "from",
+  "to",
+  "sort",
+  "group",
+  "display",
+  "preview-length",
+  "limit",
+];
+
 describe("editDistance", () => {
   it("is zero for identical strings", () => {
     expect(editDistance("tags", "tags")).toBe(0);
@@ -850,6 +869,22 @@ describe("nearestField", () => {
 
   it("suggests nothing from an empty candidate list", () => {
     expect(nearestField("tags", [])).toBeNull();
+  });
+
+  it("suggests nothing for an input too short to be confident about", () => {
+    // Against the real field list every two-letter input used to come out as
+    // `to`, which is the one field short enough to attract all of them.
+    for (const input of ["ta", "fo", "gr", "wh", "li", "xy"]) {
+      expect(nearestField(input, REAL_FIELDS), input).toBeNull();
+    }
+  });
+
+  it("still corrects realistic typos against the real field list", () => {
+    expect(nearestField("tagsany", REAL_FIELDS)).toBe("tags-any");
+    expect(nearestField("date_field", REAL_FIELDS)).toBe("date-field");
+    expect(nearestField("previewlength", REAL_FIELDS)).toBe("preview-length");
+    expect(nearestField("excludefolder", REAL_FIELDS)).toBe("exclude-folder");
+    expect(nearestField("groupby", REAL_FIELDS)).toBe("group");
   });
 });
 ```
@@ -889,6 +924,13 @@ export function editDistance(a: string, b: string): number {
 }
 
 export function nearestField(input: string, candidates: readonly string[]): string | null {
+  // Below three characters there is nothing to be confident about: the field
+  // list holds a two-letter name (`to`), so every short input lands on it —
+  // "gr", "wh" and "li" all came out as `to` before this gate.
+  if (input.length < 3) {
+    return null;
+  }
+
   let best: string | null = null;
   let bestDistance = Number.POSITIVE_INFINITY;
 
@@ -910,7 +952,7 @@ export function nearestField(input: string, candidates: readonly string[]): stri
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/query/suggest.test.ts`
-Expected: PASS, 7 tests.
+Expected: PASS, 9 tests.
 
 - [ ] **Step 5: Commit**
 
@@ -1215,6 +1257,11 @@ describe("parseQuery — unknown fields", () => {
   it("lists the valid fields when nothing is close", () => {
     expect(() => parseQuery("qqqqqqqqqq: 1")).toThrow(/Valid fields: folder, tags/);
   });
+
+  it("lists the valid fields even when it has a suggestion", () => {
+    // A guess can be wrong; it must never be the only thing the reader gets.
+    expect(() => parseQuery("tag: book")).toThrow(/Valid fields: folder, tags/);
+  });
 });
 
 describe("parseQuery — folders", () => {
@@ -1328,10 +1375,14 @@ function applyField(query: StreamQuery, key: string, value: unknown): void {
 
 function unknownField(key: string): QueryError {
   const nearest = nearestField(key, QUERY_FIELDS);
+  // The full list goes out even alongside a guess. No edit-distance rule over
+  // a list holding a two-letter name is false-positive free, and a wrong guess
+  // that hides the real list is worse than no guess at all.
+  const valid = `Valid fields: ${QUERY_FIELDS.join(", ")}`;
   return new QueryError(
     nearest !== null
-      ? `Unknown field \`${key}\`. Did you mean \`${nearest}\`?`
-      : `Unknown field \`${key}\`. Valid fields: ${QUERY_FIELDS.join(", ")}`,
+      ? `Unknown field \`${key}\`. Did you mean \`${nearest}\`? ${valid}`
+      : `Unknown field \`${key}\`. ${valid}`,
   );
 }
 
@@ -1358,7 +1409,7 @@ function normalizeFolder(path: string): string {
 - [ ] **Step 5: Run test to verify it passes**
 
 Run: `npx vitest run tests/query/parse-lists.test.ts`
-Expected: PASS, 13 tests.
+Expected: PASS, 14 tests.
 
 - [ ] **Step 6: Commit**
 
