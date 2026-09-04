@@ -355,7 +355,11 @@ function renderNotices(root: HTMLElement, result: StreamResult): void {
 function describeNotice(notice: StreamNotice): string {
   switch (notice.kind) {
     case "dateFallback":
-      return `No note here has a usable \`${notice.field}\`, so this stream is ordered and grouped by file creation time.`;
+      // "ordered and grouped by" was true only when both happened to be on.
+      // With `group: none` and a sort on some other field, neither half held
+      // and the reader was sent looking for the wrong thing. What always holds
+      // is that every date this stream resolves fell back.
+      return `No note here has a usable \`${notice.field}\`, so this stream falls back to file creation time for its dates.`;
     case "unresolvedSort": {
       const fields = notice.fields.map((field) => `\`${field}\``).join(" or ");
       return `No note here has ${fields}, so that part of the sort had no effect.`;

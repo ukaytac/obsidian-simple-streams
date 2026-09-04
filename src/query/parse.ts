@@ -311,6 +311,19 @@ function parseCondition(field: string, raw: unknown): WhereCondition {
 
   if (typeof raw === "string") {
     const text = raw.trim();
+    // `where` was the one scalar field that let an empty value through, and it
+    // is the field where that hurts most: `rating: >3` unquoted is read by YAML
+    // as a folded block scalar with an indentation indicator, yielding `""`,
+    // which then became `equals ""` — an empty stream, no error, and a summary
+    // ending in a dangling `rating = `. `!=done` goes the same way. The
+    // comparison syntax is already defended against being swallowed by a list
+    // (`asAnyOfValue`) and against `">="` matching on `"="` (COMPARISON); this
+    // was the remaining way to lose one silently.
+    if (text === "") {
+      throw new QueryError(
+        `\`where.${field}\` has an empty value. If you wrote a comparison, quote it, as in ${field}: ">3".`,
+      );
+    }
     if (text.toLowerCase() === "exists") {
       return { kind: "exists" };
     }

@@ -111,7 +111,13 @@ export function runStream(
       ? []
       : query.sort
           .filter((spec) => spec.field !== query.dateField)
-          .filter((spec) => matched.every((note) => resolveField(note, spec.field) === undefined))
+          // `== null`, not `=== undefined`: a key present with no value is
+          // exactly what Obsidian's Properties panel writes when you add a
+          // property and do not fill it, and every other reading of "absent"
+          // in this codebase covers it — the filter's three checks, the sort's
+          // `comparable`, and `dateFallback` two branches up. Left strict, the
+          // notice went silent on the one case the host app creates most.
+          .filter((spec) => matched.every((note) => resolveField(note, spec.field) == null))
           .map((spec) => spec.field);
   if (unresolved.length > 0) {
     notices.push({ kind: "unresolvedSort", fields: unresolved });

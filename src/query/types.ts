@@ -1,7 +1,5 @@
 import type { DateExpr, GroupMode } from "../engine/dates";
 
-export type { GroupMode };
-
 /** As with GROUP_MODES: one list, and the type derived from it. */
 export const DISPLAY_MODES = ["full", "preview", "title"] as const;
 export type DisplayMode = (typeof DISPLAY_MODES)[number];
