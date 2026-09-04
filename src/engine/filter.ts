@@ -11,12 +11,19 @@ import type { StreamQuery, TitleMatcher } from "../query/types";
  * with `folder: ["Journal"]` would otherwise match nothing, in silence.
  */
 export function inFolder(path: string, folder: string): boolean {
-  const wanted = folder.replace(/^\/+/, "").replace(/\/+$/, "").toLowerCase();
+  const wanted = trimSlashes(folder);
   if (wanted === "") {
     return true;
   }
-  const lower = path.toLowerCase();
+  // The path gets the same treatment. A NoteMeta path is vault-relative and so
+  // has no leading slash, but this function is exported and normalizing only
+  // one of its two arguments is the kind of asymmetry that bites later.
+  const lower = trimSlashes(path);
   return lower === wanted || lower.startsWith(`${wanted}/`);
+}
+
+function trimSlashes(value: string): string {
+  return value.replace(/^\/+/, "").replace(/\/+$/, "").toLowerCase();
 }
 
 /**
@@ -34,9 +41,12 @@ export function matchesTitle(note: NoteMeta, matcher: TitleMatcher | null): bool
   }
   if (matcher.kind === "regex") {
     // Compiled per note rather than hoisted, so TitleMatcher stays plain data.
-    // Measured before accepting it: 5000 notes cost 1.69ms this way against
-    // 0.24ms compiled once — 7x, but 1.7ms against a 300ms refresh debounce.
-    // Do not "optimize" this without a measurement that says otherwise.
+    // Hoisting would also be wrong, not merely different: a `g`-flagged regex
+    // carries `lastIndex` between calls, so one shared instance returns true
+    // then false for the same string, and titles would match or not depending
+    // on their position in the list. The timing says the same thing — 5000
+    // notes cost 1.69ms this way against 0.24ms compiled once, which is
+    // nothing beside the view's 300ms refresh debounce.
     return new RegExp(matcher.source, matcher.flags).test(note.basename);
   }
   return note.basename.toLowerCase().includes(matcher.value);

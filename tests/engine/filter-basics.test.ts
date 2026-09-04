@@ -33,9 +33,10 @@ describe("inFolder", () => {
     expect(inFolder("Books/dune.md", "")).toBe(true);
   });
 
-  it("normalizes its own argument, so a hand-built query still works", () => {
+  it("normalizes both of its arguments, so a hand-built query still works", () => {
     expect(inFolder("Journal/2026-09-04.md", "Journal")).toBe(true);
     expect(inFolder("Journal/2026-09-04.md", "/Journal/")).toBe(true);
+    expect(inFolder("/Journal/2026-09-04.md", "journal")).toBe(true);
   });
 });
 
