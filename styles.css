@@ -1,0 +1,126 @@
+.simple-streams {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-3);
+}
+
+.ss-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-3);
+}
+
+.ss-group {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: var(--size-2-2) 0;
+  background: var(--background-primary);
+  border-bottom: 1px solid var(--background-modifier-border);
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ss-item {
+  padding: var(--size-4-2) 0;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.ss-item:last-child {
+  border-bottom: none;
+}
+
+.ss-item-header {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--size-4-2);
+}
+
+.ss-item-title {
+  font-weight: var(--font-semibold);
+  color: var(--link-color);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.ss-item-title:hover {
+  text-decoration: underline;
+}
+
+.ss-item-date {
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+}
+
+.ss-item-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--size-2-2);
+}
+
+.ss-item-tag {
+  padding: 0 var(--size-2-2);
+  border-radius: var(--radius-s);
+  background: var(--background-modifier-hover);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.ss-item-body {
+  margin-top: var(--size-2-3);
+  color: var(--text-normal);
+}
+
+.ss-item-warning,
+.ss-empty,
+.ss-empty-summary {
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+
+.ss-notice {
+  padding: var(--size-2-2) var(--size-4-2);
+  border-left: 2px solid var(--text-accent);
+  border-radius: var(--radius-s);
+  background: var(--background-modifier-hover);
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+
+.ss-empty-summary {
+  color: var(--text-faint);
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
+  overflow-wrap: anywhere;
+}
+
+.ss-sentinel {
+  height: 1px;
+}
+
+.ss-error {
+  padding: var(--size-4-2);
+  border: 1px solid var(--text-error);
+  border-radius: var(--radius-s);
+  background: var(--background-modifier-error);
+}
+
+.ss-error-title {
+  color: var(--text-error);
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ss-error-message {
+  margin-top: var(--size-2-2);
+  color: var(--text-normal);
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-small);
+  overflow-wrap: anywhere;
+}
