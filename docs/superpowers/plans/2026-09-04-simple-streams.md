@@ -5167,7 +5167,7 @@ import { StreamChild } from "./view/StreamChild";
 export default class SimpleStreamsPlugin extends Plugin {
   private registry: StreamRegistry | null = null;
 
-  async onload(): Promise<void> {
+  onload(): void {
     const registry = new StreamRegistry(this.app);
     this.registry = registry;
     for (const ref of registry.start()) {
