@@ -1,0 +1,24 @@
+{
+  "name": "obsidian-simple-streams",
+  "version": "0.1.0",
+  "description": "Render a filtered, sorted stream of notes from a code block.",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc --noEmit && node esbuild.config.mjs production",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "yaml": "^2.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "builtin-modules": "^3.3.0",
+    "esbuild": "^0.20.0",
+    "obsidian": "^1.5.7",
+    "typescript": "^5.4.0",
+    "vitest": "^1.4.0"
+  }
+}
