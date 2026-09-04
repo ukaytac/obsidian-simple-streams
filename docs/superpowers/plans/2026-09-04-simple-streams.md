@@ -4869,6 +4869,19 @@ function stubStream() {
   };
 }
 
+/** A stream whose refresh hangs until released, to stall a flush mid-loop. */
+function suspendableStream() {
+  let release: () => void = () => {};
+  return {
+    refresh: () =>
+      new Promise<void>((resolve) => {
+        release = resolve;
+      }),
+    showError: () => {},
+    release: () => release(),
+  };
+}
+
 let harness: ReturnType<typeof fakeApp>;
 let registry: StreamRegistry;
 
@@ -4957,6 +4970,55 @@ describe("StreamRegistry", () => {
     expect(healthy.refreshes).toBe(1);
   });
 
+  it("arms no timer once stopped", async () => {
+    // stop() clears the pending timer, but the event handlers stay live until
+    // Obsidian drops the refs it was given, so an event can still arrive.
+    const stream = stubStream();
+    registry.register(stream);
+    registry.stop();
+
+    harness.fire("changed");
+    expect(vi.getTimerCount()).toBe(0);
+
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
+    expect(stream.refreshes).toBe(0);
+  });
+
+  it("skips a stream that closed while an earlier refresh was in flight", async () => {
+    const slow = suspendableStream();
+    const closing = stubStream();
+    registry.register(slow);
+    registry.register(closing);
+
+    harness.fire("changed");
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
+    expect(closing.refreshes).toBe(0);
+
+    // The note holding `closing` is closed mid-flush; Component.register
+    // unregisters it. Refreshing it now would re-render an unloaded block.
+    registry.unregister(closing);
+    slow.release();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(closing.refreshes).toBe(0);
+  });
+
+  it("abandons the rest of a flush when the plugin unloads mid-way", async () => {
+    const slow = suspendableStream();
+    const later = stubStream();
+    registry.register(slow);
+    registry.register(later);
+
+    harness.fire("changed");
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
+
+    registry.stop();
+    slow.release();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(later.refreshes).toBe(0);
+  });
+
   it("drops a pending refresh when stopped", async () => {
     const stream = stubStream();
     registry.register(stream);
@@ -4994,6 +5056,7 @@ export class StreamRegistry {
   private readonly app: App;
   private readonly streams = new Set<RefreshableStream>();
   private timer: ReturnType<typeof setTimeout> | null = null;
+  private stopped = false;
 
   constructor(app: App) {
     this.app = app;
@@ -5002,6 +5065,9 @@ export class StreamRegistry {
   /**
    * Subscribe to the events that can change a stream. The returned refs should
    * be handed to Plugin.registerEvent so they unsubscribe with the plugin.
+   *
+   * Call once per registry, and never after `stop()`: a stopped registry is
+   * spent by design, because a plugin unload builds a fresh one on next load.
    */
   start(): EventRef[] {
     return [
@@ -5021,6 +5087,7 @@ export class StreamRegistry {
   }
 
   stop(): void {
+    this.stopped = true;
     if (this.timer !== null) {
       clearTimeout(this.timer);
       this.timer = null;
@@ -5029,6 +5096,13 @@ export class StreamRegistry {
   }
 
   private schedule(): void {
+    // Obsidian unsubscribes the handlers itself, through the refs `start()`
+    // handed to `registerEvent`, so `stop()` cannot silence them first. An
+    // event landing in that gap would otherwise arm a fresh timer that
+    // outlives the plugin it belongs to.
+    if (this.stopped) {
+      return;
+    }
     if (this.timer !== null) {
       clearTimeout(this.timer);
     }
@@ -5040,6 +5114,18 @@ export class StreamRegistry {
 
   private async flush(): Promise<void> {
     for (const stream of [...this.streams]) {
+      // Membership is re-checked each time round, not just snapshotted once.
+      // `refresh()` is awaited per stream and takes as long as rendering that
+      // block, so within one flush a note can be closed — which unregisters it
+      // — or the plugin can unload. Refreshing a stream whose `onunload` has
+      // already run makes it re-render and build a fresh IntersectionObserver
+      // that nothing is left to disconnect.
+      if (this.stopped) {
+        return;
+      }
+      if (!this.streams.has(stream)) {
+        continue;
+      }
       try {
         await stream.refresh();
       } catch (error) {
@@ -5055,7 +5141,7 @@ export class StreamRegistry {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/obsidian/registry.test.ts`
-Expected: PASS, 7 tests.
+Expected: PASS, 10 tests.
 
 - [ ] **Step 5: Commit**
 

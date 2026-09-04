@@ -12,6 +12,7 @@ export class StreamRegistry {
   private readonly app: App;
   private readonly streams = new Set<RefreshableStream>();
   private timer: ReturnType<typeof setTimeout> | null = null;
+  private stopped = false;
 
   constructor(app: App) {
     this.app = app;
@@ -20,6 +21,9 @@ export class StreamRegistry {
   /**
    * Subscribe to the events that can change a stream. The returned refs should
    * be handed to Plugin.registerEvent so they unsubscribe with the plugin.
+   *
+   * Call once per registry, and never after `stop()`: a stopped registry is
+   * spent by design, because a plugin unload builds a fresh one on next load.
    */
   start(): EventRef[] {
     return [
@@ -39,6 +43,7 @@ export class StreamRegistry {
   }
 
   stop(): void {
+    this.stopped = true;
     if (this.timer !== null) {
       clearTimeout(this.timer);
       this.timer = null;
@@ -47,6 +52,13 @@ export class StreamRegistry {
   }
 
   private schedule(): void {
+    // Obsidian unsubscribes the handlers itself, through the refs `start()`
+    // handed to `registerEvent`, so `stop()` cannot silence them first. An
+    // event landing in that gap would otherwise arm a fresh timer that
+    // outlives the plugin it belongs to.
+    if (this.stopped) {
+      return;
+    }
     if (this.timer !== null) {
       clearTimeout(this.timer);
     }
@@ -58,6 +70,18 @@ export class StreamRegistry {
 
   private async flush(): Promise<void> {
     for (const stream of [...this.streams]) {
+      // Membership is re-checked each time round, not just snapshotted once.
+      // `refresh()` is awaited per stream and takes as long as rendering that
+      // block, so within one flush a note can be closed — which unregisters it
+      // — or the plugin can unload. Refreshing a stream whose `onunload` has
+      // already run makes it re-render and build a fresh IntersectionObserver
+      // that nothing is left to disconnect.
+      if (this.stopped) {
+        return;
+      }
+      if (!this.streams.has(stream)) {
+        continue;
+      }
       try {
         await stream.refresh();
       } catch (error) {

@@ -38,6 +38,19 @@ function stubStream() {
   };
 }
 
+/** A stream whose refresh hangs until released, to stall a flush mid-loop. */
+function suspendableStream() {
+  let release: () => void = () => {};
+  return {
+    refresh: () =>
+      new Promise<void>((resolve) => {
+        release = resolve;
+      }),
+    showError: () => {},
+    release: () => release(),
+  };
+}
+
 let harness: ReturnType<typeof fakeApp>;
 let registry: StreamRegistry;
 
@@ -124,6 +137,55 @@ describe("StreamRegistry", () => {
 
     expect(broken.errors).toEqual([boom]);
     expect(healthy.refreshes).toBe(1);
+  });
+
+  it("arms no timer once stopped", async () => {
+    // stop() clears the pending timer, but the event handlers stay live until
+    // Obsidian drops the refs it was given, so an event can still arrive.
+    const stream = stubStream();
+    registry.register(stream);
+    registry.stop();
+
+    harness.fire("changed");
+    expect(vi.getTimerCount()).toBe(0);
+
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
+    expect(stream.refreshes).toBe(0);
+  });
+
+  it("skips a stream that closed while an earlier refresh was in flight", async () => {
+    const slow = suspendableStream();
+    const closing = stubStream();
+    registry.register(slow);
+    registry.register(closing);
+
+    harness.fire("changed");
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
+    expect(closing.refreshes).toBe(0);
+
+    // The note holding `closing` is closed mid-flush; Component.register
+    // unregisters it. Refreshing it now would re-render an unloaded block.
+    registry.unregister(closing);
+    slow.release();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(closing.refreshes).toBe(0);
+  });
+
+  it("abandons the rest of a flush when the plugin unloads mid-way", async () => {
+    const slow = suspendableStream();
+    const later = stubStream();
+    registry.register(slow);
+    registry.register(later);
+
+    harness.fire("changed");
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
+
+    registry.stop();
+    slow.release();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(later.refreshes).toBe(0);
   });
 
   it("drops a pending refresh when stopped", async () => {
