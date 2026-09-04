@@ -2,7 +2,10 @@ import type { DateExpr, GroupMode } from "../engine/dates";
 
 export type { GroupMode };
 
-export type DisplayMode = "full" | "preview" | "title";
+/** As with GROUP_MODES: one list, and the type derived from it. */
+export const DISPLAY_MODES = ["full", "preview", "title"] as const;
+export type DisplayMode = (typeof DISPLAY_MODES)[number];
+
 export type SortDirection = "asc" | "desc";
 export type CompareOp = ">" | ">=" | "<" | "<=" | "!=";
 

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { GROUP_MODES } from "../../src/engine/dates";
 import { parseQuery } from "../../src/query/parse";
+import { DISPLAY_MODES } from "../../src/query/types";
 
 describe("parseQuery — title", () => {
   it("treats plain text as a lower-cased substring match", () => {
@@ -113,6 +115,16 @@ describe("parseQuery — group, display and numbers", () => {
 
   it("rejects an unknown grouping and lists the choices", () => {
     expect(() => parseQuery("group: week")).toThrow(/`group`.*day, month, year, none/s);
+  });
+
+  it("accepts exactly the modes the shared lists declare", () => {
+    // The lists are the source of the types, so this cannot fall out of step.
+    for (const mode of GROUP_MODES) {
+      expect(parseQuery(`group: ${mode}`).group, mode).toBe(mode);
+    }
+    for (const mode of DISPLAY_MODES) {
+      expect(parseQuery(`display: ${mode}`).display, mode).toBe(mode);
+    }
   });
 
   it("parses the display modes", () => {

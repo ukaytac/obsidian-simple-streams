@@ -1,12 +1,12 @@
 import { parse as parseYamlText, YAMLParseError } from "yaml";
-import { parseDateExpr, type DateExpr, type GroupMode } from "../engine/dates";
+import { GROUP_MODES, parseDateExpr, type DateExpr } from "../engine/dates";
 import { normalizeTag } from "../engine/note";
 import { nearestField } from "./suggest";
 import {
+  DISPLAY_MODES,
   QueryError,
   QUERY_FIELDS,
   defaultQuery,
-  type DisplayMode,
   type SortSpec,
   type StreamQuery,
   type TitleMatcher,
@@ -102,10 +102,10 @@ function applyField(query: StreamQuery, key: string, value: unknown): void {
       query.sort = parseSort(value);
       return;
     case "group":
-      query.group = parseChoice(key, value, ["day", "month", "year", "none"]) as GroupMode;
+      query.group = parseChoice(key, value, GROUP_MODES);
       return;
     case "display":
-      query.display = parseChoice(key, value, ["full", "preview", "title"]) as DisplayMode;
+      query.display = parseChoice(key, value, DISPLAY_MODES);
       return;
     case "preview-length":
       query.previewLength = toPositiveInt(key, value);
@@ -229,12 +229,18 @@ function parseSort(value: unknown): SortSpec[] {
   });
 }
 
-function parseChoice(field: string, value: unknown, choices: readonly string[]): string {
+/**
+ * Generic on the choice list, so the returned type comes from the list itself.
+ * A cast here would let the list and the union type drift: adding a mode to one
+ * and not the other compiled clean and lied at runtime.
+ */
+function parseChoice<T extends string>(field: string, value: unknown, choices: readonly T[]): T {
   const text = toSingleString(field, value).toLowerCase();
-  if (!choices.includes(text)) {
+  const match = choices.find((choice) => choice === text);
+  if (match === undefined) {
     throw new QueryError(`\`${field}\` must be one of: ${choices.join(", ")}`);
   }
-  return text;
+  return match;
 }
 
 function toPositiveInt(field: string, value: unknown): number {

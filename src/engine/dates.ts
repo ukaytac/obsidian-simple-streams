@@ -123,7 +123,9 @@ function localDateFrom(year: number, month: number, day: number): Date | null {
   return real ? probe : null;
 }
 
-export type GroupMode = "day" | "month" | "year" | "none";
+/** The list and the type are one thing, so neither can drift from the other. */
+export const GROUP_MODES = ["day", "month", "year", "none"] as const;
+export type GroupMode = (typeof GROUP_MODES)[number];
 
 const ISO_PREFIX = /^\d{4}-\d{2}-\d{2}/;
 const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
