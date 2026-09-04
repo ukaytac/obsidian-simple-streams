@@ -15,6 +15,16 @@ display: preview
 limit: 50
 ```
 
+<!-- Absolute raw URLs, not repository-relative paths: the community directory
+     renders this file on its own page without rewriting relative links, so
+     `docs/images/...` resolves against obsidian.md there and the image breaks.
+     The <img> fallback is the dark capture because that page is dark and any
+     renderer ignoring <source> lands on it. -->
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/ukaytac/obsidian-simple-streams/main/docs/images/01-home-light.png">
+  <img src="https://raw.githubusercontent.com/ukaytac/obsidian-simple-streams/main/docs/images/01-home-dark.png" alt="A stream of trips grouped under year headings, newest first, each item showing its title, its date and its tags above a short preview of the note.">
+</picture>
+
 ## Installing
 
 Simple Streams is not in the community plugin list yet. To install it:
@@ -90,6 +100,33 @@ Dates accept `YYYY-MM-DD`, `today`, `yesterday`, and signed offsets like `-30d`,
 a guess at which direction you meant. Month and year offsets clamp to the end of
 the target month, so one month before 31 March is 28 February in a common
 year and 29 February in a leap year.
+
+## Several streams on one page
+
+Nothing stops a note from holding as many blocks as it needs. These are all
+reading the same two folders — a `Travels/` folder whose notes carry `start`
+and `end` dates, and a `Trip Notes/` folder of short notes tagged to a trip.
+Only the query differs.
+
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/ukaytac/obsidian-simple-streams/main/docs/images/02-this-year-light.png">
+  <img src="https://raw.githubusercontent.com/ukaytac/obsidian-simple-streams/main/docs/images/02-this-year-dark.png" alt="Two streams on one page: a date-bounded one titled This year so far, and below it Long trips only, filtered on a quoted comparison against a frontmatter number.">
+</picture>
+
+`where` is what makes a stream specific: a rating, a budget, a date in the
+future, a field that is simply missing.
+
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/ukaytac/obsidian-simple-streams/main/docs/images/03-five-stars-light.png">
+  <img src="https://raw.githubusercontent.com/ukaytac/obsidian-simple-streams/main/docs/images/03-five-stars-dark.png" alt="Three title-only streams: Five stars, Still ahead — trips whose end date is in the future — and Cheap trips, sorted by budget.">
+</picture>
+
+And what that page is, underneath: plain code blocks in a Markdown note.
+
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/ukaytac/obsidian-simple-streams/main/docs/images/04-stream-code-light.png">
+  <img src="https://raw.githubusercontent.com/ukaytac/obsidian-simple-streams/main/docs/images/04-stream-code-dark.png" alt="The same note in source mode, showing the stream code blocks that produced the rendered streams above.">
+</picture>
 
 ## Development
 
