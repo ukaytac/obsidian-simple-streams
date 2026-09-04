@@ -132,6 +132,11 @@ Comparison operators must be quoted, because `rating: >3` is not valid YAML.
 This is the accepted cost of a plain-YAML schema; the alternative
 (`rating: {gt: 3}`) is cleaner to parse but noisier to write.
 
+An operator with nothing after it is an error. `">="`, `">"`, `"> "` and the
+rest have no operand, and every reading of them is a guess: left alone they
+compare against the string `"="` or against nothing at all, and produce a
+filter that quietly matches the wrong notes.
+
 `exists` and `missing` are reserved words in this position. Matching a
 frontmatter value that is literally the string "exists" is not supported.
 
