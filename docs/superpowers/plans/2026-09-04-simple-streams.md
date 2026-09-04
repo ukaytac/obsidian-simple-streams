@@ -1538,6 +1538,20 @@ describe("parseQuery — title", () => {
   });
 });
 
+describe("parseQuery — a missing value explains itself the same way everywhere", () => {
+  it("gives the hash hint on single-value fields too, not just list fields", () => {
+    // `tags: #x` already explained itself; `date-field: #x` used to say only
+    // that the field expects text.
+    expect(() => parseQuery("date-field: #x")).toThrow(/`date-field` has no value.*quote it/s);
+    expect(() => parseQuery("title:")).toThrow(/`title` has no value/);
+    expect(() => parseQuery("group: #x")).toThrow(/`group` has no value/);
+  });
+
+  it("still rejects a structured value as the wrong shape", () => {
+    expect(() => parseQuery("date-field:\n  a: 1")).toThrow(/expects a single piece of text/);
+  });
+});
+
 describe("parseQuery — date-field, from and to", () => {
   it("reads the date field verbatim, preserving case", () => {
     expect(parseQuery("date-field: Created").dateField).toBe("Created");
@@ -1699,11 +1713,19 @@ function toSingleString(field: string, value: unknown): string {
   if (typeof value === "number" || typeof value === "boolean") {
     return String(value);
   }
+  if (value === null || value === undefined) {
+    // Same answer `toStringList` gives, so `date-field: #x` and `tags: #x` do
+    // not explain the same mistake to different standards.
+    throw new QueryError(`\`${field}\` has no value. ${hashHint(field)}`);
+  }
   throw new QueryError(`\`${field}\` expects a single piece of text`);
 }
 
 function parseTitle(value: unknown): TitleMatcher {
   const text = toSingleString("title", value);
+  // Slash-wrapped text is always a regex, never a literal. A note's file name
+  // cannot contain a slash — that is the path separator — so a literal
+  // `/weekly/` title could never match anything anyway.
   const regex = /^\/(.*)\/([gimsuy]*)$/.exec(text);
   if (!regex) {
     return { kind: "text", value: text.toLowerCase() };
@@ -1774,7 +1796,7 @@ function toPositiveInt(field: string, value: unknown): number {
 - [ ] **Step 5: Run test to verify it passes**
 
 Run: `npx vitest run tests/query/parse-scalars.test.ts tests/query/parse-lists.test.ts`
-Expected: PASS, both files.
+Expected: PASS, both files — 23 tests in `parse-scalars`, 22 in `parse-lists`.
 
 - [ ] **Step 6: Commit**
 
