@@ -35,6 +35,15 @@ describe("coerceDate", () => {
     expect(coerceDate("2026-99-99")).toBeNull();
     expect(dateValue("2026-13-40")).toBeNull();
   });
+
+  it("returns null for a date-time whose day does not exist", () => {
+    // Date.parse checks the hour but not the day, so these roll over unless the
+    // date part is validated separately from the bare-date form.
+    expect(coerceDate("2026-02-30T08:30")).toBeNull();
+    expect(coerceDate("2026-04-31T00:00")).toBeNull();
+    expect(coerceDate("2027-02-29T10:00")).toBeNull();
+    expect(coerceDate("2026-02-30 08:30")).toBeNull();
+  });
 });
 
 describe("looksLikeDate / dateValue", () => {
