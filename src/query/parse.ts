@@ -12,6 +12,14 @@ export function parseQuery(source: string): StreamQuery {
   return query;
 }
 
+/**
+ * YAML reads a bare `#` as the start of a comment. Obsidian users write tags
+ * with a hash, so `tags: [#book]` (a parse error) and `tags: #book` (silently
+ * `null`) are the two mistakes they will actually make.
+ */
+const HASH_HINT =
+  'If you wrote a bare `#tag`, YAML read it as a comment — quote it, as in tags: ["#book"].';
+
 function readYaml(source: string): Record<string, unknown> {
   if (source.trim() === "") {
     return {};
@@ -22,7 +30,9 @@ function readYaml(source: string): Record<string, unknown> {
     parsed = parseYamlText(source);
   } catch (error) {
     if (error instanceof YAMLParseError) {
-      throw new QueryError(error.message.split("\n")[0], error.linePos?.[0]?.line);
+      const first = error.message.split("\n")[0];
+      const message = /comment/i.test(first) ? `${first} ${HASH_HINT}` : first;
+      throw new QueryError(message, error.linePos?.[0]?.line);
     }
     throw new QueryError(error instanceof Error ? error.message : String(error));
   }
@@ -80,6 +90,9 @@ function toStringList(field: string, value: unknown): string[] {
       }
       if (typeof item === "number" || typeof item === "boolean") {
         return String(item);
+      }
+      if (item === null || item === undefined) {
+        throw new QueryError(`\`${field}\` has no value. ${HASH_HINT}`);
       }
       throw new QueryError(`\`${field}\` expects text or a list of text`);
     })

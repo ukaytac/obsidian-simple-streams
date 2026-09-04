@@ -59,8 +59,7 @@ describe("parseQuery — folders", () => {
 
 describe("parseQuery — tags", () => {
   it("normalizes tags with and without a hash", () => {
-    // Quoted: an unquoted "#Book" right after "[" is invalid YAML — the "#"
-    // is ambiguous with a comment marker unless separated by white space.
+    // The hash must be quoted; YAML would read a bare one as a comment.
     expect(parseQuery('tags: ["#Book", reading]').tags).toEqual(["book", "reading"]);
   });
 
@@ -76,5 +75,23 @@ describe("parseQuery — tags", () => {
 
   it("rejects a list holding a map", () => {
     expect(() => parseQuery("tags:\n  - a: 1")).toThrow(/`tags` expects text/);
+  });
+});
+
+describe("parseQuery — a bare hash is a YAML comment", () => {
+  it("names the real cause when the hash breaks the parse", () => {
+    expect(() => parseQuery("tags: [#book, reading]")).toThrow(/quote it/);
+  });
+
+  it("names the real cause when the hash silently empties the value", () => {
+    // `tags: #book` parses as `tags: null`, so without this the message would
+    // only say the field expects text.
+    expect(() => parseQuery("tags: #book")).toThrow(/`tags` has no value.*quote it/s);
+    expect(() => parseQuery("tags:\n  - #book")).toThrow(/`tags` has no value/);
+  });
+
+  it("accepts the quoted form", () => {
+    expect(parseQuery('tags: "#book"').tags).toEqual(["book"]);
+    expect(parseQuery('exclude-tags: ["#draft"]').excludeTags).toEqual(["draft"]);
   });
 });
