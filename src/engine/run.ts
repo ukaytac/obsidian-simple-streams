@@ -40,32 +40,42 @@ function arrange(notes: NoteMeta[], query: StreamQuery, locale?: string): NoteMe
   );
 }
 
+/**
+ * A fact the view has to tell the reader.
+ *
+ * A tagged list rather than a set of flags, because a flag has to be
+ * remembered and this project has twice failed to: `truncated` was computed
+ * and never rendered anywhere, and the date notice was rendered in a branch
+ * that an empty result skipped — which was exactly the case it existed for.
+ * With a union the view switches exhaustively, so a fourth notice fails to
+ * compile until someone gives it words. These carry facts, never sentences:
+ * the engine holds no user-facing English, and the view owns every word.
+ *
+ * - `dateFallback` — a declared `date-field` yielded a usable date for no note
+ *   the query reached, the signature of a typo in the field name. Judged before
+ *   the date range narrowed the result, since a typo sends every note onto the
+ *   `file.ctime` fallback and the range can then empty the stream.
+ * - `unresolvedSort` — declared sort fields that resolved for no matched note.
+ *   A missing value sorts last, so such a key leaves every note tied and the
+ *   order falls through to the `file.path` tie-break: `sort: file.ctim desc`
+ *   quietly becomes alphabetical by path. Judged on matched rather than shown,
+ *   because a field resolving only below the `limit` is not a typo. A declared
+ *   sort on the `date-field` is left out, since `dateFallback` tells that story.
+ * - `truncated` — the `limit` cut notes off, so a group header can show two of
+ *   a day's five notes and otherwise read as a complete day.
+ */
+export type StreamNotice =
+  | { kind: "dateFallback"; field: string }
+  | { kind: "unresolvedSort"; fields: string[] }
+  | { kind: "truncated"; shown: number; matched: number };
+
 export interface StreamResult {
   groups: StreamGroup[];
   /** How many notes matched, before the limit. */
   matched: number;
   /** How many notes the groups actually hold. */
   shown: number;
-  truncated: boolean;
-  /**
-   * True when a declared `date-field` yielded a usable date for no note on
-   * screen — the signature of a typo in the field name, which would otherwise
-   * order the whole stream by file creation time with nothing to say so.
-   */
-  dateFallback: boolean;
-  /**
-   * Declared sort fields that resolved for no note the query matched. A missing
-   * value sorts last, so a key nothing resolves leaves every note tied and the
-   * order falls through to the `file.path` tie-break: `sort: file.ctim desc`
-   * quietly becomes alphabetical by path, which looks like a working stream.
-   *
-   * Judged on the matched notes rather than the shown ones, because a field
-   * that resolves only below the `limit` is not a typo — reporting it sent the
-   * reader hunting a mistake they had not made. A declared sort on the
-   * `date-field` is left out entirely, since `dateFallback` already tells that
-   * story and saying it twice reads like two problems.
-   */
-  unresolvedSort: string[];
+  notices: StreamNotice[];
 }
 
 export function runStream(
@@ -86,23 +96,35 @@ export function runStream(
       ? matched
       : filterNotes(notes, { ...query, from: null, to: null }, now);
 
+  const notices: StreamNotice[] = [];
+
+  if (
+    query.dateField !== "file.ctime" &&
+    reached.length > 0 &&
+    reached.every((note) => coerceDate(resolveField(note, query.dateField)) === null)
+  ) {
+    notices.push({ kind: "dateFallback", field: query.dateField });
+  }
+
+  const unresolved =
+    matched.length === 0
+      ? []
+      : query.sort
+          .filter((spec) => spec.field !== query.dateField)
+          .filter((spec) => matched.every((note) => resolveField(note, spec.field) === undefined))
+          .map((spec) => spec.field);
+  if (unresolved.length > 0) {
+    notices.push({ kind: "unresolvedSort", fields: unresolved });
+  }
+
+  if (matched.length > shown.length) {
+    notices.push({ kind: "truncated", shown: shown.length, matched: matched.length });
+  }
+
   return {
     groups: groupNotes(shown, query, locale),
     matched: matched.length,
     shown: shown.length,
-    truncated: matched.length > shown.length,
-    dateFallback:
-      query.dateField !== "file.ctime" &&
-      reached.length > 0 &&
-      reached.every((note) => coerceDate(resolveField(note, query.dateField)) === null),
-    unresolvedSort:
-      matched.length === 0
-        ? []
-        : query.sort
-            .filter((spec) => spec.field !== query.dateField)
-            .filter((spec) =>
-              matched.every((note) => resolveField(note, spec.field) === undefined),
-            )
-            .map((spec) => spec.field),
+    notices,
   };
 }

@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { runStream } from "../../src/engine/run";
+import { runStream, type StreamResult } from "../../src/engine/run";
 import { parseQuery } from "../../src/query/parse";
 import { localDate, note } from "../fixtures/notes";
 
 const NOW = new Date(2026, 8, 4);
+
+const kinds = (result: StreamResult): string[] => result.notices.map((notice) => notice.kind);
 
 const NOTES = [
   note({ path: "Journal/03.md", tags: ["daily"], ctime: localDate(2026, 9, 3) }),
@@ -19,14 +21,14 @@ describe("runStream", () => {
     expect(result.groups[0].notes.map((n) => n.path)).toEqual(["Journal/04a.md", "Journal/04b.md"]);
     expect(result.matched).toBe(3);
     expect(result.shown).toBe(3);
-    expect(result.truncated).toBe(false);
+    expect(kinds(result)).not.toContain("truncated");
   });
 
   it("applies the limit after sorting and reports truncation", () => {
     const result = runStream(NOTES, parseQuery("limit: 2"), NOW, "en-GB");
     expect(result.shown).toBe(2);
     expect(result.matched).toBe(4);
-    expect(result.truncated).toBe(true);
+    expect(result.notices).toContainEqual({ kind: "truncated", shown: 2, matched: 4 });
     expect(result.groups[0].notes.map((n) => n.path)).toEqual(["Journal/04a.md", "Journal/04b.md"]);
   });
 
@@ -56,13 +58,13 @@ describe("runStream", () => {
     expect(result.groups).toEqual([]);
     expect(result.matched).toBe(0);
     expect(result.shown).toBe(0);
-    expect(result.truncated).toBe(false);
+    expect(result.notices).toEqual([]);
   });
 
   it("reports a date fallback when a declared date-field reaches no note", () => {
     // The signature of `date-field: dat` — every note falls back to ctime.
     const result = runStream(NOTES, parseQuery("date-field: dat"), NOW, "en-GB");
-    expect(result.dateFallback).toBe(true);
+    expect(result.notices).toContainEqual({ kind: "dateFallback", field: "dat" });
   });
 
   it("still reports a date fallback when the range emptied the result", () => {
@@ -75,7 +77,7 @@ describe("runStream", () => {
     const query = parseQuery("date-field: dat\nfrom: 2026-06-01\nto: 2026-06-30");
     const result = runStream(january, query, NOW, "en-GB");
     expect(result.shown).toBe(0);
-    expect(result.dateFallback).toBe(true);
+    expect(result.notices).toContainEqual({ kind: "dateFallback", field: "dat" });
   });
 
   it("keeps days contiguous even when the date field resolves for nothing", () => {
@@ -111,21 +113,21 @@ describe("runStream", () => {
     ];
     const result = runStream(notes, parseQuery("sort: [status asc, rating desc]\nlimit: 3"), NOW);
     expect(result.shown).toBe(3);
-    expect(result.unresolvedSort).toEqual([]);
+    expect(kinds(result)).not.toContain("unresolvedSort");
   });
 
   it("leaves a declared sort on the date field to the date notice", () => {
     // Both diagnostics fired for one cause, wording it two different ways.
     const result = runStream(NOTES, parseQuery("date-field: dat\nsort: dat desc"), NOW, "en-GB");
-    expect(result.dateFallback).toBe(true);
-    expect(result.unresolvedSort).toEqual([]);
+    expect(kinds(result)).toContain("dateFallback");
+    expect(kinds(result)).not.toContain("unresolvedSort");
   });
 
   it("reports a sort field that resolved for no note", () => {
     // `file.ctim` is a typo for `file.ctime`; every note ties and the order
     // silently falls through to the path tie-break.
     const result = runStream(NOTES, parseQuery("sort: file.ctim desc"), NOW, "en-GB");
-    expect(result.unresolvedSort).toEqual(["file.ctim"]);
+    expect(result.notices).toContainEqual({ kind: "unresolvedSort", fields: ["file.ctim"] });
   });
 
   it("reports no unresolved sort when the field resolves for some note", () => {
@@ -133,24 +135,25 @@ describe("runStream", () => {
       note({ path: "a.md", frontmatter: { rating: 5 } }),
       note({ path: "b.md" }),
     ];
-    expect(runStream(mixed, parseQuery("sort: rating desc"), NOW, "en-GB").unresolvedSort).toEqual(
-      [],
+    expect(kinds(runStream(mixed, parseQuery("sort: rating desc"), NOW, "en-GB"))).not.toContain(
+      "unresolvedSort",
     );
-    expect(runStream(NOTES, parseQuery(""), NOW, "en-GB").unresolvedSort).toEqual([]);
+    expect(kinds(runStream(NOTES, parseQuery(""), NOW, "en-GB"))).not.toContain("unresolvedSort");
     expect(
-      runStream(NOTES, parseQuery("tags: nonexistent\nsort: file.ctim"), NOW, "en-GB")
-        .unresolvedSort,
-    ).toEqual([]);
+      kinds(runStream(NOTES, parseQuery("tags: nonexistent\nsort: file.ctim"), NOW, "en-GB")),
+    ).not.toContain("unresolvedSort");
   });
 
   it("reports no date fallback when the field resolves, or when it is the default", () => {
     const dated = [note({ path: "a.md", frontmatter: { date: "2026-09-04" } })];
-    expect(runStream(dated, parseQuery("date-field: date"), NOW, "en-GB").dateFallback).toBe(false);
+    expect(kinds(runStream(dated, parseQuery("date-field: date"), NOW, "en-GB"))).not.toContain(
+      "dateFallback",
+    );
     // Only a *declared* field can be a typo; the default is nobody's mistake.
-    expect(runStream(NOTES, parseQuery(""), NOW, "en-GB").dateFallback).toBe(false);
+    expect(kinds(runStream(NOTES, parseQuery(""), NOW, "en-GB"))).not.toContain("dateFallback");
     // Nor is an empty stream evidence of one.
     expect(
-      runStream(NOTES, parseQuery("tags: nonexistent\ndate-field: dat"), NOW, "en-GB").dateFallback,
-    ).toBe(false);
+      kinds(runStream(NOTES, parseQuery("tags: nonexistent\ndate-field: dat"), NOW, "en-GB")),
+    ).not.toContain("dateFallback");
   });
 });
