@@ -6,7 +6,7 @@
 
 **Architecture:** A pure engine (`src/engine`, `src/query`) that only ever sees plain objects, plus two thin Obsidian-facing layers: `src/obsidian` (translates `TFile` + `metadataCache` into plain data, owns the refresh loop) and `src/view` (DOM, lazy rendering). Data flows one way: code block → `parseQuery` → `collectNotes` → `runStream` → `StreamChild`. Because the engine never imports `obsidian`, almost the whole test suite runs in plain Node.
 
-**Tech Stack:** TypeScript (strict), esbuild, Vitest, the `yaml` package for parsing the block body, Obsidian API 1.5+.
+**Tech Stack:** TypeScript (strict), esbuild, Vitest, the `yaml` package for parsing the block body, Obsidian API 1.5.7+ (the floor is set by `Vault#getFileByPath`, which Task 19 uses).
 
 **Spec:** `docs/superpowers/specs/2026-09-04-simple-streams-design.md`
 
@@ -128,7 +128,7 @@ export default defineConfig({
   "id": "simple-streams",
   "name": "Simple Streams",
   "version": "0.1.0",
-  "minAppVersion": "1.5.0",
+  "minAppVersion": "1.5.7",
   "description": "Render a filtered, sorted stream of notes from a code block.",
   "author": "ukaytac",
   "isDesktopOnly": false
@@ -139,9 +139,14 @@ export default defineConfig({
 
 ```json
 {
-  "0.1.0": "1.5.0"
+  "0.1.0": "1.5.7"
 }
 ```
+
+`1.5.7` rather than a rounder `1.5.0`: `Vault#getFileByPath` landed in 1.5.7
+(see the `obsidian` package's own CHANGELOG), and Task 19 calls it. On 1.5.0
+through 1.5.6 Obsidian would accept the manifest and then throw at render time.
+Do not round this down.
 
 - [ ] **Step 6: Write the `src/main.ts` stub**
 
