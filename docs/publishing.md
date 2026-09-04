@@ -72,7 +72,26 @@ registers a code block processor — all public API, all present at the declared
 `minAppVersion` floor, which `npm run check:floor` proves against the real
 typings for that version rather than the latest ones.
 
-Two things a reviewer is still likely to raise:
+The directory's scan flags **vault enumeration** — `getMarkdownFiles()` gives the
+plugin every note path in the vault. It is a true statement about the plugin and
+not something to argue away: a code block that selects notes by folder, tag,
+frontmatter and date has to see the notes to select from. What makes it
+answerable is the shape of the access, so lead with that:
+
+- Markdown only. `getFiles()` is never called, so attachments and other files
+  are not enumerated.
+- Everything read per note — path, name, tags, frontmatter, timestamps — is
+  already in the metadata cache; the plugin adds no scanning of its own.
+- Bodies are read only for rendered items, through `vault.cachedRead`.
+- No writes, no stored settings, no network. The claim is checkable in one
+  command: `grep -rn "fetch\|requestUrl\|vault.modify\|saveData" src/` returns
+  nothing.
+
+The same four points are in the README under "What it reads, and what it never
+does", so a user deciding whether to install sees them without reading the
+source.
+
+Two more things a reviewer is likely to raise:
 
 - **Vault-wide reads on every change.** The registry debounces metadata and vault
   events by 300ms (`DEBOUNCE_MS` in `src/obsidian/registry.ts`) and filters and

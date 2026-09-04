@@ -38,6 +38,35 @@ Simple Streams is not in the community plugin list yet. To install it:
 
 Requires Obsidian 1.5.7 or newer. Works on desktop and mobile.
 
+## What it reads, and what it never does
+
+A query that can select from the vault has to be able to see the vault, so
+Simple Streams enumerates it — this is worth stating plainly rather than
+leaving you to find it in a permissions list.
+
+- **It lists every Markdown note.** `app.vault.getMarkdownFiles()`, one call
+  site: [`src/obsidian/adapter.ts`](src/obsidian/adapter.ts). Markdown only —
+  not `getFiles()`, so attachments and non-note files are never enumerated.
+  What it takes from each is its path, name, tags, frontmatter and timestamps,
+  all of which are already in Obsidian's metadata cache. A `folder:` narrows
+  what a stream *shows*; the list it filters is still the whole vault.
+- **It reads note bodies only to draw them.** `vault.cachedRead`, and only for
+  the items a stream actually renders — bounded by the query's `limit` and, for
+  a long stream, by how far you have scrolled.
+- **It never writes.** No note is created, edited, renamed or deleted. It
+  subscribes to those events to know when to re-run a query; it does not cause
+  them. The plugin stores no settings of its own.
+- **It never talks to the network.** There is no `fetch`, no `requestUrl`, and
+  no dependency that makes one. Nothing about your vault leaves your machine.
+
+`npm run check:floor` and the test suite are run in CI on every release, and
+each release asset carries a signed provenance attestation, so you can verify
+the `main.js` you downloaded was built from this source:
+
+```bash
+gh attestation verify main.js --repo ukaytac/obsidian-simple-streams
+```
+
 ## Fields
 
 | Field            | Type                     | Default           | Meaning |

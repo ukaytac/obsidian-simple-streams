@@ -42,6 +42,18 @@ An invalid block renders the reason in place instead of an empty stream: an
 unquoted comparison YAML has mangled, a sort field that resolves on nothing, a
 `date-field` no note carries. A stream never renders the note it lives in.
 
+### What it reads
+
+Selecting notes from the vault means enumerating the vault, so this is stated
+up front rather than left to a permissions list. Simple Streams lists every
+Markdown note — `app.vault.getMarkdownFiles()`, not `getFiles()`, so
+attachments are never touched — and takes only what Obsidian's metadata cache
+already holds: path, name, tags, frontmatter, timestamps. Note bodies are read
+only for the items a stream actually draws.
+
+It writes nothing, stores no settings, and makes no network request of any
+kind. Release assets carry a signed build provenance attestation.
+
 ### Known limitations
 
 - **The stream is read-only.** It shows notes; it does not create or edit them.
