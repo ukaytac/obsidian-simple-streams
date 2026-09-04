@@ -149,6 +149,21 @@ export class StreamChild extends MarkdownRenderChild {
     if (this.dead) {
       return;
     }
+    // Every recursion runs through a stream block sitting inside a note that
+    // another stream is showing in full, whatever the shape of the cycle: one
+    // note streaming itself, or two notes streaming each other. Refusing to
+    // run at that depth ends all of them, and `.ss-item-body` is this
+    // plugin's own container, so nothing else can match it. The check is
+    // deliberately doubled with the host-note check in `renderItem`: that one
+    // needs no attached DOM, this one catches the cycles that one cannot see.
+    if (this.containerEl.closest(".ss-item-body") !== null) {
+      this.containerEl.empty();
+      this.containerEl.createDiv({
+        cls: "ss-notice",
+        text: "This stream sits inside a note that another stream is showing, so it is not run here.",
+      });
+      return;
+    }
     const generation = ++this.generation;
     this.observer?.disconnect();
     this.observer = null;

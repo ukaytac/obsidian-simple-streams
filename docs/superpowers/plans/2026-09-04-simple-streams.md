@@ -4432,6 +4432,21 @@ export async function renderItem(
     return;
   }
 
+  if (note.path === ctx.sourcePath) {
+    // The host note is in its own stream, which `folder`-less queries do by
+    // default. Rendering its full body here re-renders the very block doing
+    // the rendering: the code block processor is registered app-wide, so it
+    // fires again on this note's own `stream` fence, and the stream renders
+    // itself inside itself without end. A preview says the same thing and
+    // terminates.
+    body.setText(extractPreview(content, note.basename, ctx.query.previewLength));
+    item.createDiv({
+      cls: "ss-item-warning",
+      text: "Shown as a preview: this is the note holding the stream, and rendering it in full would nest the stream inside itself.",
+    });
+    return;
+  }
+
   const child = new MarkdownRenderChild(body);
   ctx.parent.addChild(child);
   await MarkdownRenderer.render(ctx.app, stripFrontmatter(content), body, note.path, child);
@@ -4658,6 +4673,21 @@ export class StreamChild extends MarkdownRenderChild {
 
   private async render(precomputed?: StreamResult): Promise<void> {
     if (this.dead) {
+      return;
+    }
+    // Every recursion runs through a stream block sitting inside a note that
+    // another stream is showing in full, whatever the shape of the cycle: one
+    // note streaming itself, or two notes streaming each other. Refusing to
+    // run at that depth ends all of them, and `.ss-item-body` is this
+    // plugin's own container, so nothing else can match it. The check is
+    // deliberately doubled with the host-note check in `renderItem`: that one
+    // needs no attached DOM, this one catches the cycles that one cannot see.
+    if (this.containerEl.closest(".ss-item-body") !== null) {
+      this.containerEl.empty();
+      this.containerEl.createDiv({
+        cls: "ss-notice",
+        text: "This stream sits inside a note that another stream is showing, so it is not run here.",
+      });
       return;
     }
     const generation = ++this.generation;
@@ -5507,6 +5537,7 @@ Confirm each of these, and fix what fails before moving on:
 - [ ] Renaming it updates the title shown in the stream.
 - [ ] Both themes: switch between light and dark; every colour still reads correctly.
 - [ ] With a `display: full` stream of 100+ notes, scroll down several pages, then edit and save a note so the stream re-renders. `scrollTop` is restored the moment `render()` resolves, but images without dimensions, embeds and mermaid all grow the content *after* `MarkdownRenderer.render` resolves, so the content can still be shorter than the saved offset and the browser clamps the write. Confirm the view does not jump to a different place than it was.
+- [ ] Set the last-30-days block to `display: full`. It has no `folder`, so it matches `Streams.md` itself. The row for `Streams.md` must show a preview and the warning that rendering it in full would nest the stream inside itself — and Obsidian must stay responsive. Then make two notes whose streams each show the other in full: the inner one must print "This stream sits inside a note that another stream is showing" instead of running. Whether Obsidian's code block processors fire on `MarkdownRenderer.render` output is not stated in `obsidian.d.ts`, so this is the only place the recursion and its two guards can actually be observed.
 - [ ] Scroll a long stream in quick flicks, so the sentinel leaves and re-enters the loading band several times while earlier pages are still rendering. Every note must appear exactly once and in order. Two paging loops used to share the row cursor here: measured over 100 notes, three rows drawn twice and three notes never drawn at all, with nothing on screen saying so.
 - [ ] Put more than `PAGE_SIZE` notes in `Journal/` and scroll a stream: the next page must already be there as the sentinel comes into view, not appear after a visible blank. This is the only way to confirm `scrollerEl()` finds the real scroll container — neither `.cm-scroller` nor `.markdown-preview-view` is a documented API, and if both selectors miss, `root` falls back to the viewport and the 200px preload buffer goes inert again without any error.
 - [ ] With that same long stream mid-scroll, save a note in `Journal/` repeatedly while pages are still loading. No gaps, no duplicated rows, no items out of order: this is what the generation counter in `renderUpTo` guards, and nothing in the test suite can reach it.

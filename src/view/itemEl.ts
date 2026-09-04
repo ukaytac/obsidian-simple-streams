@@ -49,6 +49,21 @@ export async function renderItem(
     return;
   }
 
+  if (note.path === ctx.sourcePath) {
+    // The host note is in its own stream, which `folder`-less queries do by
+    // default. Rendering its full body here re-renders the very block doing
+    // the rendering: the code block processor is registered app-wide, so it
+    // fires again on this note's own `stream` fence, and the stream renders
+    // itself inside itself without end. A preview says the same thing and
+    // terminates.
+    body.setText(extractPreview(content, note.basename, ctx.query.previewLength));
+    item.createDiv({
+      cls: "ss-item-warning",
+      text: "Shown as a preview: this is the note holding the stream, and rendering it in full would nest the stream inside itself.",
+    });
+    return;
+  }
+
   const child = new MarkdownRenderChild(body);
   ctx.parent.addChild(child);
   await MarkdownRenderer.render(ctx.app, stripFrontmatter(content), body, note.path, child);
