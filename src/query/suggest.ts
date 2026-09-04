@@ -23,6 +23,13 @@ export function editDistance(a: string, b: string): number {
 }
 
 export function nearestField(input: string, candidates: readonly string[]): string | null {
+  // Below three characters there is nothing to be confident about: the field
+  // list holds a two-letter name (`to`), so every short input lands on it —
+  // "gr", "wh" and "li" all came out as `to` before this gate.
+  if (input.length < 3) {
+    return null;
+  }
+
   let best: string | null = null;
   let bestDistance = Number.POSITIVE_INFINITY;
 
