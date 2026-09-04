@@ -6,7 +6,14 @@ export interface NoteMeta {
   basename: string;
   /** Normalized tags: no leading "#", lower case, e.g. ["project/streams"] */
   tags: string[];
-  frontmatter: Record<string, unknown>;
+  /**
+   * Read-only because the adapter hands over a live reference into Obsidian's
+   * own metadata cache rather than a copy. The engine only ever reads it, and
+   * the type is what keeps that true — writing here would corrupt Obsidian's
+   * cache, and copying every note's frontmatter on every render to avoid the
+   * risk would cost more than the guarantee is worth.
+   */
+  frontmatter: Readonly<Record<string, unknown>>;
   /** Creation time, ms since epoch */
   ctime: number;
   /** Modification time, ms since epoch */

@@ -2,6 +2,8 @@ import { getAllTags, type App, type CachedMetadata, type TFile } from "obsidian"
 import { normalizeTag, type NoteMeta } from "../engine/note";
 
 export function toNoteMeta(file: TFile, cache: CachedMetadata | null): NoteMeta {
+  // `frontmatter` below is Obsidian's own object, not a copy. NoteMeta types it
+  // read-only for that reason; see the comment there.
   const tags = cache === null ? [] : (getAllTags(cache) ?? []);
   return {
     path: file.path,
