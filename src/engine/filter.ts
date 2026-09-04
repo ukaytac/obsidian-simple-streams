@@ -1,0 +1,79 @@
+import { resolveDateExpr } from "./dates";
+import { resolveNoteDate } from "./fields";
+import { normalizeTag } from "./note";
+import type { NoteMeta } from "./note";
+import type { StreamQuery, TitleMatcher } from "../query/types";
+
+/**
+ * Path prefix match that breaks on a slash, so "journal" never matches
+ * "Journal2". Normalizes its own argument rather than trusting the caller: the
+ * parser already lower-cases and trims slashes, but a StreamQuery built by hand
+ * with `folder: ["Journal"]` would otherwise match nothing, in silence.
+ */
+export function inFolder(path: string, folder: string): boolean {
+  const wanted = folder.replace(/^\/+/, "").replace(/\/+$/, "").toLowerCase();
+  if (wanted === "") {
+    return true;
+  }
+  const lower = path.toLowerCase();
+  return lower === wanted || lower.startsWith(`${wanted}/`);
+}
+
+/**
+ * A tag matches itself and its descendants: "project" matches
+ * "project/streams". Normalizes its own argument, for the same reason.
+ */
+export function hasTag(tags: string[], wanted: string): boolean {
+  const needle = normalizeTag(wanted);
+  return tags.some((tag) => tag === needle || tag.startsWith(`${needle}/`));
+}
+
+export function matchesTitle(note: NoteMeta, matcher: TitleMatcher | null): boolean {
+  if (matcher === null) {
+    return true;
+  }
+  if (matcher.kind === "regex") {
+    // Compiled per note rather than hoisted, so TitleMatcher stays plain data.
+    // Measured before accepting it: 5000 notes cost 1.69ms this way against
+    // 0.24ms compiled once — 7x, but 1.7ms against a 300ms refresh debounce.
+    // Do not "optimize" this without a measurement that says otherwise.
+    return new RegExp(matcher.source, matcher.flags).test(note.basename);
+  }
+  return note.basename.toLowerCase().includes(matcher.value);
+}
+
+export function filterNotes(notes: NoteMeta[], query: StreamQuery, now: Date): NoteMeta[] {
+  const from = query.from === null ? null : resolveDateExpr(query.from, now, "start");
+  const to = query.to === null ? null : resolveDateExpr(query.to, now, "end");
+
+  return notes.filter((note) => {
+    if (query.folder.length > 0 && !query.folder.some((folder) => inFolder(note.path, folder))) {
+      return false;
+    }
+    if (query.excludeFolder.some((folder) => inFolder(note.path, folder))) {
+      return false;
+    }
+    if (!query.tags.every((tag) => hasTag(note.tags, tag))) {
+      return false;
+    }
+    if (query.tagsAny.length > 0 && !query.tagsAny.some((tag) => hasTag(note.tags, tag))) {
+      return false;
+    }
+    if (query.excludeTags.some((tag) => hasTag(note.tags, tag))) {
+      return false;
+    }
+    if (!matchesTitle(note, query.title)) {
+      return false;
+    }
+    if (from !== null || to !== null) {
+      const date = resolveNoteDate(note, query.dateField);
+      if (from !== null && date < from) {
+        return false;
+      }
+      if (to !== null && date > to) {
+        return false;
+      }
+    }
+    return true;
+  });
+}
