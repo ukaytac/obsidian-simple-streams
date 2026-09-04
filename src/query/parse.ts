@@ -269,7 +269,13 @@ function toPositiveInt(field: string, value: unknown): number {
   return n;
 }
 
-const COMPARISON = /^(>=|<=|!=|>|<)\s*(.+)$/;
+/**
+ * `.*` rather than `.+` on purpose. With `.+`, `">="` backtracked into the `>`
+ * branch and compared against the string `"="`, and `"> "` compared against
+ * nothing — both in silence. Matching greedily and rejecting an empty operand
+ * turns all of those into one clear error.
+ */
+const COMPARISON = /^(>=|<=|!=|>|<)\s*(.*)$/;
 
 function parseWhere(value: unknown): WhereClause[] {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
@@ -296,7 +302,13 @@ function parseCondition(field: string, raw: unknown): WhereCondition {
     }
     const comparison = COMPARISON.exec(text);
     if (comparison) {
-      return { kind: "compare", op: comparison[1] as CompareOp, operand: comparison[2].trim() };
+      const operand = comparison[2].trim();
+      if (operand === "") {
+        throw new QueryError(
+          `\`where.${field}\` has the operator \`${comparison[1]}\` with nothing to compare against`,
+        );
+      }
+      return { kind: "compare", op: comparison[1] as CompareOp, operand };
     }
     return { kind: "equals", value: text };
   }

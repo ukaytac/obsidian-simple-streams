@@ -65,6 +65,16 @@ describe("parseQuery — where", () => {
       /`where.status` expects text, a number, a boolean, or a list/,
     );
   });
+
+  it("rejects an operator with nothing to compare against", () => {
+    // `">="` used to backtrack into `>` and compare against the string "=",
+    // and `"> "` compared against nothing. Both silently matched the wrong notes.
+    for (const value of ['">="', '"<="', '">"', '"!="', '"> "', '">   "']) {
+      expect(() => parseQuery(`where:\n  rating: ${value}`), value).toThrow(
+        /with nothing to compare against/,
+      );
+    }
+  });
 });
 
 /** A smallest valid value for each field, to prove the field is wired up. */
