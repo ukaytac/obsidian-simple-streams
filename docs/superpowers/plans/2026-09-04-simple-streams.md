@@ -5325,6 +5325,9 @@ Confirm each of these, and fix what fails before moving on:
 - [ ] Deleting that note removes it from the stream.
 - [ ] Renaming it updates the title shown in the stream.
 - [ ] Both themes: switch between light and dark; every colour still reads correctly.
+- [ ] Put more than `PAGE_SIZE` notes in `Journal/` and scroll a stream: the next page must already be there as the sentinel comes into view, not appear after a visible blank. This is the only way to confirm `scrollerEl()` finds the real scroll container — neither `.cm-scroller` nor `.markdown-preview-view` is a documented API, and if both selectors miss, `root` falls back to the viewport and the 200px preload buffer goes inert again without any error.
+- [ ] With that same long stream mid-scroll, save a note in `Journal/` repeatedly while pages are still loading. No gaps, no duplicated rows, no items out of order: this is what the generation counter in `renderUpTo` guards, and nothing in the test suite can reach it.
+- [ ] Give a note a singular `tag: book` instead of `tags: [book]` and confirm the `tags: book` stream still finds it. Obsidian's `parseFrontMatterTags` accepts both keys; the test mock reads only the plural one, so this is the one tag shape the suite cannot see.
 - [ ] The query summary under an empty stream and the error message both render in a monospace face. Obsidian's docs name `--font-monospace-theme` but not the plain `--font-monospace` the stylesheet uses, so this is the one variable a real vault has to settle. The fallback means the worst case is the platform's default monospace rather than nothing.
 
 - [ ] **Step 5: Add usage and development docs to the README**
