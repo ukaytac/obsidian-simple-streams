@@ -31,6 +31,13 @@ export class StreamChild extends MarkdownRenderChild {
    * captured and stops instead of writing to it.
    */
   private generation = 0;
+  /**
+   * The generation whose paging loop is currently running, or -1. A generation
+   * is always >= 1, so -1 cannot collide with one.
+   */
+  private pagingGeneration = -1;
+  /** Set by `onunload`. An unloaded block must render nothing more. */
+  private dead = false;
   private pages = 1;
   private signature = "";
 
@@ -64,37 +71,68 @@ export class StreamChild extends MarkdownRenderChild {
   }
 
   onload(): void {
-    void this.render();
+    // `render()`'s own try covers `compute()` only. A throw from the item loop
+    // leaves the block half-drawn with no sentinel — lazy loading dead for the
+    // life of the block — and `void` sends the reason to the console, the one
+    // place spec section 7 says a failure must never only live.
+    void this.render().catch((error: unknown) => {
+      this.showError(error);
+    });
   }
 
   onunload(): void {
+    // The generation too, and the fields. `drawRows` awaits per row, so an
+    // in-flight pass outlives the unload: measured 15 further items rendered
+    // into a detached tree after the block was gone, each one free to pull in
+    // embeds and other plugins' post-processors, and 16 render children left
+    // added to an already-unloaded parent — never loaded, per obsidian.d.ts
+    // 1868, and so never unloaded, per 1855. That is the leak `items` exists
+    // to prevent, reopened from the other end.
+    this.dead = true;
+    this.generation += 1;
     this.observer?.disconnect();
     this.observer = null;
+    this.items = null;
+    this.listEl = null;
+    this.sentinelEl = null;
   }
 
   showError(error: unknown): void {
+    // The signature has to describe what is on screen, and `render()` stores
+    // it before the item loop. A throw mid-render therefore leaves it
+    // describing a result nobody saw, and `refresh()`'s short-circuit then
+    // makes the error box permanent — it outlives its own cause until the note
+    // is closed and reopened. No result can produce `""` — `signatureOf` is a
+    // `JSON.stringify`, so the emptiest one is `"[[],[]]"` — which makes this
+    // a value the next refresh is guaranteed to disagree with.
+    this.signature = "";
     renderError(this.containerEl, error);
   }
 
   /** Re-render only when the matching notes or their mtimes changed. */
   async refresh(): Promise<void> {
-    if (this.query === null) {
+    if (this.dead || this.query === null) {
       return;
     }
-    let next: string;
+    // Computed once and handed to `render`, not computed again there. Two
+    // `runStream` calls per refresh cost two full vault scans, and they ran
+    // against two different `new Date()`s — so a `from: today` boundary
+    // crossing between them let the signature that was compared describe a
+    // result that was then thrown away.
+    let result: StreamResult;
     try {
-      next = signatureOf(this.compute());
+      result = this.compute();
     } catch (error) {
       this.showError(error);
       return;
     }
-    if (next === this.signature) {
+    if (signatureOf(result) === this.signature) {
       return;
     }
 
     const scroller = this.scrollerEl();
     const scrollTop = scroller?.scrollTop ?? 0;
-    await this.render();
+    await this.render(result);
     if (scroller !== null) {
       scroller.scrollTop = scrollTop;
     }
@@ -107,7 +145,10 @@ export class StreamChild extends MarkdownRenderChild {
     return runStream(collectNotes(this.app), this.query, new Date());
   }
 
-  private async render(): Promise<void> {
+  private async render(precomputed?: StreamResult): Promise<void> {
+    if (this.dead) {
+      return;
+    }
     const generation = ++this.generation;
     this.observer?.disconnect();
     this.observer = null;
@@ -117,6 +158,12 @@ export class StreamChild extends MarkdownRenderChild {
       this.items = null;
     }
     this.containerEl.empty();
+    // All three name the pass whose DOM was just dropped. `items` alone being
+    // null is what stopped `drawRows` writing into the other two — one field
+    // carrying an invariant that belongs to three, with two early returns
+    // below reaching `showError` without clearing them.
+    this.listEl = null;
+    this.sentinelEl = null;
 
     if (this.query === null) {
       this.showError(this.failure);
@@ -124,11 +171,15 @@ export class StreamChild extends MarkdownRenderChild {
     }
 
     let result: StreamResult;
-    try {
-      result = this.compute();
-    } catch (error) {
-      this.showError(error);
-      return;
+    if (precomputed === undefined) {
+      try {
+        result = this.compute();
+      } catch (error) {
+        this.showError(error);
+        return;
+      }
+    } else {
+      result = precomputed;
     }
 
     this.signature = signatureOf(result);
@@ -146,32 +197,67 @@ export class StreamChild extends MarkdownRenderChild {
     if (this.rows.length === 0) {
       root.createDiv({ cls: "ss-empty", text: "No notes match this stream." });
       root.createDiv({ cls: "ss-empty-summary", text: describeQuery(this.query) });
-      this.listEl = null;
-      this.sentinelEl = null;
       return;
     }
 
+    // Resolved before the item loop. `watchSentinel` used to call
+    // `scrollerEl()` after every await, so a block detached mid-render found
+    // no scroller and silently took `root: null` — a legal init meaning "the
+    // viewport", hence an observer that looks fine and preloads nothing.
+    const scroller = this.scrollerEl();
     this.items = new Component();
     this.addChild(this.items);
     this.listEl = root.createDiv({ cls: "ss-list" });
     this.sentinelEl = root.createDiv({ cls: "ss-sentinel" });
-    await this.renderUpTo(this.pages, generation);
-    this.watchSentinel();
+    await this.renderUpTo(generation);
+    this.watchSentinel(scroller);
   }
 
-  private async renderUpTo(pages: number, generation: number): Promise<void> {
+  /**
+   * Draw rows up to `this.pages`, one loop at a time.
+   *
+   * The target is read fresh each turn instead of being passed in, so a
+   * sentinel hit that lands mid-loop raises the target the running loop is
+   * already walking toward rather than starting a second loop beside it.
+   */
+  private async renderUpTo(generation: number): Promise<void> {
+    // Two loops of the *same* generation were the sharper half of this bug.
+    // Both clear the generation check, both read `rows[rendered]` for the same
+    // index across the same await, and both then increment. Measured over 100
+    // notes with four sentinel re-entries: 3 rows drawn twice, 3 notes never
+    // drawn at all, and the cursor still claiming all 100 — a stream silently
+    // missing notes, which is the one thing it exists to not do. Claiming the
+    // index before the await would stop the duplicates but not the disorder,
+    // since the later row can finish first and be appended above the earlier
+    // one. Serializing is what actually holds.
+    if (this.pagingGeneration === generation) {
+      return;
+    }
+    this.pagingGeneration = generation;
+    try {
+      await this.drawRows(generation);
+    } finally {
+      if (this.pagingGeneration === generation) {
+        this.pagingGeneration = -1;
+      }
+    }
+  }
+
+  private async drawRows(generation: number): Promise<void> {
     const list = this.listEl;
     const query = this.query;
-    // Captured, not read per row: a pass that loses the race must parent its
-    // last in-flight item to its own component, which is already unloaded,
-    // rather than hang a stale note's render child on the live one.
+    // Captured, not read per row: a pass that loses the race parents its last
+    // in-flight item to its own component, which is already unloaded, instead
+    // of hanging a stale note's render child on the live one. That leaves the
+    // one orphan bounded either way — parented here it is never loaded and so
+    // never unloaded; parented to the live component it would outlive its own
+    // pass. Neither is free; this one at least cannot accumulate.
     const parent = this.items;
     if (list === null || query === null || parent === null) {
       return;
     }
 
-    const target = Math.min(pages * PAGE_SIZE, this.rows.length);
-    while (this.rendered < target) {
+    while (this.rendered < Math.min(this.pages * PAGE_SIZE, this.rows.length)) {
       // A refresh can start a new pass while this one waits on renderItem.
       // `rendered`, `rows` and `listEl` all belong to whichever pass is
       // current, so an unguarded stale loop appends to detached DOM and walks
@@ -204,7 +290,7 @@ export class StreamChild extends MarkdownRenderChild {
     }
   }
 
-  private watchSentinel(): void {
+  private watchSentinel(scroller: HTMLElement | null): void {
     const sentinel = this.sentinelEl;
     if (sentinel === null) {
       return;
@@ -215,7 +301,12 @@ export class StreamChild extends MarkdownRenderChild {
           return;
         }
         this.pages += 1;
-        void this.renderUpTo(this.pages, this.generation);
+        // Caught, not left to `void`: a throw from the item loop would
+        // otherwise wedge paging mid-page and report itself only to the
+        // console, which spec section 7 says a failure must never only do.
+        void this.renderUpTo(this.generation).catch((error: unknown) => {
+          this.showError(error);
+        });
       },
       // `root` has to be the scroller, not the implicit viewport. An observer
       // clips the target against every overflow-clipping ancestor using those
@@ -224,7 +315,7 @@ export class StreamChild extends MarkdownRenderChild {
       // first and the 200px preload buffer does nothing — the next page starts
       // loading exactly when the sentinel is already on screen. A null scroller
       // falls back to the viewport, which is what an unscrolled pane wants.
-      { root: this.scrollerEl(), rootMargin: "200px" },
+      { root: scroller, rootMargin: "200px" },
     );
     this.observer.observe(sentinel);
   }
@@ -284,8 +375,12 @@ function toRows(result: StreamResult): Row[] {
  * a note past the limit can flip the date-fallback notice the same way.
  */
 function signatureOf(result: StreamResult): string {
+  // JSON, not `path:mtime` joined on `|`: a path may contain both delimiters
+  // — Obsidian's own UI forbids them in titles, but `getMarkdownFiles` still
+  // lists a file created outside it — and an ambiguous signature reads as
+  // unchanged, which is a refresh that never happens.
   const notes = result.groups.flatMap((group) =>
-    group.notes.map((note) => `${note.path}:${note.mtime}`),
+    group.notes.map((note) => [note.path, note.mtime] as const),
   );
-  return [...notes, JSON.stringify(result.notices)].join("|");
+  return JSON.stringify([notes, result.notices]);
 }

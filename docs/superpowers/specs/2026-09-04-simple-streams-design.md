@@ -366,14 +366,24 @@ day continues.
 `metadataCache.on("changed")` and `vault.on("create" | "delete" | "rename")`. It
 debounces 300 ms and coalesces all events into one pass.
 
-Per stream it re-runs the query and computes a signature: the joined
-`path:mtime` of the post-limit result. An unchanged signature does no DOM work at
-all. A changed signature re-renders, preserving the number of loaded pages and
-restoring `scrollTop` so the stream does not jump under the reader.
+Per stream it re-runs the query once and computes a signature from the
+post-limit result: every `path` and `mtime`, **and the notices**. The notices
+belong in it because `matched` moves independently of the shown list — a note
+arriving past the `limit` changes nothing about `path:mtime` while leaving
+"Showing 50 of 60" wrong for as long as the note stays open. The signature is
+JSON rather than delimiter-joined, because a path may itself contain the
+delimiters and an ambiguous signature reads as unchanged, which is a refresh
+that never happens. An unchanged signature does no DOM work at all. A changed
+signature re-renders, preserving the number of loaded pages and restoring
+`scrollTop` so the stream does not jump under the reader.
 
 `metadataCache.changed` fires on save rather than per keystroke, so editing a
-note that appears in the stream stays calm. Streams unregister in
-`StreamChild.onunload()`.
+note that appears in the stream stays calm. A stream unregisters through
+`Component.register` at the point it is mounted, which is what keeps the
+registry's own file free of any reference to `StreamChild`. The registry also
+re-checks membership between streams inside one debounced pass: refreshing a
+block whose `onunload` has already run makes it build an
+`IntersectionObserver` that nothing is left to disconnect.
 
 ## 7. Error handling
 
