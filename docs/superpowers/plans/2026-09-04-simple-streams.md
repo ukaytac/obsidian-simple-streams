@@ -3514,6 +3514,27 @@ describe("extractPreview", () => {
   it("drops an embed entirely", () => {
     expect(extractPreview("![[cover.png]] Text after.", "note", 200)).toBe("Text after.");
   });
+
+  it("leaves identifiers, filenames and arithmetic alone", () => {
+    // An unguarded underscore rule paired the two in `get_user_data` with each
+    // other and merged three words into one.
+    expect(extractPreview("Run the get_user_data function now.", "note", 200)).toBe(
+      "Run the get_user_data function now.",
+    );
+    expect(extractPreview("See my_var and other_var here.", "note", 200)).toBe(
+      "See my_var and other_var here.",
+    );
+    expect(extractPreview("A file named report_2026_final.md", "note", 200)).toBe(
+      "A file named report_2026_final.md",
+    );
+    expect(extractPreview("2 * 3 * 4 = 24", "note", 200)).toBe("2 * 3 * 4 = 24");
+  });
+
+  it("still strips real emphasis", () => {
+    expect(extractPreview("This is _italic_ and __bold__ and ***both***.", "note", 200)).toBe(
+      "This is italic and bold and both.",
+    );
+  });
 });
 ```
 
@@ -3563,11 +3584,19 @@ function stripMarkup(body: string): string {
       // A table's rule row says nothing; its pipes become spacing.
       .replace(/^[ \t]*\|?[ \t]*:?-{3,}:?[ \t]*(?:\|[ \t]*:?-{3,}:?[ \t]*)*\|?[ \t]*$/gm, " ")
       .replace(/[ \t]*\|[ \t]*/g, "  ")
-      // Emphasis, longest marker first so `***x***` is not left with strays.
-      .replace(/(\*\*\*|___)(.+?)\1/g, "$2")
-      .replace(/(\*\*|__)(.+?)\1/g, "$2")
-      .replace(/(\*|_)(.+?)\1/g, "$2")
-      .replace(/~~(.+?)~~/g, "$1")
+      // Emphasis, longest marker first so `***x***` leaves no strays. An
+      // underscore only counts at a word boundary, which is what CommonMark
+      // says and what keeps `get_user_data` from becoming `getuserdata` — an
+      // unguarded rule paired the two underscores with each other and merged
+      // three words into one. No delimiter may be followed by a space either,
+      // so `2 * 3 * 4` stays arithmetic instead of losing its asterisks.
+      .replace(/(^|[^\w])___([^\s_][^_]*?)___(?=[^\w]|$)/g, "$1$2")
+      .replace(/(^|[^\w])__([^\s_][^_]*?)__(?=[^\w]|$)/g, "$1$2")
+      .replace(/(^|[^\w])_([^\s_][^_]*?)_(?=[^\w]|$)/g, "$1$2")
+      .replace(/\*\*\*([^\s*][^*]*?)\*\*\*/g, "$1")
+      .replace(/\*\*([^\s*][^*]*?)\*\*/g, "$1")
+      .replace(/\*([^\s*][^*]*?)\*/g, "$1")
+      .replace(/~~([^\s~][^~]*?)~~/g, "$1")
   );
 }
 
@@ -3601,7 +3630,7 @@ export function extractPreview(content: string, basename: string, length: number
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/engine/preview.test.ts`
-Expected: PASS, 16 tests.
+Expected: PASS, 18 tests.
 
 - [ ] **Step 5: Commit**
 
