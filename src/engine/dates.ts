@@ -111,3 +111,81 @@ function addMonths(date: Date, months: number): void {
 function daysInMonth(year: number, monthIndex: number): number {
   return new Date(year, monthIndex + 1, 0).getDate();
 }
+
+export type GroupMode = "day" | "month" | "year" | "none";
+
+const ISO_PREFIX = /^\d{4}-\d{2}-\d{2}/;
+const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/**
+ * Turn a declared date value into a timestamp. Permissive on purpose: this runs
+ * on fields the query named as dates, so trying hard is the right behaviour.
+ */
+export function coerceDate(value: unknown): number | null {
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value.getTime();
+  }
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const text = value.trim();
+  const dateOnly = DATE_ONLY.exec(text);
+  if (dateOnly) {
+    // Local midnight on purpose: new Date("2026-09-04") is UTC midnight, which
+    // lands on the previous day for anyone west of UTC.
+    const d = new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]));
+    return Number.isNaN(d.getTime()) ? null : d.getTime();
+  }
+
+  const parsed = Date.parse(text);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+/** Is this value shaped like an ISO date? Used to keep Date.parse away from plain words. */
+export function looksLikeDate(value: unknown): boolean {
+  return typeof value === "string" && ISO_PREFIX.test(value.trim());
+}
+
+/**
+ * Strict counterpart to coerceDate, for fields nobody declared to be dates —
+ * sorting and `where` comparisons. Returns null unless the value really is one.
+ */
+export function dateValue(value: unknown): number | null {
+  if (value instanceof Date) {
+    return coerceDate(value);
+  }
+  return looksLikeDate(value) ? coerceDate(value) : null;
+}
+
+export function groupKey(ms: number, mode: GroupMode): string {
+  if (mode === "none") {
+    return "";
+  }
+  const d = new Date(ms);
+  const year = String(d.getFullYear());
+  if (mode === "year") {
+    return year;
+  }
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  if (mode === "month") {
+    return `${year}-${month}`;
+  }
+  return `${year}-${month}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+export function formatGroupHeader(ms: number, mode: GroupMode, locale?: string): string {
+  if (mode === "none") {
+    return "";
+  }
+  const options: Intl.DateTimeFormatOptions =
+    mode === "year"
+      ? { year: "numeric" }
+      : mode === "month"
+        ? { year: "numeric", month: "long" }
+        : { year: "numeric", month: "long", day: "numeric" };
+  return new Intl.DateTimeFormat(locale, options).format(new Date(ms));
+}
