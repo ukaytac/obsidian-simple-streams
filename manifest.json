@@ -1,9 +1,10 @@
 {
   "id": "simple-streams",
   "name": "Simple Streams",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "minAppVersion": "1.5.7",
   "description": "Render a filtered, sorted stream of notes from a code block.",
-  "author": "ukaytac",
+  "author": "Utku Aytaç",
+  "authorUrl": "https://uka.dev",
   "isDesktopOnly": false
 }
