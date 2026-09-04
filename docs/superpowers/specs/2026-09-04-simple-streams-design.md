@@ -97,8 +97,16 @@ matches `Journal/2026-09-04.md` but never `Journal2/x.md`. Comparison is
 case-insensitive.
 
 **Tags** are collected from both frontmatter `tags:` and inline `#tags`
-(Obsidian's `getAllTags`). The leading `#` is optional in the query and
-comparison is case-insensitive. A nested tag matches its ancestors at a `/`
+(Obsidian's `getAllTags`). In the query the leading `#` is optional **but must
+be quoted if written** — `tags: ["#book"]`, not `tags: [#book]` — because YAML
+reads a bare `#` as the start of a comment. Comparison is case-insensitive.
+
+That quoting rule is a trap rather than a detail: Obsidian users write tags with
+a hash everywhere else, so it is the mistake they will actually make, and YAML
+punishes the two spellings differently. `tags: [#book]` fails to parse with a
+message about comment separation, while `tags: #book` parses *successfully* as
+`tags: null` and would otherwise report only that the field expects text. Both
+error messages therefore name the real cause and show the quoted form. A nested tag matches its ancestors at a `/`
 boundary: `tags: [project]` matches a note tagged `#project/simple-streams`.
 
 ### 3.3 `where` conditions
@@ -160,6 +168,15 @@ an error instead.
 
 The date a note is filtered and grouped by is the value of `date-field`. If that
 field is missing or unparseable, the note falls back to `file.ctime`.
+
+That fallback is silent per note, deliberately: a stream mixing notes that
+carry a `date:` and notes that do not should still read in one order, and
+annotating individual items would be noise. But it hides one real mistake —
+a typo in the field name itself, `date-field: dat`, leaves every note falling
+back and the whole stream ordered by file creation time with nothing to say
+so. So the view says it once, in aggregate: when a **non-default**
+`date-field` yields no parseable value for any note on screen, the stream
+notes that it fell back. One line for the whole block, not one per item.
 An ISO-shaped triple that is not a real date — `2026-02-30`, `2026-13-40` —
 counts as unparseable and falls back too, **with or without a time of day**.
 It must not be accepted, because JavaScript rolls such a triple over into a

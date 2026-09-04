@@ -971,6 +971,8 @@ git commit -m "feat: suggest the nearest valid field name"
 
 One namespace serves both `sort` and `where`: frontmatter keys by name, plus the four reserved `file.*` properties.
 
+Those four names live only in the `switch`. An exported array of them would be a second copy that nothing enforces — `noUnusedLocals` does not flag unused exports, so the two could drift apart in silence — and no task needs the list. If one ever does, add it then.
+
 - [ ] **Step 1: Write the failing test**
 
 `tests/engine/fields.test.ts`:
@@ -1057,8 +1059,6 @@ Expected: FAIL — cannot resolve `../../src/engine/fields`.
 ```ts
 import { coerceDate } from "./dates";
 import type { NoteMeta } from "./note";
-
-export const FILE_FIELDS = ["file.ctime", "file.mtime", "file.name", "file.path"] as const;
 
 /**
  * Resolve a field reference against a note. `file.` is a reserved prefix: an
@@ -1284,7 +1284,8 @@ describe("parseQuery — folders", () => {
 
 describe("parseQuery — tags", () => {
   it("normalizes tags with and without a hash", () => {
-    expect(parseQuery("tags: [#Book, reading]").tags).toEqual(["book", "reading"]);
+    // The hash must be quoted; YAML would read a bare one as a comment.
+    expect(parseQuery('tags: ["#Book", reading]').tags).toEqual(["book", "reading"]);
   });
 
   it("accepts a single tag as a scalar", () => {
@@ -1299,6 +1300,24 @@ describe("parseQuery — tags", () => {
 
   it("rejects a list holding a map", () => {
     expect(() => parseQuery("tags:\n  - a: 1")).toThrow(/`tags` expects text/);
+  });
+});
+
+describe("parseQuery — a bare hash is a YAML comment", () => {
+  it("names the real cause when the hash breaks the parse", () => {
+    expect(() => parseQuery("tags: [#book, reading]")).toThrow(/quote it/);
+  });
+
+  it("names the real cause when the hash silently empties the value", () => {
+    // `tags: #book` parses as `tags: null`, so without this the message would
+    // only say the field expects text.
+    expect(() => parseQuery("tags: #book")).toThrow(/`tags` has no value.*quote it/s);
+    expect(() => parseQuery("tags:\n  - #book")).toThrow(/`tags` has no value/);
+  });
+
+  it("accepts the quoted form", () => {
+    expect(parseQuery('tags: "#book"').tags).toEqual(["book"]);
+    expect(parseQuery('exclude-tags: ["#draft"]').excludeTags).toEqual(["draft"]);
   });
 });
 ```
@@ -1327,6 +1346,14 @@ export function parseQuery(source: string): StreamQuery {
   return query;
 }
 
+/**
+ * YAML reads a bare `#` as the start of a comment. Obsidian users write tags
+ * with a hash, so `tags: [#book]` (a parse error) and `tags: #book` (silently
+ * `null`) are the two mistakes they will actually make.
+ */
+const HASH_HINT =
+  'If you wrote a bare `#tag`, YAML read it as a comment — quote it, as in tags: ["#book"].';
+
 function readYaml(source: string): Record<string, unknown> {
   if (source.trim() === "") {
     return {};
@@ -1337,7 +1364,9 @@ function readYaml(source: string): Record<string, unknown> {
     parsed = parseYamlText(source);
   } catch (error) {
     if (error instanceof YAMLParseError) {
-      throw new QueryError(error.message.split("\n")[0], error.linePos?.[0]?.line);
+      const first = error.message.split("\n")[0];
+      const message = /comment/i.test(first) ? `${first} ${HASH_HINT}` : first;
+      throw new QueryError(message, error.linePos?.[0]?.line);
     }
     throw new QueryError(error instanceof Error ? error.message : String(error));
   }
@@ -1396,6 +1425,9 @@ function toStringList(field: string, value: unknown): string[] {
       if (typeof item === "number" || typeof item === "boolean") {
         return String(item);
       }
+      if (item === null || item === undefined) {
+        throw new QueryError(`\`${field}\` has no value. ${HASH_HINT}`);
+      }
       throw new QueryError(`\`${field}\` expects text or a list of text`);
     })
     .filter((item) => item.length > 0);
@@ -1409,7 +1441,7 @@ function normalizeFolder(path: string): string {
 - [ ] **Step 5: Run test to verify it passes**
 
 Run: `npx vitest run tests/query/parse-lists.test.ts`
-Expected: PASS, 14 tests.
+Expected: PASS, 17 tests.
 
 - [ ] **Step 6: Commit**
 
@@ -2776,6 +2808,23 @@ describe("runStream", () => {
     expect(result.shown).toBe(0);
     expect(result.truncated).toBe(false);
   });
+
+  it("reports a date fallback when a declared date-field reaches no note", () => {
+    // The signature of `date-field: dat` — every note falls back to ctime.
+    const result = runStream(NOTES, parseQuery("date-field: dat"), NOW, "en-GB");
+    expect(result.dateFallback).toBe(true);
+  });
+
+  it("reports no date fallback when the field resolves, or when it is the default", () => {
+    const dated = [note({ path: "a.md", frontmatter: { date: "2026-09-04" } })];
+    expect(runStream(dated, parseQuery("date-field: date"), NOW, "en-GB").dateFallback).toBe(false);
+    // Only a *declared* field can be a typo; the default is nobody's mistake.
+    expect(runStream(NOTES, parseQuery(""), NOW, "en-GB").dateFallback).toBe(false);
+    // Nor is an empty stream evidence of one.
+    expect(
+      runStream(NOTES, parseQuery("tags: nonexistent\ndate-field: dat"), NOW, "en-GB").dateFallback,
+    ).toBe(false);
+  });
 });
 ```
 
@@ -2789,6 +2838,8 @@ Expected: FAIL — cannot resolve `../../src/engine/run`.
 `src/engine/run.ts`:
 
 ```ts
+import { coerceDate } from "./dates";
+import { resolveField } from "./fields";
 import { filterNotes } from "./filter";
 import { groupNotes, type StreamGroup } from "./group";
 import { sortNotes } from "./sort";
@@ -2802,6 +2853,12 @@ export interface StreamResult {
   /** How many notes the groups actually hold. */
   shown: number;
   truncated: boolean;
+  /**
+   * True when a declared `date-field` yielded a usable date for no note on
+   * screen — the signature of a typo in the field name, which would otherwise
+   * order the whole stream by file creation time with nothing to say so.
+   */
+  dateFallback: boolean;
 }
 
 export function runStream(
@@ -2817,6 +2874,10 @@ export function runStream(
     matched: matched.length,
     shown: shown.length,
     truncated: matched.length > shown.length,
+    dateFallback:
+      query.dateField !== "file.ctime" &&
+      shown.length > 0 &&
+      shown.every((note) => coerceDate(resolveField(note, query.dateField)) === null),
   };
 }
 ```
@@ -2824,7 +2885,7 @@ export function runStream(
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/engine/run.test.ts`
-Expected: PASS, 4 tests.
+Expected: PASS, 6 tests.
 
 - [ ] **Step 5: Commit**
 
@@ -4381,6 +4442,9 @@ limit: 50
 
 Fields addressable in `sort` and `where`: any frontmatter key by name, plus
 `file.ctime`, `file.mtime`, `file.name` and `file.path`.
+
+A tag written with its hash must be quoted — `tags: ["#book"]` — because YAML
+reads a bare `#` as a comment. Writing the tag without the hash needs no quotes.
 
 `where` conditions: `field: value` (equality), `field: [a, b]` (any of),
 `field: exists` / `field: missing`, and quoted comparisons —
