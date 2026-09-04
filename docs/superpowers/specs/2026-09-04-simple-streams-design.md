@@ -127,10 +127,30 @@ frontmatter value that is literally the string "exists" is not supported.
 
 - ISO dates — `2026-01-01`
 - `today`, `yesterday`
-- Relative offsets — `-30d`, `-2w`, `-6m`, `-1y`
+- Relative offsets — `-30d`, `-2w`, `-6m`, `+1y`
 
 All are resolved in local time at day granularity: `from` snaps to 00:00:00.000
 and `to` to 23:59:59.999, so both bounds are inclusive whole days.
+
+**An offset's sign is required.** `-30d` is thirty days ago, `+30d` thirty days
+ahead; a bare `30d` is an error, not a guess. Both directions are useful — a
+past bound for journal entries, a future one for `due` dates — so there is no
+safe default, and silently picking one would turn a typo into an empty stream
+with no explanation.
+
+**Month and year offsets clamp to the end of the target month.** One month
+before 31 March is 28 February, and one year before 29 February 2028 is
+28 February 2027. This has to be said because the obvious implementation gets
+it wrong: JavaScript's `setMonth` overflows rather than clamping, so 31 March
+minus one month computes 31 February and rolls forward to 3 March — and 31 May
+minus one month lands back on 1 May, which would make `from: -1m` exclude
+nearly everything. A year offset is twelve months, clamped the same way.
+
+**An offset's magnitude is capped at 100000 units.** Past that, the resulting
+date exceeds what a `Date` can represent and becomes `NaN`, and a `NaN` bound
+fails both `<` and `>` — the bound would be silently dropped rather than
+filtering anything, which is the worst kind of wrong. An out-of-range offset is
+an error instead.
 
 The date a note is filtered and grouped by is the value of `date-field`. If that
 field is missing or unparseable, the note falls back to `file.ctime`.

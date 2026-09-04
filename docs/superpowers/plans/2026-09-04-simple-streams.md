@@ -319,7 +319,18 @@ describe("parseDateExpr", () => {
     expect(parseDateExpr("-30d")).toEqual({ kind: "offset", amount: -30, unit: "d" });
     expect(parseDateExpr("-2w")).toEqual({ kind: "offset", amount: -2, unit: "w" });
     expect(parseDateExpr("+6m")).toEqual({ kind: "offset", amount: 6, unit: "m" });
-    expect(parseDateExpr("1y")).toEqual({ kind: "offset", amount: 1, unit: "y" });
+    expect(parseDateExpr("+1y")).toEqual({ kind: "offset", amount: 1, unit: "y" });
+  });
+
+  it("requires a sign on an offset, rather than guessing a direction", () => {
+    expect(() => parseDateExpr("1y")).toThrow(/needs a sign: -1y for the past, \+1y for the future/);
+    expect(() => parseDateExpr("30d")).toThrow(/needs a sign/);
+  });
+
+  it("rejects an offset too large to resolve to a real date", () => {
+    expect(() => parseDateExpr("-999999999d")).toThrow(/too large an offset/);
+    expect(() => parseDateExpr("+100001d")).toThrow(/too large an offset/);
+    expect(parseDateExpr("-100000d")).toEqual({ kind: "offset", amount: -100000, unit: "d" });
   });
 
   it("rejects a date that does not exist", () => {
@@ -368,6 +379,31 @@ describe("resolveDateExpr", () => {
     expect(resolveDateExpr({ kind: "iso", year: 2026, month: 1, day: 1 }, NOW, "end"))
       .toBe(new Date(2026, 0, 1, 23, 59, 59, 999).getTime());
   });
+
+  it("clamps a month offset to the end of a shorter month", () => {
+    // Naive setMonth computes 31 February and rolls forward to 3 March.
+    const endOfMarch = new Date(2026, 2, 31, 9, 0);
+    expect(resolveDateExpr({ kind: "offset", amount: -1, unit: "m" }, endOfMarch, "start"))
+      .toBe(new Date(2026, 1, 28).getTime());
+  });
+
+  it("never lets a month offset land back inside the month it started in", () => {
+    // Naive setMonth turns 31 May minus one month into 1 May.
+    const endOfMay = new Date(2026, 4, 31, 9, 0);
+    expect(resolveDateExpr({ kind: "offset", amount: -1, unit: "m" }, endOfMay, "start"))
+      .toBe(new Date(2026, 3, 30).getTime());
+  });
+
+  it("clamps a year offset from a leap day", () => {
+    const leapDay = new Date(2028, 1, 29, 9, 0);
+    expect(resolveDateExpr({ kind: "offset", amount: -1, unit: "y" }, leapDay, "start"))
+      .toBe(new Date(2027, 1, 28).getTime());
+  });
+
+  it("resolves the largest allowed offset to a real date, not NaN", () => {
+    const result = resolveDateExpr({ kind: "offset", amount: -100000, unit: "d" }, NOW, "start");
+    expect(Number.isNaN(result)).toBe(false);
+  });
 });
 ```
 
@@ -388,7 +424,10 @@ export type DateExpr =
   | { kind: "offset"; amount: number; unit: "d" | "w" | "m" | "y" };
 
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
-const OFFSET = /^([+-]?\d+)([dwmy])$/;
+const OFFSET = /^([+-]\d+)([dwmy])$/;
+const UNSIGNED_OFFSET = /^\d+[dwmy]$/;
+/** Past this, Date arithmetic overflows to NaN and a bound would silently vanish. */
+const MAX_OFFSET = 100000;
 
 export function parseDateExpr(input: string): DateExpr {
   const text = input.trim().toLowerCase();
@@ -415,11 +454,21 @@ export function parseDateExpr(input: string): DateExpr {
 
   const offset = OFFSET.exec(text);
   if (offset) {
-    return { kind: "offset", amount: Number(offset[1]), unit: offset[2] as "d" | "w" | "m" | "y" };
+    const amount = Number(offset[1]);
+    if (Math.abs(amount) > MAX_OFFSET) {
+      throw new Error(`"${input}" is too large an offset. Keep it under ${MAX_OFFSET} units`);
+    }
+    return { kind: "offset", amount, unit: offset[2] as "d" | "w" | "m" | "y" };
+  }
+
+  // A bare "30d" is ambiguous, and guessing a direction turns a typo into an
+  // empty stream with no explanation.
+  if (UNSIGNED_OFFSET.test(text)) {
+    throw new Error(`"${input}" needs a sign: -${text} for the past, +${text} for the future`);
   }
 
   throw new Error(
-    `"${input}" is not a date. Use YYYY-MM-DD, today, yesterday, or an offset like -30d`,
+    `"${input}" is not a date. Use YYYY-MM-DD, today, yesterday, or a signed offset like -30d`,
   );
 }
 
@@ -455,21 +504,38 @@ function resolveToDay(expr: DateExpr, now: Date): Date {
           today.setDate(today.getDate() + expr.amount * 7);
           break;
         case "m":
-          today.setMonth(today.getMonth() + expr.amount);
+          addMonths(today, expr.amount);
           break;
         case "y":
-          today.setFullYear(today.getFullYear() + expr.amount);
+          addMonths(today, expr.amount * 12);
           break;
       }
       return today;
   }
+}
+
+/**
+ * Shift by whole months, clamping to the end of the target month, in place.
+ * `setMonth` alone overflows: 31 March minus one month computes 31 February and
+ * rolls forward to 3 March, and 31 May minus one month lands back on 1 May.
+ */
+function addMonths(date: Date, months: number): void {
+  const day = date.getDate();
+  date.setDate(1);
+  date.setMonth(date.getMonth() + months);
+  date.setDate(Math.min(day, daysInMonth(date.getFullYear(), date.getMonth())));
+}
+
+/** Day 0 of the next month is the last day of this one. */
+function daysInMonth(year: number, monthIndex: number): number {
+  return new Date(year, monthIndex + 1, 0).getDate();
 }
 ```
 
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/engine/dates-expressions.test.ts`
-Expected: PASS, 12 tests.
+Expected: PASS, 18 tests.
 
 - [ ] **Step 5: Commit**
 
@@ -4200,8 +4266,10 @@ Fields addressable in `sort` and `where`: any frontmatter key by name, plus
 because `field: >3` is not valid YAML. A field with no value matches only
 `missing`.
 
-Dates accept `YYYY-MM-DD`, `today`, `yesterday`, and offsets like `-30d`, `-2w`,
-`-6m`, `-1y`.
+Dates accept `YYYY-MM-DD`, `today`, `yesterday`, and signed offsets like `-30d`,
+`-2w`, `-6m`, `+1y`. The sign is required — a bare `30d` is an error rather than
+a guess at which direction you meant. Month and year offsets clamp to the end of
+the target month, so one month before 31 March is 28 February.
 
 ## Development
 
