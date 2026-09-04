@@ -7,9 +7,12 @@ import {
   QueryError,
   QUERY_FIELDS,
   defaultQuery,
+  type CompareOp,
   type SortSpec,
   type StreamQuery,
   type TitleMatcher,
+  type WhereClause,
+  type WhereCondition,
 } from "./types";
 
 export function parseQuery(source: string): StreamQuery {
@@ -70,6 +73,9 @@ function readYaml(source: string): Record<string, unknown> {
 }
 
 function applyField(query: StreamQuery, key: string, value: unknown): void {
+  if (!isQueryField(key)) {
+    throw unknownField(key);
+  }
   switch (key) {
     case "folder":
       query.folder = toStringList(key, value).map(normalizeFolder);
@@ -113,9 +119,21 @@ function applyField(query: StreamQuery, key: string, value: unknown): void {
     case "limit":
       query.limit = toPositiveInt(key, value);
       return;
+    case "where":
+      query.where = parseWhere(value);
+      return;
     default:
-      throw unknownField(key);
+      return assertNever(key);
   }
+}
+
+function isQueryField(key: string): key is (typeof QUERY_FIELDS)[number] {
+  return (QUERY_FIELDS as readonly string[]).includes(key);
+}
+
+/** Unreachable. A QUERY_FIELDS entry with no case makes this fail to compile. */
+function assertNever(field: never): never {
+  throw new Error(`Unhandled query field: ${String(field)}`);
 }
 
 function unknownField(key: string): QueryError {
@@ -249,4 +267,48 @@ function toPositiveInt(field: string, value: unknown): number {
     throw new QueryError(`\`${field}\` expects a whole number above zero`);
   }
   return n;
+}
+
+const COMPARISON = /^(>=|<=|!=|>|<)\s*(.+)$/;
+
+function parseWhere(value: unknown): WhereClause[] {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new QueryError("`where` expects a map of `field: condition` entries");
+  }
+  return Object.entries(value as Record<string, unknown>).map(([field, raw]) => ({
+    field,
+    condition: parseCondition(field, raw),
+  }));
+}
+
+function parseCondition(field: string, raw: unknown): WhereCondition {
+  if (Array.isArray(raw)) {
+    return { kind: "anyOf", values: raw.map((item) => asScalar(field, item)) };
+  }
+
+  if (typeof raw === "string") {
+    const text = raw.trim();
+    if (text.toLowerCase() === "exists") {
+      return { kind: "exists" };
+    }
+    if (text.toLowerCase() === "missing") {
+      return { kind: "missing" };
+    }
+    const comparison = COMPARISON.exec(text);
+    if (comparison) {
+      return { kind: "compare", op: comparison[1] as CompareOp, operand: comparison[2].trim() };
+    }
+    return { kind: "equals", value: text };
+  }
+
+  return { kind: "equals", value: asScalar(field, raw) };
+}
+
+function asScalar(field: string, value: unknown): string | number | boolean {
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return value;
+  }
+  throw new QueryError(
+    `\`where.${field}\` expects text, a number, a boolean, or a list of them`,
+  );
 }
