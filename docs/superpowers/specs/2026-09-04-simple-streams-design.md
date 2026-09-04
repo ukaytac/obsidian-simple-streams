@@ -1,0 +1,278 @@
+# Simple Streams — Design
+
+Date: 2026-09-04
+Status: Approved
+Plugin id: `simple-streams` · Plugin name: `Simple Streams`
+
+## 1. Overview
+
+An Obsidian plugin that renders a filtered, sorted stream of notes wherever a
+`stream` code block appears. Journal-shaped by default, but not journal-only:
+the filter decides what the stream is. A reading log, everything tagged
+`#project/x` this month, or every note in `Journal/` newest-first are the same
+feature with different filters.
+
+The unit of the stream is a **whole note** (one `.md` file per item). Streams live
+**inside notes** as code blocks, so a filter is versioned with the note that
+holds it and can be embedded in MOCs and dashboards.
+
+```stream
+folder: Journal
+tags: [book]
+sort: date desc
+group: day
+display: preview
+limit: 50
+```
+
+## 2. Goals and non-goals
+
+**Goals**
+
+- Filter notes by folder, tags, title and frontmatter conditions.
+- Sort by any frontmatter field or file property, ascending or descending.
+- Group into date headers (day / month / year).
+- Three body display modes: full markdown, plain-text preview, title only.
+- Refresh itself when the vault changes.
+- Stay responsive with hundreds of matching notes.
+- No dependency on any other plugin.
+
+**Non-goals for this version** (revisit only if the need proves real)
+
+- A separate side-panel / tab view. The code block is the only surface.
+- Block-level items (listing headings or bullets inside a note).
+- A "+ New entry" capture button.
+- Editing note content inside the stream.
+- A custom query DSL. The block is plain YAML.
+- A maintained inverted index. `metadataCache` is already in memory.
+
+## 3. Query schema
+
+The code block body is YAML. Every field is optional; an empty block means
+"every note in the vault, newest first, as previews".
+
+| Field            | Type                    | Default          | Meaning |
+| ---------------- | ----------------------- | ---------------- | ------- |
+| `folder`         | string or string[]      | whole vault      | Path prefix, subfolders included |
+| `tags`           | string or string[]      | —                | All listed tags must be present (AND) |
+| `tags-any`       | string or string[]      | —                | At least one of the listed tags (OR) |
+| `exclude-folder` | string or string[]      | —                | Drop notes under these paths |
+| `exclude-tags`   | string or string[]      | —                | Drop notes carrying any of these tags |
+| `title`          | string or `/regex/`     | —                | Matches the note's basename: case-insensitive substring, or regex when wrapped in slashes |
+| `where`          | map                     | —                | Frontmatter conditions (§3.3) |
+| `date-field`     | string                  | `file.ctime`     | Which field is "the date" for range filtering and grouping |
+| `from`           | date expression         | —                | Inclusive lower bound on the resolved date |
+| `to`             | date expression         | —                | Inclusive upper bound on the resolved date |
+| `sort`           | string or string[]      | `file.ctime desc`| `"<field> <asc\|desc>"`, applied in order |
+| `group`          | `day\|month\|year\|none`| `none`           | Date headers |
+| `display`        | `full\|preview\|title`  | `preview`        | How much of the body to render |
+| `preview-length` | number                  | `200`            | Character budget for `preview` |
+| `limit`          | number                  | `50`             | Maximum items in the stream |
+
+### 3.1 Field references
+
+Both `sort` and `where` address the same namespace:
+
+- Any frontmatter key by its own name — `date`, `rating`, `status`.
+- `file.ctime`, `file.mtime`, `file.name` (basename, no extension), `file.path`.
+
+A frontmatter key that collides with a `file.*` name is reachable as written in
+the note; `file.` is a reserved prefix and is never read from frontmatter.
+
+Note the one name used two ways: the top-level `title` **filter** always matches
+the note's basename, while `title` as a **field reference** inside `sort` or
+`where` reads frontmatter `title`. Use `file.name` when you mean the basename in
+those positions.
+
+### 3.2 Matching rules
+
+**Folders** match on a path prefix at a `/` boundary, so `folder: Journal`
+matches `Journal/2026-09-04.md` but never `Journal2/x.md`. Comparison is
+case-insensitive.
+
+**Tags** are collected from both frontmatter `tags:` and inline `#tags`
+(Obsidian's `getAllTags`). The leading `#` is optional in the query and
+comparison is case-insensitive. A nested tag matches its ancestors at a `/`
+boundary: `tags: [project]` matches a note tagged `#project/simple-streams`.
+
+### 3.3 `where` conditions
+
+Each key is a field reference; the value is one of:
+
+| Value form            | Meaning |
+| --------------------- | ------- |
+| scalar (`status: done`) | Equality. Numeric when both sides are numeric, otherwise case-insensitive string compare |
+| array (`type: [a, b]`)  | Matches any listed value |
+| `exists` / `missing`    | Presence of the field |
+| `">3"`, `">=3"`, `"<3"`, `"<=3"`, `"!=x"` | Comparison — numeric if the operand is numeric, chronological if it parses as a date, otherwise string compare |
+
+If the note's own value is an array, the condition matches when **any** element
+matches.
+
+Comparison operators must be quoted, because `rating: >3` is not valid YAML.
+This is the accepted cost of a plain-YAML schema; the alternative
+(`rating: {gt: 3}`) is cleaner to parse but noisier to write.
+
+`exists` and `missing` are reserved words in this position. Matching a
+frontmatter value that is literally the string "exists" is not supported.
+
+### 3.4 Date expressions
+
+`from` and `to` accept:
+
+- ISO dates — `2026-01-01`
+- `today`, `yesterday`
+- Relative offsets — `-30d`, `-2w`, `-6m`, `-1y`
+
+All are resolved in local time at day granularity: `from` snaps to 00:00:00.000
+and `to` to 23:59:59.999, so both bounds are inclusive whole days.
+
+The date a note is filtered and grouped by is the value of `date-field`. If that
+field is missing or unparseable, the note falls back to `file.ctime`.
+
+### 3.5 Sorting and grouping
+
+Sort keys apply in the order given. Missing values sort **last** in both
+directions — a note with no `rating` should not lead a `rating desc` stream nor a
+`rating asc` one. Ties break on `file.path` ascending so the order is stable
+across renders. Numbers compare numerically, dates chronologically, strings via
+`localeCompare` with numeric collation.
+
+Grouping reads the resolved date and emits a header whenever the key differs
+from the previous item. Headers are formatted with `Intl.DateTimeFormat` in the
+app's locale: `4 September 2026` for `day`, `September 2026` for `month`, `2026`
+for `year`. Because headers come from item-to-item transitions, sorting by
+something other than the date field can produce a repeated header — that is
+faithful to the data, not a bug.
+
+## 4. Architecture
+
+The one structural rule: **the engine never sees the Obsidian API.**
+
+```
+main.ts                 plugin entry; registerMarkdownCodeBlockProcessor("stream")
+query/types.ts          StreamQuery, SortSpec, GroupSpec, WhereCondition
+query/parse.ts          YAML text -> StreamQuery, with validation
+engine/note.ts          NoteMeta: { path, basename, tags, frontmatter, ctime, mtime }
+engine/fields.ts        field resolution and value coercion
+engine/dates.ts         date expressions, day/month/year keys
+engine/filter.ts        (NoteMeta[], StreamQuery) -> NoteMeta[]
+engine/sort.ts          ordering rules
+engine/group.ts         ordered list -> grouped list
+engine/run.ts           filter -> sort -> limit -> group -> StreamResult
+obsidian/adapter.ts     TFile + metadataCache -> NoteMeta[]        <- the only bridge
+obsidian/registry.ts    mounted streams, debounced refresh
+view/StreamChild.ts     MarkdownRenderChild: DOM, lazy loading, lifecycle
+view/itemEl.ts          one item's DOM
+view/errorEl.ts         the error box
+styles.css
+```
+
+Data flow: code block -> `parse` -> `adapter` produces plain data -> `run`
+(pure) -> `StreamChild` renders.
+
+`engine/*` and `query/*` operate on plain objects, so they are testable without
+a running Obsidian. `obsidian/*` is deliberately thin: translation, no logic.
+
+Data source is `vault.getMarkdownFiles()` plus `metadataCache.getFileCache()` —
+both already in memory. No index of our own; filtering a vault of a few thousand
+notes costs single-digit milliseconds, and the real cost is rendering, which
+lazy loading handles.
+
+## 5. Rendering
+
+Container `.simple-streams`, one `.ss-item` per note, `.ss-group` headers
+between items where the group key changes, sticky within the block.
+
+Each item has a header row: the title as an internal link
+(`workspace.openLinkText`; cmd/ctrl-click opens a new tab), the resolved date,
+and tag chips. Then the body:
+
+- **`title`** — header only.
+- **`preview`** — plain-text excerpt via `vault.cachedRead`: strip frontmatter,
+  drop a leading H1 that duplicates the title, collapse whitespace, cut on a word
+  boundary at `preview-length`, append an ellipsis. Deliberately not rendered as
+  markdown: truncating markdown mid-structure yields half-open code fences and
+  dangling list items.
+- **`full`** — `MarkdownRenderer.render()` on the body minus frontmatter, into a
+  per-item `MarkdownRenderChild` parented to the stream's own child. The
+  parenting matters: without it, embeds and other plugins' render children inside
+  items leak when the block is destroyed.
+
+Lazy loading renders the first 20 items, then a sentinel element watched by an
+`IntersectionObserver` (`rootMargin: 200px`) renders the next 20 as it
+approaches. `limit` caps the total.
+
+An empty result renders a muted "No notes match this stream." plus a one-line
+summary of the resolved query, so the reader can see what was actually asked.
+
+## 6. Live updates
+
+`obsidian/registry.ts` holds the mounted streams and subscribes to
+`metadataCache.on("changed")` and `vault.on("create" | "delete" | "rename")`. It
+debounces 300 ms and coalesces all events into one pass.
+
+Per stream it re-runs the query and computes a signature: the joined
+`path:mtime` of the post-limit result. An unchanged signature does no DOM work at
+all. A changed signature re-renders, preserving the number of loaded pages and
+restoring `scrollTop` so the stream does not jump under the reader.
+
+`metadataCache.changed` fires on save rather than per keystroke, so editing a
+note that appears in the stream stays calm. Streams unregister in
+`StreamChild.onunload()`.
+
+## 7. Error handling
+
+Every failure is visible in the block, never only in the console.
+
+- **Invalid YAML** — the parser message and the offending line.
+- **Unknown field** — names the field and the nearest valid one by edit distance.
+  This is the `tag` vs `tags` case, and it is a hard error: silently rendering an
+  unfiltered vault is the worst possible outcome.
+- **Invalid value** — `display: foo`, a bad date expression, a bad sort direction:
+  names the field and lists the accepted values.
+- **A note that fails to read** — degrades to one muted warning row; the rest of
+  the stream still renders.
+
+## 8. Testing
+
+Vitest. Because `engine/*` and `query/parse.ts` are pure, most of the suite is
+fast and exercises real code paths. Table-driven coverage of:
+
+- Filter combinations: AND tags, OR tags, exclusions, and folder-prefix
+  boundaries (`Journal2` must not match `Journal`).
+- Nested-tag ancestor matching.
+- `where` conditions: equality, any-of, comparisons, `exists`/`missing`, and
+  array-valued frontmatter.
+- Sorting: missing values last in both directions, stable tie-breaking, and each
+  value type.
+- Date expressions: ISO, `today`, `yesterday`, relative offsets, inclusive
+  bounds.
+- Grouping: month and year boundaries, local-time correctness, repeated headers
+  when the sort is not the date field.
+- Field resolution: frontmatter, `file.*`, the reserved `file.` prefix, fallback
+  to `file.ctime`.
+- `parse`: a valid/invalid table asserting every error message.
+
+`obsidian/adapter.ts` gets a minimal `obsidian` module mock. `view/*` is verified
+manually against `test-vault/`, an in-repo vault with sample notes and a page of
+`stream` blocks covering each display mode, grouping, and the error cases.
+
+Implementation follows TDD: tests before implementation, engine before view.
+
+## 9. Build and packaging
+
+esbuild + TypeScript, the standard Obsidian plugin layout: `manifest.json`,
+`versions.json`, `npm run dev` watch emitting `main.js`, `npm run build` for
+release. `main.js` and `data.json` stay out of git.
+
+## 10. Decisions on record
+
+| Decision | Rationale |
+| -------- | --------- |
+| Whole notes as items, not blocks | Matches the journal-note model; block splitting needs rules that do not exist yet |
+| Code block, not a panel view | Filters get versioned with the note and embed into dashboards |
+| Plain YAML, not a DSL | A custom lexer/parser would consume most of the effort for a syntax nobody asked for |
+| `metadataCache` directly, not Dataview | No hard dependency on another plugin's release cycle |
+| No inverted index | Solves a problem that does not exist at this vault size; add it behind `run.ts` if measurement ever demands it |
+| Unknown fields are errors | A typo'd filter that lists the whole vault is worse than a visible failure |

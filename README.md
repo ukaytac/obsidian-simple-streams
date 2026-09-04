@@ -1,17 +1,19 @@
 # Simple Streams
 
 An Obsidian plugin that renders a filtered, sorted stream of notes wherever you
-drop an `akis` code block.
+drop a `stream` code block.
 
 Journal-shaped, but not journal-only: the filter decides what the stream is.
 
-```akis
+```stream
 folder: Journal
-tags: [kitap]
+tags: [book]
 sort: date desc
 group: day
 display: preview
 limit: 50
 ```
 
-Status: design in progress.
+Design: [docs/superpowers/specs/2026-09-04-simple-streams-design.md](docs/superpowers/specs/2026-09-04-simple-streams-design.md)
+
+Status: design approved, implementation not started.
