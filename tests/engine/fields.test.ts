@@ -26,6 +26,22 @@ describe("resolveField", () => {
   it("returns undefined for a missing frontmatter key", () => {
     expect(resolveField(note(), "nope")).toBeUndefined();
   });
+
+  it("does not let inherited object members pose as frontmatter", () => {
+    // Otherwise `where: { toString: exists }` matches every note, and sorting
+    // on one hands a function to the comparator.
+    const n = note();
+    for (const key of [
+      "constructor",
+      "toString",
+      "hasOwnProperty",
+      "valueOf",
+      "isPrototypeOf",
+      "__proto__",
+    ]) {
+      expect(resolveField(n, key), key).toBeUndefined();
+    }
+  });
 });
 
 describe("resolveNoteDate", () => {

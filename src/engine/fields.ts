@@ -19,7 +19,14 @@ export function resolveField(note: NoteMeta, field: string): unknown {
     case "file.path":
       return note.path;
     default:
-      return field.startsWith("file.") ? undefined : note.frontmatter[field];
+      if (field.startsWith("file.")) {
+        return undefined;
+      }
+      // Own keys only. A plain object inherits `toString`, `constructor` and
+      // friends, so a bare index would report them present on every note.
+      return Object.prototype.hasOwnProperty.call(note.frontmatter, field)
+        ? note.frontmatter[field]
+        : undefined;
   }
 }
 
