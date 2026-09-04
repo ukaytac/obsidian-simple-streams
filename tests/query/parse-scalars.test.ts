@@ -28,6 +28,20 @@ describe("parseQuery — title", () => {
   });
 });
 
+describe("parseQuery — a missing value explains itself the same way everywhere", () => {
+  it("gives the hash hint on single-value fields too, not just list fields", () => {
+    // `tags: #x` already explained itself; `date-field: #x` used to say only
+    // that the field expects text.
+    expect(() => parseQuery("date-field: #x")).toThrow(/`date-field` has no value.*quote it/s);
+    expect(() => parseQuery("title:")).toThrow(/`title` has no value/);
+    expect(() => parseQuery("group: #x")).toThrow(/`group` has no value/);
+  });
+
+  it("still rejects a structured value as the wrong shape", () => {
+    expect(() => parseQuery("date-field:\n  a: 1")).toThrow(/expects a single piece of text/);
+  });
+});
+
 describe("parseQuery — date-field, from and to", () => {
   it("reads the date field verbatim, preserving case", () => {
     expect(parseQuery("date-field: Created").dateField).toBe("Created");

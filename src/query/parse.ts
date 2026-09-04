@@ -163,11 +163,19 @@ function toSingleString(field: string, value: unknown): string {
   if (typeof value === "number" || typeof value === "boolean") {
     return String(value);
   }
+  if (value === null || value === undefined) {
+    // Same answer `toStringList` gives, so `date-field: #x` and `tags: #x` do
+    // not explain the same mistake to different standards.
+    throw new QueryError(`\`${field}\` has no value. ${hashHint(field)}`);
+  }
   throw new QueryError(`\`${field}\` expects a single piece of text`);
 }
 
 function parseTitle(value: unknown): TitleMatcher {
   const text = toSingleString("title", value);
+  // Slash-wrapped text is always a regex, never a literal. A note's file name
+  // cannot contain a slash — that is the path separator — so a literal
+  // `/weekly/` title could never match anything anyway.
   const regex = /^\/(.*)\/([gimsuy]*)$/.exec(text);
   if (!regex) {
     return { kind: "text", value: text.toLowerCase() };
