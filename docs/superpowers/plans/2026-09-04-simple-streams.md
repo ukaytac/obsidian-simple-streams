@@ -2403,12 +2403,13 @@ export function matchesTitle(note: NoteMeta, matcher: TitleMatcher | null): bool
 
 /**
  * Query terms are re-normalized per note rather than hoisted, matching the
- * choice made in matchesTitle and for the same measured reason. Benchmarked
- * head to head on 5000 notes with five folders, five any-tags and four
- * exclusions, 200 iterations per trial: 5.1-5.4ms this way against 1.56-1.62ms
- * with every term and every note's tags normalized once up front. That is 3.3x,
- * and 1.7% of the view's 300ms refresh debounce. Worth revisiting only if a
- * measurement puts it near that budget.
+ * choice made in matchesTitle and for the same measured reason. On 5000 notes
+ * with five folders, five any-tags and four exclusions, 200 iterations per
+ * trial, this costs 5.1-5.4ms — about 1.7% of the view's 300ms refresh
+ * debounce. Hoisting every term and every note's tags is roughly three times
+ * faster; two independent runs put the ratio at 2.8x and 3.3x, the spread
+ * coming from how much one hoists. The cost, not the ratio, is what decides it:
+ * revisit only if a measurement puts it near that budget.
  */
 export function filterNotes(notes: NoteMeta[], query: StreamQuery, now: Date): NoteMeta[] {
   const from = query.from === null ? null : resolveDateExpr(query.from, now, "start");
