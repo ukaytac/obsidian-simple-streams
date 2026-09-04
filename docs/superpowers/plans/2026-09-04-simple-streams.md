@@ -3633,6 +3633,30 @@ describe("extractPreview", () => {
     );
   });
 
+  it("drops a hidden comment, which the note asked not to show", () => {
+    expect(extractPreview("Visible text %%a private aside%% more text.", "note", 200)).toBe(
+      "Visible text more text.",
+    );
+    expect(extractPreview("Before %%hidden\nacross lines%% after.", "note", 200)).toBe(
+      "Before after.",
+    );
+  });
+
+  it("drops a callout's type marker but keeps its words", () => {
+    expect(extractPreview("> [!note] Remember\n> body of callout", "note", 200)).toBe(
+      "Remember body of callout",
+    );
+    expect(extractPreview("> [!warning]- Folded\n> hidden body", "note", 200)).toBe(
+      "Folded hidden body",
+    );
+  });
+
+  it("leaves HTML alone rather than risk a comparison", () => {
+    // A naive `<[^>]*>` strip turns "2 < 3 and 4 > 5 is true" into "2  5 is true".
+    expect(extractPreview("Some <b>bold</b> text.", "note", 200)).toBe("Some <b>bold</b> text.");
+    expect(extractPreview("2 < 3 and 4 > 5 is true", "note", 200)).toBe("2 < 3 and 4 > 5 is true");
+  });
+
   it("treats a dunder name the way a markdown renderer does", () => {
     // Markdown reads `__init__` as bold, so `display: full` shows `init` too.
     // Matching the renderer is the standard here, not preserving the source.
@@ -3664,9 +3688,14 @@ export function stripFrontmatter(content: string): string {
 /**
  * Turn markdown into the words it contains. Order matters: block constructs go
  * before inline ones, and embeds before links, since `![[x]]` also matches the
- * wiki-link pattern. Nothing here has to be perfect — an excerpt only needs to
- * read as prose, and anything missed degrades to a stray character rather than
- * to broken output.
+ * wiki-link pattern. An excerpt only needs to read as prose, so a construct
+ * missed here costs a stray character.
+ *
+ * Deliberately absent: raw HTML. Stripping `<[^>]*>` looks obvious and is the
+ * same mistake the unguarded underscore rule was — measured, it turns
+ * `2 < 3 and 4 > 5 is true` into `2  5 is true`. A literal `<b>` in an excerpt
+ * is ugly; a mangled sentence is worse, and HTML in a journal note is rare.
+ * Footnote markers like `[^1]` are left for the same reason at smaller stakes.
  */
 function stripMarkup(body: string): string {
   return (
@@ -3674,6 +3703,9 @@ function stripMarkup(body: string): string {
       // Fenced code is noise in an excerpt, not content.
       .replace(/^```[\s\S]*?^```[ \t]*$/gm, " ")
       .replace(/^~~~[\s\S]*?^~~~[ \t]*$/gm, " ")
+      // A %% comment %% is content the note asked not to show. Showing it in
+      // the stream would contradict the note itself.
+      .replace(/%%[\s\S]*?%%/g, " ")
       // Embeds carry nothing readable.
       .replace(/!\[\[[^\]]*\]\]/g, " ")
       .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
@@ -3684,6 +3716,9 @@ function stripMarkup(body: string): string {
       .replace(/`([^`]*)`/g, "$1")
       // Line-leading markers: quotes, bullets, numbers, headings.
       .replace(/^[ \t]*>[ \t]?/gm, "")
+      // A callout's `[!note]` is syntax; its title is words. After the quote
+      // strip, because the marker sits behind the `>`.
+      .replace(/^\[!\w+\][-+]?[ \t]*/gm, "")
       .replace(/^[ \t]*(?:[-*+]|\d+\.)[ \t]+/gm, "")
       .replace(/^#{1,6}[ \t]+/gm, "")
       // A table's rule row says nothing; its pipes become spacing.
@@ -3737,7 +3772,7 @@ export function extractPreview(content: string, basename: string, length: number
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/engine/preview.test.ts`
-Expected: PASS, 19 tests.
+Expected: PASS, 22 tests.
 
 - [ ] **Step 5: Commit**
 
