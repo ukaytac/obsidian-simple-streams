@@ -123,7 +123,11 @@ function localDateFrom(year: number, month: number, day: number): Date | null {
   return real ? probe : null;
 }
 
-/** The list and the type are one thing, so neither can drift from the other. */
+/**
+ * The list and the type are one thing, so neither can drift from the other.
+ * Adding an entry here is a compile error in `groupKey` and `headerOptions`
+ * until both handle it.
+ */
 export const GROUP_MODES = ["day", "month", "year", "none"] as const;
 export type GroupMode = (typeof GROUP_MODES)[number];
 
@@ -194,30 +198,51 @@ export function dateValue(value: unknown): number | null {
 }
 
 export function groupKey(ms: number, mode: GroupMode): string {
-  if (mode === "none") {
-    return "";
-  }
   const d = new Date(ms);
-  const year = String(d.getFullYear());
-  if (mode === "year") {
-    return year;
+  switch (mode) {
+    case "none":
+      return "";
+    case "year":
+      return String(d.getFullYear());
+    case "month":
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+    case "day":
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    default:
+      return assertNeverMode(mode);
   }
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  if (mode === "month") {
-    return `${year}-${month}`;
-  }
-  return `${year}-${month}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 export function formatGroupHeader(ms: number, mode: GroupMode, locale?: string): string {
-  if (mode === "none") {
-    return "";
+  const options = headerOptions(mode);
+  return options === null ? "" : new Intl.DateTimeFormat(locale, options).format(new Date(ms));
+}
+
+function headerOptions(mode: GroupMode): Intl.DateTimeFormatOptions | null {
+  switch (mode) {
+    case "none":
+      return null;
+    case "year":
+      return { year: "numeric" };
+    case "month":
+      return { year: "numeric", month: "long" };
+    case "day":
+      return { year: "numeric", month: "long", day: "numeric" };
+    default:
+      return assertNeverMode(mode);
   }
-  const options: Intl.DateTimeFormatOptions =
-    mode === "year"
-      ? { year: "numeric" }
-      : mode === "month"
-        ? { year: "numeric", month: "long" }
-        : { year: "numeric", month: "long", day: "numeric" };
-  return new Intl.DateTimeFormat(locale, options).format(new Date(ms));
+}
+
+function pad(value: number): string {
+  return String(value).padStart(2, "0");
+}
+
+/**
+ * Unreachable. Both switches above cover every GROUP_MODES entry, so adding a
+ * mode to that list fails to compile here until it is handled. Without this,
+ * an unhandled mode fell through to day-shaped output and a "week" grouping
+ * would have silently rendered as days.
+ */
+function assertNeverMode(mode: never): never {
+  throw new Error(`Unhandled group mode: ${String(mode)}`);
 }
