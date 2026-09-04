@@ -3406,7 +3406,9 @@ git commit -m "feat: assemble the stream pipeline"
 - Create: `src/engine/preview.ts`
 - Create: `tests/engine/preview.test.ts`
 
-Previews are plain text on purpose. Truncating markdown produces half-open code fences and dangling list items, so the excerpt drops markup instead of rendering it.
+Previews are plain text on purpose. Truncating markdown produces half-open code fences and dangling list items, so the excerpt drops the markup instead of rendering it.
+
+Dropping *only* headings is not enough, and this was measured rather than assumed: a real journal entry came out as ``Read **two chapters** of [[Dune]] on the tram, see [notes](https://x.com). - bullet one > a blockquote ```js const x = 1; ``` | a | b | |---|---| ![[cover.png]]`` — an excerpt reading as source. `preview` is the default display mode, so that is what most readers would see.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -3431,6 +3433,10 @@ describe("stripFrontmatter", () => {
 
   it("does not remove a horizontal rule further down", () => {
     expect(stripFrontmatter("Body\n\n---\n\nMore")).toBe("Body\n\n---\n\nMore");
+  });
+
+  it("removes an empty frontmatter block", () => {
+    expect(stripFrontmatter("---\n---\nBody")).toBe("Body");
   });
 });
 
@@ -3471,6 +3477,43 @@ describe("extractPreview", () => {
   it("returns an empty string for an empty note", () => {
     expect(extractPreview("---\ndate: x\n---\n", "note", 200)).toBe("");
   });
+
+  it("reads a real note as a sentence rather than as source", () => {
+    const content = [
+      "Read **two chapters** of [[Dune]] on the tram, see [notes](https://x.com).",
+      "",
+      "- bullet one",
+      "- bullet two",
+      "",
+      "> a blockquote line",
+      "",
+      "```js",
+      "const x = 1;",
+      "```",
+      "",
+      "| a | b |",
+      "|---|---|",
+      "| 1 | 2 |",
+      "",
+      "![[cover.png]]",
+      "",
+      "Final *paragraph* with `inline code` and ~~struck~~ text.",
+    ].join("\n");
+    expect(extractPreview(content, "note", 400)).toBe(
+      "Read two chapters of Dune on the tram, see notes. bullet one bullet two " +
+        "a blockquote line a b 1 2 Final paragraph with inline code and struck text.",
+    );
+  });
+
+  it("keeps a wiki link's alias rather than its target", () => {
+    expect(extractPreview("See [[2026-09-04|yesterday]] for context.", "note", 200)).toBe(
+      "See yesterday for context.",
+    );
+  });
+
+  it("drops an embed entirely", () => {
+    expect(extractPreview("![[cover.png]] Text after.", "note", 200)).toBe("Text after.");
+  });
 });
 ```
 
@@ -3484,12 +3527,48 @@ Expected: FAIL — cannot resolve `../../src/engine/preview`.
 `src/engine/preview.ts`:
 
 ```ts
-const FRONTMATTER = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/;
+/** The inner group is optional so an empty block, `---\n---\n`, is recognised too. */
+const FRONTMATTER = /^---\r?\n(?:[\s\S]*?\r?\n)?---\r?\n?/;
 const LEADING_HEADING = /^#{1,6}[ \t]+(.+?)[ \t]*(?:\r?\n|$)/;
-const HEADING_MARKERS = /^#{1,6}[ \t]+/gm;
 
 export function stripFrontmatter(content: string): string {
   return content.replace(FRONTMATTER, "");
+}
+
+/**
+ * Turn markdown into the words it contains. Order matters: block constructs go
+ * before inline ones, and embeds before links, since `![[x]]` also matches the
+ * wiki-link pattern. Nothing here has to be perfect — an excerpt only needs to
+ * read as prose, and anything missed degrades to a stray character rather than
+ * to broken output.
+ */
+function stripMarkup(body: string): string {
+  return (
+    body
+      // Fenced code is noise in an excerpt, not content.
+      .replace(/^```[\s\S]*?^```[ \t]*$/gm, " ")
+      .replace(/^~~~[\s\S]*?^~~~[ \t]*$/gm, " ")
+      // Embeds carry nothing readable.
+      .replace(/!\[\[[^\]]*\]\]/g, " ")
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
+      // A link keeps what the reader was meant to read.
+      .replace(/\[\[[^\]|]*\|([^\]]*)\]\]/g, "$1")
+      .replace(/\[\[([^\]]*)\]\]/g, "$1")
+      .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+      .replace(/`([^`]*)`/g, "$1")
+      // Line-leading markers: quotes, bullets, numbers, headings.
+      .replace(/^[ \t]*>[ \t]?/gm, "")
+      .replace(/^[ \t]*(?:[-*+]|\d+\.)[ \t]+/gm, "")
+      .replace(/^#{1,6}[ \t]+/gm, "")
+      // A table's rule row says nothing; its pipes become spacing.
+      .replace(/^[ \t]*\|?[ \t]*:?-{3,}:?[ \t]*(?:\|[ \t]*:?-{3,}:?[ \t]*)*\|?[ \t]*$/gm, " ")
+      .replace(/[ \t]*\|[ \t]*/g, "  ")
+      // Emphasis, longest marker first so `***x***` is not left with strays.
+      .replace(/(\*\*\*|___)(.+?)\1/g, "$2")
+      .replace(/(\*\*|__)(.+?)\1/g, "$2")
+      .replace(/(\*|_)(.+?)\1/g, "$2")
+      .replace(/~~(.+?)~~/g, "$1")
+  );
 }
 
 /**
@@ -3507,7 +3586,7 @@ export function extractPreview(content: string, basename: string, length: number
     body = body.slice(heading[0].length).replace(/^\s+/, "");
   }
 
-  const text = body.replace(HEADING_MARKERS, "").replace(/\s+/g, " ").trim();
+  const text = stripMarkup(body).replace(/\s+/g, " ").trim();
   if (text.length <= length) {
     return text;
   }
@@ -3522,7 +3601,7 @@ export function extractPreview(content: string, basename: string, length: number
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/engine/preview.test.ts`
-Expected: PASS, 12 tests.
+Expected: PASS, 16 tests.
 
 - [ ] **Step 5: Commit**
 

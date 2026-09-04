@@ -301,10 +301,23 @@ and tag chips. Then the body:
 
 - **`title`** — header only.
 - **`preview`** — plain-text excerpt via `vault.cachedRead`: strip frontmatter,
-  drop a leading H1 that duplicates the title, collapse whitespace, cut on a word
-  boundary at `preview-length`, append an ellipsis. Deliberately not rendered as
-  markdown: truncating markdown mid-structure yields half-open code fences and
-  dangling list items.
+  drop a leading heading that duplicates the title, **strip the markup**,
+  collapse whitespace, cut on a word boundary at `preview-length`, append an
+  ellipsis. Deliberately not rendered as markdown: truncating markdown
+  mid-structure yields half-open code fences and dangling list items.
+
+  Stripping the markup is what makes "plain text" true rather than nominal.
+  Dropping only headings left the excerpt reading as source: a real journal
+  entry came out as ``Read **two chapters** of [[Dune]] on the tram, see
+  [notes](https://x.com). - bullet one > a blockquote ```js const x = 1; ``` |
+  a | b | |---|---| ![[cover.png]]``. So fenced code blocks and embeds are
+  removed outright, a wiki link keeps its alias or its target, an inline link
+  keeps its text, and emphasis, strikethrough, inline code, list bullets,
+  blockquote markers and table pipes lose their punctuation. The same entry then
+  reads: `Read two chapters of Dune on the tram, see notes. bullet one bullet
+  two a blockquote line a b 1 2 Final paragraph with inline code and struck
+  text.` This matters more than it looks, because `preview` is the default
+  display mode and so is what most readers see.
 - **`full`** — `MarkdownRenderer.render()` on the body minus frontmatter, into a
   per-item `MarkdownRenderChild` parented to the stream's own child. The
   parenting matters: without it, embeds and other plugins' render children inside
