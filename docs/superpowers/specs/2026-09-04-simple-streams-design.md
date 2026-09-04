@@ -137,8 +137,20 @@ rest have no operand, and every reading of them is a guess: left alone they
 compare against the string `"="` or against nothing at all, and produce a
 filter that quietly matches the wrong notes.
 
-`exists` and `missing` are reserved words in this position. Matching a
-frontmatter value that is literally the string "exists" is not supported.
+`exists` and `missing` are reserved words in this position, and so is any value
+beginning with `<`, `>` or `!=`. Matching a frontmatter value that is literally
+`exists`, or literally `>90% done`, is not supported. That is a real limitation
+and the right size of fix is to say so: an escape spelling like `equals:` would
+add a second way to write every condition for a corner case that is rare in a
+vault.
+
+**A list means any-of and nothing else.** A comparison or a reserved word inside
+one is an error, not a value. `rating: [">3", "<10"]` is the obvious way to
+reach for a range, and left alone it asks for notes whose rating is the literal
+text `">3"` — matching nothing, silently. An **empty** list is an error too, and
+here it differs from `tags: []` on purpose: an empty `tags` is an unambiguous
+way to say "no tag constraint", whereas a `where` field named with no values can
+only ever match nothing, so it is always a mistake.
 
 ### 3.4 Date expressions
 

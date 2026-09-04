@@ -1948,6 +1948,31 @@ describe("parseQuery — where", () => {
     );
   });
 
+  it("rejects a comparison or a reserved word inside a list", () => {
+    // A range is the first thing a user reaches for, and left alone this asks
+    // for notes whose rating is the literal text ">3".
+    expect(() => parseQuery('where:\n  rating: [">3", "<10"]')).toThrow(
+      /`where.rating` cannot use `>3` inside a list/,
+    );
+    expect(() => parseQuery("where:\n  status: [exists, done]")).toThrow(
+      /cannot use `exists` inside a list/,
+    );
+    expect(() => parseQuery("where:\n  status: [done, MISSING]")).toThrow(/inside a list/);
+  });
+
+  it("rejects an empty list, which could only ever match nothing", () => {
+    // `tags: []` legally means no constraint. A named `where` field with no
+    // values cannot mean that, so it is always a mistake.
+    expect(() => parseQuery("where:\n  type: []")).toThrow(/`where.type` has no values to match/);
+  });
+
+  it("explains a missing value the way every other field does", () => {
+    expect(() => parseQuery("where:\n  status: #idea")).toThrow(
+      /`where.status` has no value.*as in status: "#book"/s,
+    );
+    expect(() => parseQuery("where:")).toThrow(/`where` has no value/);
+  });
+
   it("rejects an operator with nothing to compare against", () => {
     // `">="` used to backtrack into `>` and compare against the string "=",
     // and `"> "` compared against nothing. Both silently matched the wrong notes.
@@ -1987,9 +2012,15 @@ Add `type CompareOp`, `type WhereClause` and `type WhereCondition` to the existi
  * turns all of those into one clear error.
  */
 const COMPARISON = /^(>=|<=|!=|>|<)\s*(.*)$/;
+const RESERVED = new Set(["exists", "missing"]);
 
 function parseWhere(value: unknown): WhereClause[] {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+  if (value === null || value === undefined) {
+    throw new QueryError(
+      "`where` has no value. Give it at least one `field: condition` line, or leave it out.",
+    );
+  }
+  if (typeof value !== "object" || Array.isArray(value)) {
     throw new QueryError("`where` expects a map of `field: condition` entries");
   }
   return Object.entries(value as Record<string, unknown>).map(([field, raw]) => ({
@@ -2000,7 +2031,12 @@ function parseWhere(value: unknown): WhereClause[] {
 
 function parseCondition(field: string, raw: unknown): WhereCondition {
   if (Array.isArray(raw)) {
-    return { kind: "anyOf", values: raw.map((item) => asScalar(field, item)) };
+    if (raw.length === 0) {
+      throw new QueryError(
+        `\`where.${field}\` has no values to match. Give it at least one, or leave the field out.`,
+      );
+    }
+    return { kind: "anyOf", values: raw.map((item) => asAnyOfValue(field, item)) };
   }
 
   if (typeof raw === "string") {
@@ -2027,9 +2063,33 @@ function parseCondition(field: string, raw: unknown): WhereCondition {
   return { kind: "equals", value: asScalar(field, raw) };
 }
 
+/**
+ * A list is any-of and nothing else. A comparison or a reserved word inside one
+ * loses its meaning in silence: `rating: [">3", "<10"]` is how a user reaches
+ * for a range, and unchecked it asks for notes whose rating is the literal text
+ * `">3"`, matching nothing.
+ */
+function asAnyOfValue(field: string, item: unknown): string | number | boolean {
+  const value = asScalar(field, item);
+  if (typeof value === "string") {
+    const text = value.trim();
+    if (COMPARISON.test(text) || RESERVED.has(text.toLowerCase())) {
+      throw new QueryError(
+        `\`where.${field}\` cannot use \`${text}\` inside a list. A list means "any of these values"; a comparison or \`exists\`/\`missing\` has to be the whole condition.`,
+      );
+    }
+  }
+  return value;
+}
+
 function asScalar(field: string, value: unknown): string | number | boolean {
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
     return value;
+  }
+  if (value === null || value === undefined) {
+    // The same answer every other field gives, so `where: { status: #idea }`
+    // and `tags: #idea` explain the same mistake to the same standard.
+    throw new QueryError(`\`where.${field}\` has no value. ${hashHint(field)}`);
   }
   throw new QueryError(
     `\`where.${field}\` expects text, a number, a boolean, or a list of them`,
@@ -2104,7 +2164,7 @@ describe("parseQuery — every advertised field is wired up", () => {
 ```
 
 Run: `npx vitest run tests/query/parse-where.test.ts`
-Expected: PASS, 11 tests.
+Expected: PASS, 14 tests.
 
 - [ ] **Step 6: Run the whole suite so far**
 
