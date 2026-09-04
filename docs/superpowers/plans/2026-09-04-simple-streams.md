@@ -1319,6 +1319,34 @@ describe("parseQuery — a bare hash is a YAML comment", () => {
     expect(parseQuery('tags: "#book"').tags).toEqual(["book"]);
     expect(parseQuery('exclude-tags: ["#draft"]').excludeTags).toEqual(["draft"]);
   });
+
+  it("names the field at fault, not always tags", () => {
+    expect(() => parseQuery("folder: #Archive")).toThrow(/as in folder: \["#book"\]/);
+  });
+});
+
+describe("parseQuery — an empty entry is a mistake, not a filter", () => {
+  it("rejects an empty scalar", () => {
+    expect(() => parseQuery('tags: ""')).toThrow(/`tags` has an empty entry/);
+  });
+
+  it("rejects an empty entry sitting among real ones", () => {
+    // Dropping it would quietly remove one of the two constraints.
+    expect(() => parseQuery('tags: [book, ""]')).toThrow(/empty entry/);
+    expect(() => parseQuery('tags: ["   "]')).toThrow(/empty entry/);
+  });
+
+  it("still accepts an explicitly empty list as no constraint", () => {
+    expect(parseQuery("tags: []").tags).toEqual([]);
+  });
+});
+
+describe("parseQuery — messages written for a note-writer", () => {
+  it("explains a second YAML document instead of naming a JS API", () => {
+    const source = "folder: a\n---\nfolder: b";
+    expect(() => parseQuery(source)).toThrow(/single set of `field: value` lines/);
+    expect(() => parseQuery(source)).not.toThrow(/parseAllDocuments/);
+  });
 });
 ```
 
@@ -1349,10 +1377,23 @@ export function parseQuery(source: string): StreamQuery {
 /**
  * YAML reads a bare `#` as the start of a comment. Obsidian users write tags
  * with a hash, so `tags: [#book]` (a parse error) and `tags: #book` (silently
- * `null`) are the two mistakes they will actually make.
+ * `null`) are the two mistakes they will actually make. The example names the
+ * field at fault: telling someone who typed `folder: #Archive` to quote a tag
+ * sends them to the wrong line.
  */
-const HASH_HINT =
-  'If you wrote a bare `#tag`, YAML read it as a comment — quote it, as in tags: ["#book"].';
+function hashHint(field = "tags"): string {
+  return `If you wrote a bare \`#tag\`, YAML read it as a comment — quote it, as in ${field}: ["#book"].`;
+}
+
+/** Rephrase the library's own messages where they address a programmer, not a note-writer. */
+function explain(message: string): string {
+  if (/multiple documents/i.test(message)) {
+    // The library advises calling YAML.parseAllDocuments(), which is not
+    // useful advice for someone editing a note.
+    return "A stream block must be a single set of `field: value` lines. This one has a `---` separator, which YAML reads as the start of a second document.";
+  }
+  return /comment/i.test(message) ? `${message} ${hashHint()}` : message;
+}
 
 function readYaml(source: string): Record<string, unknown> {
   if (source.trim() === "") {
@@ -1364,9 +1405,7 @@ function readYaml(source: string): Record<string, unknown> {
     parsed = parseYamlText(source);
   } catch (error) {
     if (error instanceof YAMLParseError) {
-      const first = error.message.split("\n")[0];
-      const message = /comment/i.test(first) ? `${first} ${HASH_HINT}` : first;
-      throw new QueryError(message, error.linePos?.[0]?.line);
+      throw new QueryError(explain(error.message.split("\n")[0]), error.linePos?.[0]?.line);
     }
     throw new QueryError(error instanceof Error ? error.message : String(error));
   }
@@ -1417,20 +1456,26 @@ function unknownField(key: string): QueryError {
 
 function toStringList(field: string, value: unknown): string[] {
   const items = Array.isArray(value) ? value : [value];
-  return items
-    .map((item) => {
-      if (typeof item === "string") {
-        return item.trim();
+  return items.map((item) => {
+    if (item === null || item === undefined) {
+      throw new QueryError(`\`${field}\` has no value. ${hashHint(field)}`);
+    }
+    if (typeof item === "string") {
+      const text = item.trim();
+      if (text === "") {
+        // Dropping it would turn `tags: ""` into no tag filter at all, and
+        // quietly delete one constraint from `tags: [book, ""]`.
+        throw new QueryError(
+          `\`${field}\` has an empty entry. Remove it, or leave the field out to filter on nothing.`,
+        );
       }
-      if (typeof item === "number" || typeof item === "boolean") {
-        return String(item);
-      }
-      if (item === null || item === undefined) {
-        throw new QueryError(`\`${field}\` has no value. ${HASH_HINT}`);
-      }
-      throw new QueryError(`\`${field}\` expects text or a list of text`);
-    })
-    .filter((item) => item.length > 0);
+      return text;
+    }
+    if (typeof item === "number" || typeof item === "boolean") {
+      return String(item);
+    }
+    throw new QueryError(`\`${field}\` expects text or a list of text`);
+  });
 }
 
 function normalizeFolder(path: string): string {
@@ -1441,7 +1486,7 @@ function normalizeFolder(path: string): string {
 - [ ] **Step 5: Run test to verify it passes**
 
 Run: `npx vitest run tests/query/parse-lists.test.ts`
-Expected: PASS, 17 tests.
+Expected: PASS, 22 tests.
 
 - [ ] **Step 6: Commit**
 
@@ -1885,12 +1930,81 @@ function asScalar(field: string, value: unknown): string | number | boolean {
 }
 ```
 
-- [ ] **Step 5: Run the whole suite so far**
+- [ ] **Step 5: Tie `applyField` to `QUERY_FIELDS` at compile time**
+
+The switch is complete as of this task, so lock the two lists together. Until
+now nothing connected them, and the gap was visible: `sort: date desc` reported
+``Unknown field `sort`. Did you mean `sort`?`` — advertising a field as valid in
+the same breath as rejecting it. A field listed and unhandled, or handled and
+unlisted, must now fail to compile rather than reach a user.
+
+Replace `applyField`'s signature and `default` branch:
+
+```ts
+function applyField(query: StreamQuery, key: string, value: unknown): void {
+  if (!isQueryField(key)) {
+    throw unknownField(key);
+  }
+  switch (key) {
+    // ... every existing case, unchanged ...
+    default:
+      return assertNever(key);
+  }
+}
+
+function isQueryField(key: string): key is (typeof QUERY_FIELDS)[number] {
+  return (QUERY_FIELDS as readonly string[]).includes(key);
+}
+
+/** Unreachable. A QUERY_FIELDS entry with no case makes this fail to compile. */
+function assertNever(field: never): never {
+  throw new Error(`Unhandled query field: ${String(field)}`);
+}
+```
+
+Then add a round-trip test to `tests/query/parse-where.test.ts`, which is the
+last parser test file, so the guard is regression-proof at runtime too:
+
+```ts
+import { QUERY_FIELDS } from "../../src/query/types";
+
+/** A smallest valid value for each field, to prove the field is wired up. */
+const MINIMAL: Record<(typeof QUERY_FIELDS)[number], string> = {
+  folder: "Journal",
+  tags: "book",
+  "tags-any": "book",
+  "exclude-folder": "Archive",
+  "exclude-tags": "draft",
+  title: "weekly",
+  where: "\n  status: done",
+  "date-field": "date",
+  from: "2026-01-01",
+  to: "today",
+  sort: "date desc",
+  group: "day",
+  display: "full",
+  "preview-length": "80",
+  limit: "10",
+};
+
+describe("parseQuery — every advertised field is wired up", () => {
+  it("accepts each field in QUERY_FIELDS", () => {
+    for (const field of QUERY_FIELDS) {
+      expect(() => parseQuery(`${field}: ${MINIMAL[field]}`), field).not.toThrow();
+    }
+  });
+});
+```
+
+Run: `npx vitest run tests/query/parse-where.test.ts`
+Expected: PASS, 10 tests.
+
+- [ ] **Step 6: Run the whole suite so far**
 
 Run: `npm test`
 Expected: PASS — every test file green. The parser is now complete.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add src/query/parse.ts tests/query/parse-where.test.ts
@@ -1945,6 +2059,11 @@ describe("inFolder", () => {
   it("matches everything for an empty prefix", () => {
     expect(inFolder("Books/dune.md", "")).toBe(true);
   });
+
+  it("normalizes its own argument, so a hand-built query still works", () => {
+    expect(inFolder("Journal/2026-09-04.md", "Journal")).toBe(true);
+    expect(inFolder("Journal/2026-09-04.md", "/Journal/")).toBe(true);
+  });
 });
 
 describe("hasTag", () => {
@@ -1958,6 +2077,11 @@ describe("hasTag", () => {
 
   it("does not match a sibling that shares a prefix", () => {
     expect(hasTag(["bookmark"], "book")).toBe(false);
+  });
+
+  it("normalizes its own argument", () => {
+    expect(hasTag(["book"], "#Book")).toBe(true);
+    expect(hasTag(["project/streams"], "#Project")).toBe(true);
   });
 });
 
@@ -2035,21 +2159,32 @@ Expected: FAIL — cannot resolve `../../src/engine/filter`.
 ```ts
 import { resolveDateExpr } from "./dates";
 import { resolveNoteDate } from "./fields";
+import { normalizeTag } from "./note";
 import type { NoteMeta } from "./note";
 import type { StreamQuery, TitleMatcher } from "../query/types";
 
-/** Path prefix match that breaks on a slash, so "journal" never matches "Journal2". */
+/**
+ * Path prefix match that breaks on a slash, so "journal" never matches
+ * "Journal2". Normalizes its own argument rather than trusting the caller: the
+ * parser already lower-cases and trims slashes, but a StreamQuery built by hand
+ * with `folder: ["Journal"]` would otherwise match nothing, in silence.
+ */
 export function inFolder(path: string, folder: string): boolean {
-  if (folder === "") {
+  const wanted = folder.replace(/^\/+/, "").replace(/\/+$/, "").toLowerCase();
+  if (wanted === "") {
     return true;
   }
   const lower = path.toLowerCase();
-  return lower === folder || lower.startsWith(`${folder}/`);
+  return lower === wanted || lower.startsWith(`${wanted}/`);
 }
 
-/** A tag matches itself and its descendants: "project" matches "project/streams". */
+/**
+ * A tag matches itself and its descendants: "project" matches
+ * "project/streams". Normalizes its own argument, for the same reason.
+ */
 export function hasTag(tags: string[], wanted: string): boolean {
-  return tags.some((tag) => tag === wanted || tag.startsWith(`${wanted}/`));
+  const needle = normalizeTag(wanted);
+  return tags.some((tag) => tag === needle || tag.startsWith(`${needle}/`));
 }
 
 export function matchesTitle(note: NoteMeta, matcher: TitleMatcher | null): boolean {
@@ -2102,7 +2237,7 @@ export function filterNotes(notes: NoteMeta[], query: StreamQuery, now: Date): N
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/engine/filter-basics.test.ts`
-Expected: PASS, 15 tests.
+Expected: PASS, 17 tests.
 
 - [ ] **Step 5: Commit**
 

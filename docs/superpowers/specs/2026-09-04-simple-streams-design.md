@@ -292,6 +292,11 @@ Every failure is visible in the block, never only in the console.
   three characters gets a guess.
 - **Invalid value** — `display: foo`, a bad date expression, a bad sort direction:
   names the field and lists the accepted values.
+- **An empty entry** — `tags: ""`, or `tags: [book, ""]`. This is an error, not
+  a value to drop. Dropping it silently would turn the first into no tag filter
+  at all and quietly delete one constraint from the second, which is the
+  unfiltered-vault outcome again. An explicitly empty list, `tags: []`, is
+  still an unambiguous way to say "no constraint" and stays legal.
 - **A note that fails to read** — degrades to one muted warning row; the rest of
   the stream still renders.
 
