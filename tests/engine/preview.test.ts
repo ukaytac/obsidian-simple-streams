@@ -119,6 +119,30 @@ describe("extractPreview", () => {
     );
   });
 
+  it("drops a hidden comment, which the note asked not to show", () => {
+    expect(extractPreview("Visible text %%a private aside%% more text.", "note", 200)).toBe(
+      "Visible text more text.",
+    );
+    expect(extractPreview("Before %%hidden\nacross lines%% after.", "note", 200)).toBe(
+      "Before after.",
+    );
+  });
+
+  it("drops a callout's type marker but keeps its words", () => {
+    expect(extractPreview("> [!note] Remember\n> body of callout", "note", 200)).toBe(
+      "Remember body of callout",
+    );
+    expect(extractPreview("> [!warning]- Folded\n> hidden body", "note", 200)).toBe(
+      "Folded hidden body",
+    );
+  });
+
+  it("leaves HTML alone rather than risk a comparison", () => {
+    // A naive `<[^>]*>` strip turns "2 < 3 and 4 > 5 is true" into "2  5 is true".
+    expect(extractPreview("Some <b>bold</b> text.", "note", 200)).toBe("Some <b>bold</b> text.");
+    expect(extractPreview("2 < 3 and 4 > 5 is true", "note", 200)).toBe("2 < 3 and 4 > 5 is true");
+  });
+
   it("treats a dunder name the way a markdown renderer does", () => {
     // Markdown reads `__init__` as bold, so `display: full` shows `init` too.
     // Matching the renderer is the standard here, not preserving the source.
