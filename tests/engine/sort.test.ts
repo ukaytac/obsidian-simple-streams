@@ -100,4 +100,40 @@ describe("sortNotes", () => {
     ];
     expect(pathsOf(notes, [{ field: "month", direction: "asc" }])).toEqual(["b.md", "a.md"]);
   });
+
+  it("keeps a plain year beside an ISO date instead of fifty-six years away", () => {
+    // A timestamp conversion compared 2026 — two seconds into 1970 — against
+    // 2026-01-01. ISO text already sorts chronologically.
+    const notes = [
+      note({ path: "iso.md", frontmatter: { year: "2026-01-01" } }),
+      note({ path: "num.md", frontmatter: { year: 2026 } }),
+      note({ path: "later.md", frontmatter: { year: "2027-01-01" } }),
+    ];
+    expect(pathsOf(notes, [{ field: "year", direction: "asc" }])).toEqual([
+      "num.md",
+      "iso.md",
+      "later.md",
+    ]);
+  });
+
+  it("does not read a hex-looking value as a number", () => {
+    // As text "0x10" collates before "5"; as a number it would be 16 and follow.
+    const notes = [
+      note({ path: "a.md", frontmatter: { id: "0x10" } }),
+      note({ path: "b.md", frontmatter: { id: "5" } }),
+    ];
+    expect(pathsOf(notes, [{ field: "id", direction: "asc" }])).toEqual(["a.md", "b.md"]);
+  });
+
+  it("orders text by the locale it is given", () => {
+    // The host default puts these the other way round, which is the point.
+    const notes = [
+      note({ path: "a.md", frontmatter: { t: "ıyı" } }),
+      note({ path: "b.md", frontmatter: { t: "Iyi" } }),
+    ];
+    expect(sortNotes(notes, [{ field: "t", direction: "asc" }], "tr").map((n) => n.path)).toEqual([
+      "a.md",
+      "b.md",
+    ]);
+  });
 });
