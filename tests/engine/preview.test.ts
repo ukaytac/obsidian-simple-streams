@@ -97,4 +97,25 @@ describe("extractPreview", () => {
   it("drops an embed entirely", () => {
     expect(extractPreview("![[cover.png]] Text after.", "note", 200)).toBe("Text after.");
   });
+
+  it("leaves identifiers, filenames and arithmetic alone", () => {
+    // An unguarded underscore rule paired the two in `get_user_data` with each
+    // other and merged three words into one.
+    expect(extractPreview("Run the get_user_data function now.", "note", 200)).toBe(
+      "Run the get_user_data function now.",
+    );
+    expect(extractPreview("See my_var and other_var here.", "note", 200)).toBe(
+      "See my_var and other_var here.",
+    );
+    expect(extractPreview("A file named report_2026_final.md", "note", 200)).toBe(
+      "A file named report_2026_final.md",
+    );
+    expect(extractPreview("2 * 3 * 4 = 24", "note", 200)).toBe("2 * 3 * 4 = 24");
+  });
+
+  it("still strips real emphasis", () => {
+    expect(extractPreview("This is _italic_ and __bold__ and ***both***.", "note", 200)).toBe(
+      "This is italic and bold and both.",
+    );
+  });
 });

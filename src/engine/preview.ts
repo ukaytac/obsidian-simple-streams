@@ -34,11 +34,19 @@ function stripMarkup(body: string): string {
       // A table's rule row says nothing; its pipes become spacing.
       .replace(/^[ \t]*\|?[ \t]*:?-{3,}:?[ \t]*(?:\|[ \t]*:?-{3,}:?[ \t]*)*\|?[ \t]*$/gm, " ")
       .replace(/[ \t]*\|[ \t]*/g, "  ")
-      // Emphasis, longest marker first so `***x***` is not left with strays.
-      .replace(/(\*\*\*|___)(.+?)\1/g, "$2")
-      .replace(/(\*\*|__)(.+?)\1/g, "$2")
-      .replace(/(\*|_)(.+?)\1/g, "$2")
-      .replace(/~~(.+?)~~/g, "$1")
+      // Emphasis, longest marker first so `***x***` leaves no strays. An
+      // underscore only counts at a word boundary, which is what CommonMark
+      // says and what keeps `get_user_data` from becoming `getuserdata` — an
+      // unguarded rule paired the two underscores with each other and merged
+      // three words into one. No delimiter may be followed by a space either,
+      // so `2 * 3 * 4` stays arithmetic instead of losing its asterisks.
+      .replace(/(^|[^\w])___([^\s_][^_]*?)___(?=[^\w]|$)/g, "$1$2")
+      .replace(/(^|[^\w])__([^\s_][^_]*?)__(?=[^\w]|$)/g, "$1$2")
+      .replace(/(^|[^\w])_([^\s_][^_]*?)_(?=[^\w]|$)/g, "$1$2")
+      .replace(/\*\*\*([^\s*][^*]*?)\*\*\*/g, "$1")
+      .replace(/\*\*([^\s*][^*]*?)\*\*/g, "$1")
+      .replace(/\*([^\s*][^*]*?)\*/g, "$1")
+      .replace(/~~([^\s~][^~]*?)~~/g, "$1")
   );
 }
 
