@@ -3535,6 +3535,14 @@ describe("extractPreview", () => {
       "This is italic and bold and both.",
     );
   });
+
+  it("treats a dunder name the way a markdown renderer does", () => {
+    // Markdown reads `__init__` as bold, so `display: full` shows `init` too.
+    // Matching the renderer is the standard here, not preserving the source.
+    expect(extractPreview("__init__ and __main__ are hooks.", "note", 200)).toBe(
+      "init and main are hooks.",
+    );
+  });
 });
 ```
 
@@ -3590,6 +3598,8 @@ function stripMarkup(body: string): string {
       // unguarded rule paired the two underscores with each other and merged
       // three words into one. No delimiter may be followed by a space either,
       // so `2 * 3 * 4` stays arithmetic instead of losing its asterisks.
+      // `__init__` does still become `init`, and that is right rather than a
+      // gap: markdown reads it as bold, so `display: full` shows `init` too.
       .replace(/(^|[^\w])___([^\s_][^_]*?)___(?=[^\w]|$)/g, "$1$2")
       .replace(/(^|[^\w])__([^\s_][^_]*?)__(?=[^\w]|$)/g, "$1$2")
       .replace(/(^|[^\w])_([^\s_][^_]*?)_(?=[^\w]|$)/g, "$1$2")
@@ -3630,7 +3640,7 @@ export function extractPreview(content: string, basename: string, length: number
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/engine/preview.test.ts`
-Expected: PASS, 18 tests.
+Expected: PASS, 19 tests.
 
 - [ ] **Step 5: Commit**
 
