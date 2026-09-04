@@ -222,7 +222,8 @@ exactly as before.
 
 Sort keys apply in the order given. Missing values sort **last** in both
 directions — a note with no `rating` should not lead a `rating desc` stream nor a
-`rating asc` one. Ties break on `file.path` ascending so the order is stable
+`rating asc` one. A value that is not finite — `NaN`, `Infinity` — counts as
+missing too, since there is no position on a number line to give it. Ties break on `file.path` ascending so the order is stable
 across renders. Numbers compare numerically, dates chronologically, strings via
 `localeCompare` with numeric collation.
 
