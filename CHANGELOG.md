@@ -2,6 +2,48 @@
 
 The text of each GitHub release is taken from here.
 
+## 1.0.2
+
+Two things you would see in an ordinary note, both found by opening the plugin
+in a real vault rather than by any test. Both are visual; nothing about
+filtering, sorting or grouping has changed.
+
+### Fixed
+
+- **Group headers no longer cover the note they sit in.** The `2026` or
+  `March 2026` header was pinned to the top of the viewport as you scrolled.
+  That is right in a view that scrolls a list of its own, but a stream is drawn
+  inline, so the header floated over your own paragraphs and hid a line of them
+  until you scrolled past. Headers now sit in the flow, where the text can get
+  past them.
+- **Error and notice messages no longer show their backticks.** A message
+  naming a field printed it as `` `where.nights` ``, marks and all, in a box
+  already set entirely in monospace so the marks distinguished nothing. Field
+  names are now set as code and the messages read as the sentences they are.
+
+### Added
+
+- **A manual test checklist**, in
+  [`docs/manual-testing.md`](https://github.com/ukaytac/obsidian-simple-streams/blob/main/docs/manual-testing.md),
+  covering what the automated tests structurally cannot see — popout windows,
+  Live Preview, mobile — with the record of what each run found. Both fixes
+  above came from its first run.
+- **CI on every push and pull request.** The type check and the suite ran only
+  when a version tag was pushed, which is the worst moment to learn a change is
+  broken.
+
+### Changed
+
+- **The performance guard counts instead of timing.** Its wall-clock budget was
+  calibrated on a laptop and failed on a CI runner five times slower, on code
+  that was never slow. It now counts collator constructions across a 5000-note
+  run, which is the actual defect it was written to catch and is the same
+  number on every machine.
+- **`test-vault/` is gone.** The screenshots in the README come from a vault
+  that was never in the repository, so the sample it pointed at could not
+  reproduce them. Development now describes symlinking a build into a vault of
+  your own.
+
 ## 1.0.1
 
 Two defects in 1.0.0, both found by the community directory's review, both

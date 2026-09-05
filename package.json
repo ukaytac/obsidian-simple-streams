@@ -1,6 +1,6 @@
 {
   "name": "obsidian-simple-streams",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Render a filtered, sorted stream of notes from a code block.",
   "main": "main.js",
   "private": true,
