@@ -10,12 +10,16 @@
   gap: var(--size-4-3);
 }
 
+/*
+ * Deliberately not sticky, though it was through 1.0.1. A stream draws inline
+ * in a note, so the scroll container is the note rather than the block, and a
+ * pinned header sat over whatever prose happened to be passing under it —
+ * hiding a line of the reader's own writing until they scrolled past. That
+ * trade is worth making in a view that scrolls a list and nothing else. It is
+ * not worth making in the middle of someone's page.
+ */
 .ss-group {
-  position: sticky;
-  top: 0;
-  z-index: 1;
   padding: var(--size-2-2) 0;
-  background: var(--background-primary);
   border-bottom: 1px solid var(--background-modifier-border);
   color: var(--text-muted);
   font-size: var(--font-ui-small);
