@@ -27,14 +27,23 @@ limit: 50
 
 ## Installing
 
-Simple Streams is not in the community plugin list yet. To install it:
+Simple Streams is awaiting listing in the community plugin directory. Until it
+appears there, install it by hand:
 
-1. Download `main.js`, `manifest.json` and `styles.css` from a release, or
-   build them yourself (see [Development](#development)).
+1. Download `main.js`, `manifest.json` and `styles.css` from the
+   [latest release](https://github.com/ukaytac/obsidian-simple-streams/releases/latest),
+   or build them yourself (see [Development](#development)).
 2. Put all three in `<your vault>/.obsidian/plugins/simple-streams/`.
 3. In Obsidian, open **Settings → Community plugins**, turn off Restricted
    Mode if it is on, then enable **Simple Streams**.
 4. Add a `stream` block to any note.
+
+Each release asset carries a signed provenance attestation, so a downloaded
+build can be tied back to this repository:
+
+```bash
+gh attestation verify main.js --repo ukaytac/obsidian-simple-streams
+```
 
 Requires Obsidian 1.5.7 or newer. Works on desktop and mobile.
 
@@ -59,13 +68,10 @@ leaving you to find it in a permissions list.
 - **It never talks to the network.** There is no `fetch`, no `requestUrl`, and
   no dependency that makes one. Nothing about your vault leaves your machine.
 
-`npm run check:floor` and the test suite are run in CI on every release, and
-each release asset carries a signed provenance attestation, so you can verify
-the `main.js` you downloaded was built from this source:
-
-```bash
-gh attestation verify main.js --repo ukaytac/obsidian-simple-streams
-```
+None of that is a claim you have to take on trust. The test suite and the type
+check run in CI on every push, `npm run check:floor` proves each release against
+the typings for the Obsidian version the manifest promises, and the assets carry
+the attestation described under [Installing](#installing).
 
 ## Fields
 
@@ -170,18 +176,21 @@ npm run build     # type-check and bundle
 writes it at the root, next to the `manifest.json` and `styles.css` a user
 installs alongside it.
 
-`test-vault/` is a sample vault with a `Streams.md` page exercising every
-display mode, grouping and error case. To try the plugin there:
+To try a change in a real vault, point a plugin folder at the build rather than
+copying after every edit:
 
 ```bash
-npm run build
-mkdir -p test-vault/.obsidian/plugins/simple-streams
-cp main.js manifest.json styles.css test-vault/.obsidian/plugins/simple-streams/
+VAULT=~/path/to/your/vault
+mkdir -p "$VAULT/.obsidian/plugins/simple-streams"
+ln -sf "$PWD"/{main.js,manifest.json,styles.css} \
+  "$VAULT/.obsidian/plugins/simple-streams/"
+npm run dev
 ```
 
-Then open `test-vault` in Obsidian, enable **Simple Streams** under Settings →
-Community plugins, and open `Streams.md`. `npm run dev` writes to the repo root,
-so re-run that `cp` after each change.
+`npm run dev` writes `main.js` at the repo root on every save, and the symlinks
+mean Obsidian sees it immediately — reload with **Reload app without saving**
+from the command palette. Use a scratch vault: a stream is read-only, but a
+plugin under development is still a plugin under development.
 
 Design: [docs/superpowers/specs/2026-09-04-simple-streams-design.md](docs/superpowers/specs/2026-09-04-simple-streams-design.md)
 Plan: [docs/superpowers/plans/2026-09-04-simple-streams.md](docs/superpowers/plans/2026-09-04-simple-streams.md)
