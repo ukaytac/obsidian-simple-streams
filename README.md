@@ -27,16 +27,20 @@ limit: 50
 
 ## Installing
 
-Simple Streams is awaiting listing in the community plugin directory. Until it
-appears there, install it by hand:
+In Obsidian, open **Settings → Community plugins**, turn off Restricted Mode if
+it is on, then **Browse** and search for *Simple Streams*. Install it, enable
+it, and add a `stream` block to any note.
+
+<details>
+<summary>Installing by hand instead</summary>
 
 1. Download `main.js`, `manifest.json` and `styles.css` from the
    [latest release](https://github.com/ukaytac/obsidian-simple-streams/releases/latest),
    or build them yourself (see [Development](#development)).
 2. Put all three in `<your vault>/.obsidian/plugins/simple-streams/`.
-3. In Obsidian, open **Settings → Community plugins**, turn off Restricted
-   Mode if it is on, then enable **Simple Streams**.
-4. Add a `stream` block to any note.
+3. Enable **Simple Streams** under **Settings → Community plugins**.
+
+</details>
 
 Each release asset carries a signed provenance attestation, so a downloaded
 build can be tied back to this repository:

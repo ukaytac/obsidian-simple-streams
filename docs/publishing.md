@@ -32,6 +32,10 @@ gitignored and built in CI, so the release is the only place it exists.
 
 ## First submission to the directory
 
+Done: Simple Streams was listed on 2026-09-05, from the 1.0.1 review. Kept
+because the next plugin starts here, and because two of the details below cost
+an afternoon each to learn.
+
 Submission is **not** a pull request against `obsidian-releases`. That was the
 old flow, and following it wastes an afternoon: `community-plugins.json` is 1.9 MB,
 past the size at which GitHub refuses to open its web editor, which is a good
