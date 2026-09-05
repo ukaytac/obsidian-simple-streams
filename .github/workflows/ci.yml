@@ -1,0 +1,34 @@
+# Type check, tests and bundle on every push and pull request. The release
+# workflow runs the same three steps, but only when a tag is pushed — which is
+# the worst moment to learn a change is broken. This is the same gate, moved to
+# where the change actually lands.
+#
+# `npm run check:floor` is deliberately not here: it fetches the typings for the
+# manifest's minAppVersion from the network, and the API surface only moves when
+# the floor or a call site does. It belongs to cutting a release, and
+# `docs/publishing.md` asks for it there.
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: npm
+
+      - run: npm ci
+
+      # `npm test` is vitest alone; the type check lives in `npm run build`, so
+      # both run and a type error fails the job even when every test passes.
+      - run: npm test
+      - run: npm run build
