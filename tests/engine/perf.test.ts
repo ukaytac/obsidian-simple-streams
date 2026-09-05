@@ -45,11 +45,65 @@ describe("runStream at vault scale", () => {
     const notes = vault(5000);
     runStream(notes, query, new Date());
 
-    // Measured at 22ms here, against 157ms before the collators were hoisted.
-    // 100ms is deliberately loose enough for a slow or shared machine and still
-    // tight enough to fail on that regression, which is the point of the number.
+    // A smoke test, not the guard. 22ms on this machine, 121ms on a GitHub
+    // runner — 5x, which is what a shared two-core box costs — so 100ms failed
+    // there on code that was never slow. A single wall-clock number cannot be
+    // both loose enough for the slowest machine that runs it and tight enough
+    // to fail on a regression on the fastest: 250ms clears a runner with room,
+    // and the 157ms regression this file exists for would have passed it here.
+    // So the number below only says "not catastrophically slow anywhere"; the
+    // test after it is what actually catches the regression, on any machine.
     const best = fastest(3, () => runStream(notes, query, new Date()));
-    expect(best).toBeLessThan(100);
+    expect(best).toBeLessThan(250);
+  });
+
+  /**
+   * The regression was `localeCompare` with an options object per comparison,
+   * which re-resolves a collator every call. That is countable, and counting it
+   * is machine-independent: 5000 notes sort in ~60,000 comparisons, so the
+   * difference between hoisted and not is 2 collators against tens of
+   * thousands. No timing, no threshold to tune, no flake.
+   */
+  it("builds its collators once per sort, not once per comparison", () => {
+    const RealCollator = Intl.Collator;
+    const realLocaleCompare = String.prototype.localeCompare;
+    let collators = 0;
+    let localeCompares = 0;
+
+    Object.defineProperty(Intl, "Collator", {
+      configurable: true,
+      writable: true,
+      value: function CountingCollator(...args: ConstructorParameters<typeof Intl.Collator>) {
+        collators += 1;
+        return new RealCollator(...args);
+      },
+    });
+    String.prototype.localeCompare = function (
+      that: string,
+      locales?: Intl.LocalesArgument,
+      options?: Intl.CollatorOptions,
+    ): number {
+      localeCompares += 1;
+      return realLocaleCompare.call(this, that, locales, options);
+    };
+
+    try {
+      const query = parseQuery("date-field: date\nsort: date desc\ngroup: day\nlimit: 5000\n");
+      runStream(vault(5000), query, new Date());
+    } finally {
+      Object.defineProperty(Intl, "Collator", {
+        configurable: true,
+        writable: true,
+        value: RealCollator,
+      });
+      String.prototype.localeCompare = realLocaleCompare;
+    }
+
+    // Two today: one for values, one for the path tie-break.
+    expect(collators).toBeLessThanOrEqual(4);
+    // `localeCompare` is the call that cannot take the engine's fast path with
+    // options. Sorting must not reach for it at all.
+    expect(localeCompares).toBe(0);
   });
 
   it("returns the whole vault, so the timing is not measuring an early exit", () => {
