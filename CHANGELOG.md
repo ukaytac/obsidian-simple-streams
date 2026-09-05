@@ -2,7 +2,43 @@
 
 The text of each GitHub release is taken from here.
 
+## 1.0.1
+
+The first version anyone can install. 1.0.0 was tagged and built but never
+published — the community directory's review found two real defects in it,
+which is what a draft release is for. Both are fixed here.
+
+### Fixed
+
+- **A debounce armed in a popout window could outlive its plugin.** The
+  refresh timer was scheduled with the bare `setTimeout`, which resolves to
+  whichever window the code runs against. Obsidian opens notes in popout
+  windows, each with its own timer table, and a handle taken from one window
+  cannot be cleared through another — so a timer armed in a popout survived
+  the `stop()` meant to end it and fired after unload. It now schedules and
+  clears through `window`, so the handle goes back where it came from.
+- **A click on a note that had gone since the stream rendered did nothing.**
+  `openLinkText` returns a promise, and the click handler dropped it. The note
+  a row points at can be renamed or deleted after the block draws, so that
+  rejection is reachable; unhandled, it left a console message and a link that
+  silently failed. It is now caught and reported in a Notice naming the path.
+
+### Changed
+
+- **The README says what the plugin reads.** Selecting notes from the vault
+  means enumerating the vault, so it is stated at install time rather than left
+  to a permissions list: Markdown notes only — never `getFiles()`, so
+  attachments are untouched — nothing beyond what the metadata cache already
+  holds, bodies read only for the items a stream draws, no writes, no stored
+  settings, and no network request of any kind.
+- **One fewer dependency.** `builtin-modules` was a re-export of a list Node
+  has exposed as `module.builtinModules` since 9.3. The production bundle is
+  byte-identical without it.
+
 ## 1.0.0
+
+Tagged, built, never published. Its notes are kept below because 1.0.1 is
+otherwise the same plugin.
 
 First release.
 
