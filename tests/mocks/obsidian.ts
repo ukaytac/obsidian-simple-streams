@@ -167,9 +167,19 @@ export class MarkdownRenderer {
   }
 }
 
+/** Messages passed to `new Notice(...)`, in order. */
+export const notices: string[] = [];
+
+export class Notice {
+  constructor(message: string) {
+    notices.push(message);
+  }
+}
+
 /** Drop the state the mock accumulates. Call between tests in one file. */
 export function resetObsidianMock(): void {
   renderChildren.length = 0;
   renderCalls.length = 0;
+  notices.length = 0;
   renderHook = null;
 }

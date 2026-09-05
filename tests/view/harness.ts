@@ -257,6 +257,7 @@ export class FakeVault {
   readonly app: App;
 
   private notes: FakeNote[] = [];
+  private unopenable: string | null = null;
   private unreadable: string | null = null;
   private brokenScan: string | null = null;
   private hidden = new Set<string>();
@@ -274,6 +275,14 @@ export class FakeVault {
   /** Make `cachedRead` reject for one path, as an I/O failure would. */
   failReadsFor(path: string | null): void {
     this.unreadable = path;
+  }
+
+  /**
+   * Make `openLinkText` reject for one path, the way clicking a note renamed
+   * since the stream rendered does.
+   */
+  failOpensFor(path: string | null): void {
+    this.unopenable = path;
   }
 
   /** Make the whole vault scan throw, the way a broken query run would. */
@@ -344,8 +353,14 @@ export class FakeVault {
       },
     };
     const workspace = {
-      openLinkText: (path: string, sourcePath: string, newLeaf?: boolean): void => {
+      // Returns a promise, as the real one does: the view attaches a `catch`
+      // to it, and a `void` fake would fail on the click rather than in a
+      // test that means to exercise the failure.
+      openLinkText: (path: string, sourcePath: string, newLeaf?: boolean): Promise<void> => {
         this.opened.push({ path, sourcePath, newLeaf: newLeaf === true });
+        return this.unopenable === path
+          ? Promise.reject(new Error(`No file named ${path}`))
+          : Promise.resolve();
       },
     };
     // The one cast in the harness. `App` has hundreds of members and the view

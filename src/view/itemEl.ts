@@ -1,4 +1,4 @@
-import { MarkdownRenderChild, MarkdownRenderer, type App, type Component } from "obsidian";
+import { MarkdownRenderChild, MarkdownRenderer, Notice, type App, type Component } from "obsidian";
 import { resolveNoteDate } from "../engine/fields";
 import { extractPreview, stripFrontmatter } from "../engine/preview";
 import type { NoteMeta } from "../engine/note";
@@ -79,11 +79,15 @@ function renderHeader(item: HTMLElement, note: NoteMeta, ctx: ItemContext): void
   });
   link.addEventListener("click", (event) => {
     event.preventDefault();
-    ctx.app.workspace.openLinkText(
-      note.path,
-      ctx.sourcePath,
-      event.metaKey || event.ctrlKey,
-    );
+    // `openLinkText` is async, and a click is the one place a stream's view of
+    // the vault can be stale: the note was there when the stream rendered and
+    // may have been renamed or deleted since. Unhandled, that rejection is a
+    // console message and a link that does nothing; a Notice at least says so.
+    ctx.app.workspace
+      .openLinkText(note.path, ctx.sourcePath, event.metaKey || event.ctrlKey)
+      .catch(() => {
+        new Notice(`Simple Streams could not open ${note.path}`);
+      });
   });
 
   header.createSpan({

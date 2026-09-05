@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
-import { renderCalls, resetObsidianMock } from "../mocks/obsidian";
+import { notices, renderCalls, resetObsidianMock } from "../mocks/obsidian";
 import {
   DAY_ONE,
   FakeIntersectionObserver,
@@ -228,6 +228,29 @@ describe("rows", () => {
       { path: "Journal/a.md", sourcePath: "Host.md", newLeaf: false },
       { path: "Journal/a.md", sourcePath: "Host.md", newLeaf: true },
     ]);
+  });
+
+  test("a click on a note that has since gone says so instead of failing silently", async () => {
+    const container = open("display: title\ngroup: none\n", [
+      { path: "Journal/a.md", ctime: JAN_10 },
+    ]);
+    await settle();
+    vault.failOpensFor("Journal/a.md");
+
+    const rejections: unknown[] = [];
+    const onRejection = (event: PromiseRejectionEvent) => rejections.push(event.reason);
+    window.addEventListener("unhandledrejection", onRejection);
+    try {
+      container
+        .querySelector<HTMLAnchorElement>(".ss-item-title")
+        ?.dispatchEvent(new MouseEvent("click", { cancelable: true }));
+      await settle();
+    } finally {
+      window.removeEventListener("unhandledrejection", onRejection);
+    }
+
+    expect(notices).toEqual(["Simple Streams could not open Journal/a.md"]);
+    expect(rejections).toEqual([]);
   });
 
   test("an unscrolled pane leaves the observer on the implicit viewport", async () => {
