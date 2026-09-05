@@ -192,8 +192,14 @@ mean Obsidian sees it immediately — reload with **Reload app without saving**
 from the command palette. Use a scratch vault: a stream is read-only, but a
 plugin under development is still a plugin under development.
 
+`tests/view/` mounts the view in jsdom, which has one window and one rendering
+mode. What that leaves over — popout windows, Live Preview, mobile — is in
+[docs/manual-testing.md](docs/manual-testing.md), along with what each run of
+it found.
+
 Design: [docs/superpowers/specs/2026-09-04-simple-streams-design.md](docs/superpowers/specs/2026-09-04-simple-streams-design.md)
 Plan: [docs/superpowers/plans/2026-09-04-simple-streams.md](docs/superpowers/plans/2026-09-04-simple-streams.md)
+Publishing: [docs/publishing.md](docs/publishing.md)
 
 ## License
 
