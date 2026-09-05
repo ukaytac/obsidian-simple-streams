@@ -4,9 +4,35 @@ The text of each GitHub release is taken from here.
 
 ## 1.0.1
 
-The first version anyone can install. 1.0.0 was tagged and built but never
-published — the community directory's review found two real defects in it,
-which is what a draft release is for. Both are fixed here.
+Two defects in 1.0.0, both found by the community directory's review, both
+reachable in ordinary use. If you installed 1.0.0, update.
+
+### What Simple Streams does, for anyone arriving here first
+
+A `stream` code block renders a filtered, sorted list of notes wherever you put
+it. The filter decides what the stream is — a journal, a reading log, a list of
+trips, anything a folder plus some frontmatter can describe.
+
+```stream
+folder: Travels
+date-field: start
+sort: start desc
+group: year
+display: preview
+limit: 50
+```
+
+Filter by folder, tags, title text or regex, frontmatter conditions and a date
+range. Sort on any frontmatter key or `file.ctime`, `file.mtime`, `file.name`,
+`file.path`. Group by day, month or year. Show each note in full, as a preview,
+or as a title alone. An invalid block says what is wrong in place instead of
+rendering an empty stream. The full field list is in the
+[README](https://github.com/ukaytac/obsidian-simple-streams#fields).
+
+**Installing or updating:** put `main.js`, `manifest.json` and `styles.css` from
+below into `<your vault>/.obsidian/plugins/simple-streams/`, replacing the files
+already there if you are coming from 1.0.0, and reload Obsidian. Requires
+Obsidian 1.5.7 or newer.
 
 ### Fixed
 
@@ -36,9 +62,6 @@ which is what a draft release is for. Both are fixed here.
   byte-identical without it.
 
 ## 1.0.0
-
-Tagged, built, never published. Its notes are kept below because 1.0.1 is
-otherwise the same plugin.
 
 First release.
 
