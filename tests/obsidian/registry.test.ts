@@ -1,3 +1,8 @@
+// @vitest-environment jsdom
+//
+// The registry schedules through `window.setTimeout`, so the suite needs a
+// window to schedule against. Fake timers still drive it — jsdom is here for
+// the object, not for real time passing.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { App, EventRef } from "obsidian";
 import { DEBOUNCE_MS, StreamRegistry, type RefreshableStream } from "../../src/obsidian/registry";

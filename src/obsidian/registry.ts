@@ -11,7 +11,11 @@ export interface RefreshableStream {
 export class StreamRegistry {
   private readonly app: App;
   private readonly streams = new Set<RefreshableStream>();
-  private timer: ReturnType<typeof setTimeout> | null = null;
+  // `window.setTimeout`, not the bare global: in a popout window the plugin's
+  // code runs against that window's timers, and a handle taken from one window
+  // cannot be cleared through another. Its return type is a number here rather
+  // than Node's `Timeout`, which is what the DOM lib describes.
+  private timer: number | null = null;
   private stopped = false;
 
   constructor(app: App) {
@@ -45,7 +49,7 @@ export class StreamRegistry {
   stop(): void {
     this.stopped = true;
     if (this.timer !== null) {
-      clearTimeout(this.timer);
+      window.clearTimeout(this.timer);
       this.timer = null;
     }
     this.streams.clear();
@@ -60,9 +64,9 @@ export class StreamRegistry {
       return;
     }
     if (this.timer !== null) {
-      clearTimeout(this.timer);
+      window.clearTimeout(this.timer);
     }
-    this.timer = setTimeout(() => {
+    this.timer = window.setTimeout(() => {
       this.timer = null;
       void this.flush();
     }, DEBOUNCE_MS);
