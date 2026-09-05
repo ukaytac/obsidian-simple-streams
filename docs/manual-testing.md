@@ -12,6 +12,7 @@ Run it against a scratch vault before a release.
 | Date | Version | Obsidian | Platform | Result |
 | ---- | ------- | -------- | -------- | ------ |
 | 2026-09-05 | 1.0.1 | 1.8.9 | macOS 26.5.2 | Two defects found, both fixed for 1.0.2 |
+| 2026-09-05 | 1.0.2 | — | iOS, iPhone | Runs. Blocks render, links open, long streams scroll |
 
 ## What the run found
 
@@ -65,10 +66,16 @@ nothing. Fixed with `setCodeText`, which renders the spans as `<code>`.
 
 ### Platforms
 
-- [ ] **Mobile.** `manifest.json` says `isDesktopOnly: false`, and that has
-      never been run. Either verify it or change the manifest; claiming
-      support that has not been tried is the one thing that is not acceptable
-      to leave.
+- [x] **Mobile.** `manifest.json` says `isDesktopOnly: false`, and as of
+      1.0.2 that has been tried: iPhone, iOS. Blocks render, tapping a row's
+      title opens the note, and a long stream scrolls and pages. Checked by
+      use rather than by working down this list, so it is evidence that the
+      plugin runs on a phone, not that every path does — the entries below
+      are the ones a closer pass would still owe.
+- [ ] **Mobile, deliberately.** The paging sentinel against a touch scroll
+      (momentum scrolling fires intersections differently from a wheel), an
+      invalid block's error box at phone width, and `display: full`, where
+      each item mounts a Markdown render.
 
 ### Scale
 
