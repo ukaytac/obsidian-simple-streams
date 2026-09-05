@@ -101,6 +101,9 @@ function installElementHelpers(): void {
   ): HTMLElement {
     return create(this, "span", info, callback);
   };
+  node.appendText = function (this: Node, value: string): void {
+    this.appendChild(document.createTextNode(value));
+  };
   node.empty = function (this: Node): void {
     while (this.firstChild !== null) {
       this.removeChild(this.firstChild);

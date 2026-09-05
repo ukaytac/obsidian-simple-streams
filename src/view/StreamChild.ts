@@ -4,6 +4,7 @@ import { collectNotes } from "../obsidian/adapter";
 import { describeQuery } from "../query/describe";
 import { parseQuery } from "../query/parse";
 import { renderError } from "./errorEl";
+import { setCodeText } from "./codeText";
 import { renderItem } from "./itemEl";
 import type { NoteMeta } from "../engine/note";
 import type { StreamQuery } from "../query/types";
@@ -345,7 +346,7 @@ export class StreamChild extends MarkdownRenderChild {
 /** Say each of the engine's notices once, for the whole block. */
 function renderNotices(root: HTMLElement, result: StreamResult): void {
   for (const notice of result.notices) {
-    root.createDiv({ cls: "ss-notice", text: describeNotice(notice) });
+    setCodeText(root.createDiv({ cls: "ss-notice" }), describeNotice(notice));
   }
 }
 

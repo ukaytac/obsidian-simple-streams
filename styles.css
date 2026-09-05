@@ -126,7 +126,21 @@
 .ss-error-message {
   margin-top: var(--size-2-2);
   color: var(--text-normal);
-  font-family: var(--font-monospace, monospace);
   font-size: var(--font-ui-small);
   overflow-wrap: anywhere;
+}
+
+/*
+ * The messages are sentences with field names in them, and they say so with
+ * backticks. Setting the whole box in monospace made the prose hard to read and
+ * left the backticks showing as punctuation; the code spans carry the monospace
+ * now, which is what the authoring meant.
+ */
+.ss-error-message code,
+.ss-notice code {
+  padding: 0 var(--size-2-1);
+  border-radius: var(--radius-s);
+  background: var(--background-modifier-border);
+  font-family: var(--font-monospace, monospace);
+  font-size: 0.9em;
 }

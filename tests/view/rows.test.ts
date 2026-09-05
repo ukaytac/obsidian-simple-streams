@@ -24,6 +24,11 @@ function noticeTexts(container: HTMLElement): string[] {
   return Array.from(container.querySelectorAll(".ss-notice")).map((el) => el.textContent ?? "");
 }
 
+/** The field names a notice set as code spans rather than as bare text. */
+function noticeCode(container: HTMLElement): string[] {
+  return Array.from(container.querySelectorAll(".ss-notice code")).map((el) => el.textContent ?? "");
+}
+
 /** The same formatter `formatItemDate` uses, following the host locale. */
 function itemDate(ms: number): string {
   return new Intl.DateTimeFormat(undefined, {
@@ -68,8 +73,11 @@ describe("notices", () => {
     await settle();
 
     expect(noticeTexts(container)).toEqual([
-      "No note here has a usable `dat`, so this stream falls back to file creation time for its dates.",
+      "No note here has a usable dat, so this stream falls back to file creation time for its dates.",
     ]);
+    // The typo is the point of the notice, so it is set apart rather than
+    // spelled into a sentence the reader has to find it in.
+    expect(noticeCode(container)).toEqual(["dat"]);
   });
 
   test("says a sort key nothing resolves had no effect", async () => {
@@ -80,8 +88,9 @@ describe("notices", () => {
     await settle();
 
     expect(noticeTexts(container)).toEqual([
-      "No note here has `ratng`, so that part of the sort had no effect.",
+      "No note here has ratng, so that part of the sort had no effect.",
     ]);
+    expect(noticeCode(container)).toEqual(["ratng"]);
   });
 
   test("says how many notes the limit cut off", async () => {
@@ -93,8 +102,9 @@ describe("notices", () => {
     await settle();
 
     expect(noticeTexts(container)).toEqual([
-      "Showing 2 of 3 notes. Raise `limit` to see more.",
+      "Showing 2 of 3 notes. Raise limit to see more.",
     ]);
+    expect(noticeCode(container)).toEqual(["limit"]);
     expect(drawnTitles(container)).toHaveLength(2);
   });
 

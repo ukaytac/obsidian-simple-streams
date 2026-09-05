@@ -150,7 +150,11 @@ describe("error paths", () => {
     child.load();
     await settle();
 
-    expect(errorMessage(container)).toContain("`display` must be one of");
+    // The message's backticks are code spans now, not characters in the text.
+    expect(errorMessage(container)).toContain("display must be one of");
+    expect(
+      Array.from(container.querySelectorAll(".ss-error-message code")).map((c) => c.textContent),
+    ).toContain("display");
     const box = container.querySelector(".ss-error");
     vault.scans = 0;
 
