@@ -1,0 +1,71 @@
+import { resolveField } from "./fields";
+import type { NoteMeta } from "./note";
+import type { StreamQuery, WhereCondition } from "../query/types";
+
+export interface ResolvedQuery {
+  /** The query with every answerable `this.` reference replaced by a value. */
+  query: StreamQuery;
+  /** Host fields a reference named and the host note could not answer, once each. */
+  unresolved: string[];
+}
+
+/**
+ * Answer the query's `this.` references from the note holding the block.
+ *
+ * Pure, and run per refresh rather than per parse: a block is parsed once when
+ * its note opens, so a reference resolved there would still be showing the old
+ * project an hour after the property was edited.
+ *
+ * A reference the host cannot answer is left as it is rather than dropped. The
+ * filter then matches nothing on it, which is the point — dropping it would
+ * turn a template note with an unfilled property into a stream of the whole
+ * vault, the loudest possible wrong answer.
+ */
+export function resolveRefs(query: StreamQuery, host: NoteMeta | null): ResolvedQuery {
+  // No copy for the common query. Every stream refreshes on every vault change,
+  // and most hold no reference at all.
+  if (!query.where.some((clause) => clause.condition.kind === "ref")) {
+    return { query, unresolved: [] };
+  }
+
+  const unresolved: string[] = [];
+  const where = query.where.map((clause) => {
+    if (clause.condition.kind !== "ref") {
+      return clause;
+    }
+    const resolved = resolveCondition(clause.condition.field, host);
+    if (resolved === null) {
+      unresolved.push(clause.condition.field);
+      return clause;
+    }
+    return { field: clause.field, condition: resolved };
+  });
+
+  // Deduplicated: two clauses may reference the same host field, and the notice
+  // reads as a list of what the note is missing, not of where it was asked for.
+  return { query: { ...query, where }, unresolved: [...new Set(unresolved)] };
+}
+
+/** The condition a host field yields, or null when it yields nothing usable. */
+function resolveCondition(field: string, host: NoteMeta | null): WhereCondition | null {
+  if (host === null) {
+    return null;
+  }
+  // `resolveField`, not a bare frontmatter lookup, so `this.file.name` and the
+  // other file properties resolve on exactly the terms every other field
+  // reference in this plugin does.
+  const raw = resolveField(host, field);
+  if (Array.isArray(raw)) {
+    // A list is any-of, matching what writing the list out by hand means. A
+    // nested list or map inside it has no scalar to compare against, so it is
+    // dropped; a list of nothing but those leaves nothing to match on.
+    const values = raw.filter(isScalar);
+    return values.length === 0 ? null : { kind: "anyOf", values };
+  }
+  return isScalar(raw) ? { kind: "equals", value: raw } : null;
+}
+
+/** Absent, null and nested structures all fail this, and all mean unresolved. */
+function isScalar(value: unknown): value is string | number | boolean {
+  return typeof value === "string" || typeof value === "number" || typeof value === "boolean";
+}
