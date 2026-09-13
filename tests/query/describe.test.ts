@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { describeQuery } from "../../src/query/describe";
 import { parseQuery } from "../../src/query/parse";
+import { defaultQuery } from "../../src/query/types";
 
 function summaryOf(source: string) {
   return describeQuery(parseQuery(source));
@@ -56,5 +57,15 @@ describe("describeQuery", () => {
     expect(summaryOf("folder: Journal\ntags: book\nwhere:\n  status: done")).toBe(
       "folders journal · all tags book · status = done",
     );
+  });
+});
+
+describe("describeQuery — an unresolved reference", () => {
+  it("names the reference and says the host note does not carry it", () => {
+    const query = {
+      ...defaultQuery(),
+      where: [{ field: "Project", condition: { kind: "ref" as const, field: "Project" } }],
+    };
+    expect(describeQuery(query)).toContain("Project = this.Project (not set here)");
   });
 });

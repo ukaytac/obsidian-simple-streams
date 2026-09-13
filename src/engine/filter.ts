@@ -133,6 +133,12 @@ export function matchesClause(note: NoteMeta, clause: WhereClause): boolean {
       );
     case "compare":
       return values.some((value) => compareValue(value, condition.op, condition.operand));
+    case "ref":
+      // A reference the host note could not answer. Matching nothing is the
+      // decision, not an oversight: dropping the condition instead would turn
+      // a template note whose property is not filled in yet into a stream of
+      // the whole vault. `runStream` raises a notice saying so.
+      return false;
   }
 }
 

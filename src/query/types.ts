@@ -21,7 +21,9 @@ export type WhereCondition =
   | { kind: "anyOf"; values: Array<string | number | boolean> }
   | { kind: "exists" }
   | { kind: "missing" }
-  | { kind: "compare"; op: CompareOp; operand: string };
+  | { kind: "compare"; op: CompareOp; operand: string }
+  /** A `this.X` value, until `resolveRefs` answers it from the host note. */
+  | { kind: "ref"; field: string };
 
 export interface WhereClause {
   field: string;

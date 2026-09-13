@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { filterNotes, matchesClause } from "../../src/engine/filter";
 import { parseQuery } from "../../src/query/parse";
+import type { WhereClause } from "../../src/query/types";
 import { localDate, note } from "../fixtures/notes";
 
 const NOW = new Date(2026, 8, 4, 12, 0);
@@ -134,5 +135,13 @@ describe("filterNotes — date range", () => {
   it("applies an open-ended lower bound", () => {
     const query = parseQuery("date-field: date\nfrom: 2026-10-01");
     expect(filterNotes(notes, query, NOW).map((n) => n.path)).toEqual(["c.md"]);
+  });
+});
+
+describe("matchesClause — an unresolved reference", () => {
+  it("matches no note, whatever the note holds", () => {
+    const clause: WhereClause = { field: "Project", condition: { kind: "ref", field: "Project" } };
+    expect(matchesClause(note({ frontmatter: { Project: "Alpha" } }), clause)).toBe(false);
+    expect(matchesClause(note({ frontmatter: {} }), clause)).toBe(false);
   });
 });

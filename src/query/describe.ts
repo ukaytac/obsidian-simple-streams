@@ -59,6 +59,11 @@ function describeCondition(condition: WhereCondition): string {
       return "missing";
     case "compare":
       return `${condition.op} ${condition.operand}`;
+    case "ref":
+      // Only an *unresolved* reference reaches here: `runStream` hands the
+      // view its resolved query, where an answered reference is already an
+      // `equals` or an `anyOf` printing the host note's real value.
+      return `= this.${condition.field} (not set here)`;
   }
 }
 
