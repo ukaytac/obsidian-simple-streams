@@ -26,6 +26,13 @@ describe("resolveRefs", () => {
     });
   });
 
+  it("keeps 0 as a value to match, not an absence", () => {
+    expect(conditionOf("where:\n  n: this.n", note({ frontmatter: { n: 0 } }))).toEqual({
+      kind: "equals",
+      value: 0,
+    });
+  });
+
   it("reads a list as any-of", () => {
     const host = note({ frontmatter: { Project: ["Alpha", "Beta"] } });
     expect(conditionOf(REF, host)).toEqual({ kind: "anyOf", values: ["Alpha", "Beta"] });
@@ -51,12 +58,19 @@ describe("resolveRefs", () => {
       note({ frontmatter: { Project: [] } }),
       note({ frontmatter: { Project: [{ nested: 1 }] } }),
       note({ frontmatter: { Project: { nested: 1 } } }),
+      note({ frontmatter: { Project: "" } }),
+      note({ frontmatter: { Project: "   " } }),
     ];
     for (const host of cases) {
       const resolved = resolveRefs(parseQuery(REF), host);
       expect(resolved.query.where[0].condition).toEqual({ kind: "ref", field: "Project" });
       expect(resolved.unresolved).toEqual(["Project"]);
     }
+  });
+
+  it("drops a blank member of a list, keeping the rest", () => {
+    const host = note({ frontmatter: { Project: ["Alpha", "", "  ", "Beta"] } });
+    expect(conditionOf(REF, host)).toEqual({ kind: "anyOf", values: ["Alpha", "Beta"] });
   });
 
   it("leaves every reference unresolved when there is no host note", () => {

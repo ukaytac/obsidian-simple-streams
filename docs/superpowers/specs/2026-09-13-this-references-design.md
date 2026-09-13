@@ -57,7 +57,7 @@ keeps its exact case: frontmatter lookup is case-sensitive, as it is for
 | Scalar (`Project: Alpha`) | `equals Alpha` — same case-insensitive, number-aware rules as a written value |
 | List (`Project: [Alpha, Beta]`) | `anyOf [Alpha, Beta]` — identical to writing `Project: [Alpha, Beta]` |
 | List with non-scalar members | The scalars, as `anyOf`; non-scalars dropped, and **unresolved** if none remain |
-| Absent, `null`, empty list, nested map | **Unresolved** |
+| Absent, `null`, empty list, nested map, blank string (`""` or whitespace-only) | **Unresolved** |
 | Host note not found (empty or unknown `sourcePath`) | **Unresolved** |
 
 An unresolved reference matches no note. The stream is empty and a notice says

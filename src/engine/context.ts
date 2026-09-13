@@ -59,13 +59,28 @@ function resolveCondition(field: string, host: NoteMeta | null): WhereCondition 
     // A list is any-of, matching what writing the list out by hand means. A
     // nested list or map inside it has no scalar to compare against, so it is
     // dropped; a list of nothing but those leaves nothing to match on.
-    const values = raw.filter(isScalar);
+    const values = raw.filter(isUsable);
     return values.length === 0 ? null : { kind: "anyOf", values };
   }
-  return isScalar(raw) ? { kind: "equals", value: raw } : null;
+  return isUsable(raw) ? { kind: "equals", value: raw } : null;
 }
 
-/** Absent, null and nested structures all fail this, and all mean unresolved. */
-function isScalar(value: unknown): value is string | number | boolean {
-  return typeof value === "string" || typeof value === "number" || typeof value === "boolean";
+/**
+ * Absent, null and nested structures all fail this, and all mean unresolved —
+ * and so does a blank string. `parseCondition` in `src/query/parse.ts` already
+ * refuses an empty *written* `where` value for the same reason: an unquoted
+ * `>3` folds to `""` under YAML, and matching it literally turns a mistake
+ * into a silent empty stream instead of an error. A host property of `""` (or
+ * all whitespace) is the same value reaching the same condition by a
+ * different door — `Project: ""` in the host note's frontmatter is far more
+ * likely to be a property nobody filled in than one somebody meant to leave
+ * blank and match on — so it gets the same answer: unresolved, not `equals`.
+ * `0` and `false` are left alone; they are complete values, not stand-ins for
+ * "nothing here".
+ */
+function isUsable(value: unknown): value is string | number | boolean {
+  if (typeof value === "string") {
+    return value.trim() !== "";
+  }
+  return typeof value === "number" || typeof value === "boolean";
 }
