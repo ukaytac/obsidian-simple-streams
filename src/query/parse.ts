@@ -1,5 +1,5 @@
 import { parse as parseYamlText, YAMLParseError } from "yaml";
-import { GROUP_MODES, parseDateExpr, type DateExpr } from "../engine/dates";
+import { GROUP_MODES, isoDateString, parseDateExpr, type DateExpr } from "../engine/dates";
 import { normalizeTag } from "../engine/note";
 import { nearestField } from "./suggest";
 import {
@@ -220,12 +220,7 @@ function parseTitle(value: unknown): TitleMatcher {
 function parseDateBound(field: string, value: unknown): DateExpr {
   // YAML 1.2's core schema has no timestamp type, so `from: 2026-01-01` arrives
   // as a string. Handle a Date anyway in case a future schema change says otherwise.
-  const text =
-    value instanceof Date
-      ? `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(
-          value.getDate(),
-        ).padStart(2, "0")}`
-      : toSingleString(field, value);
+  const text = value instanceof Date ? isoDateString(value) : toSingleString(field, value);
   try {
     return parseDateExpr(text);
   } catch (error) {

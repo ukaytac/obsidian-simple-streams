@@ -197,6 +197,18 @@ export function dateValue(value: unknown): number | null {
   return looksLikeDate(value) ? coerceDate(value) : null;
 }
 
+/**
+ * `YYYY-MM-DD` for a Date's local calendar day, zero-padded. The one
+ * definition of what text a Date means, so `parseDateBound`
+ * (`src/query/parse.ts`, turning a `from`/`to` Date into the bound
+ * `parseDateExpr` accepts) and `resolveRefs` (`src/engine/context.ts`,
+ * turning a Date-valued host property into a value `scalarEquals` can
+ * compare) read the same Date the same way rather than drifting apart.
+ */
+export function isoDateString(date: Date): string {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
 export function groupKey(ms: number, mode: GroupMode): string {
   const d = new Date(ms);
   switch (mode) {

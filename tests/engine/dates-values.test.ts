@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { coerceDate, dateValue, formatGroupHeader, groupKey, looksLikeDate } from "../../src/engine/dates";
+import {
+  coerceDate,
+  dateValue,
+  formatGroupHeader,
+  groupKey,
+  isoDateString,
+  looksLikeDate,
+} from "../../src/engine/dates";
 
 describe("coerceDate", () => {
   it("reads a Date", () => {
@@ -62,6 +69,16 @@ describe("looksLikeDate / dateValue", () => {
   it("accepts Date objects and ISO strings", () => {
     expect(dateValue("2026-09-04")).toBe(new Date(2026, 8, 4).getTime());
     expect(dateValue(new Date(2026, 8, 4))).toBe(new Date(2026, 8, 4).getTime());
+  });
+});
+
+describe("isoDateString", () => {
+  it("zero-pads a single-digit month and day", () => {
+    expect(isoDateString(new Date(2026, 0, 5))).toBe("2026-01-05");
+  });
+
+  it("reads out a mid-year date unpadded where no padding is needed", () => {
+    expect(isoDateString(new Date(2026, 8, 13))).toBe("2026-09-13");
   });
 });
 

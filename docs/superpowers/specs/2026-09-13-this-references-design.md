@@ -55,6 +55,7 @@ keeps its exact case: frontmatter lookup is case-sensitive, as it is for
 | Host value | Result |
 |---|---|
 | Scalar (`Project: Alpha`) | `equals Alpha` — same case-insensitive, number-aware rules as a written value |
+| Date (a `Date`-valued property) | `equals YYYY-MM-DD`, the same local-date text `from`/`to` converts a `Date` bound to |
 | List (`Project: [Alpha, Beta]`) | `anyOf [Alpha, Beta]` — identical to writing `Project: [Alpha, Beta]` |
 | List with non-scalar members | The scalars, as `anyOf`; non-scalars dropped, and **unresolved** if none remain |
 | Absent, `null`, empty list, nested map, blank string (`""` or whitespace-only) | **Unresolved** |

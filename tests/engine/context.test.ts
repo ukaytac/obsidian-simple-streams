@@ -43,6 +43,16 @@ describe("resolveRefs", () => {
     expect(conditionOf(REF, host)).toEqual({ kind: "anyOf", values: ["Alpha"] });
   });
 
+  it("resolves a Date-valued host property to its local ISO string", () => {
+    const host = note({ frontmatter: { Project: new Date(2026, 8, 13) } });
+    expect(conditionOf(REF, host)).toEqual({ kind: "equals", value: "2026-09-13" });
+  });
+
+  it("resolves a Date inside a list the same way", () => {
+    const host = note({ frontmatter: { Project: [new Date(2026, 8, 13), "Beta"] } });
+    expect(conditionOf(REF, host)).toEqual({ kind: "anyOf", values: ["2026-09-13", "Beta"] });
+  });
+
   it("resolves a file property", () => {
     const host = note({ path: "Projects/Alpha.md" });
     expect(conditionOf("where:\n  Parent: this.file.name", host)).toEqual({

@@ -1,3 +1,4 @@
+import { isoDateString } from "./dates";
 import { resolveField } from "./fields";
 import type { NoteMeta } from "./note";
 import type { StreamQuery, WhereCondition } from "../query/types";
@@ -59,10 +60,27 @@ function resolveCondition(field: string, host: NoteMeta | null): WhereCondition 
     // A list is any-of, matching what writing the list out by hand means. A
     // nested list or map inside it has no scalar to compare against, so it is
     // dropped; a list of nothing but those leaves nothing to match on.
-    const values = raw.filter(isUsable);
+    const values = raw.map(dateAware).filter(isUsable);
     return values.length === 0 ? null : { kind: "anyOf", values };
   }
-  return isUsable(raw) ? { kind: "equals", value: raw } : null;
+  const value = dateAware(raw);
+  return isUsable(value) ? { kind: "equals", value } : null;
+}
+
+/**
+ * A Date-valued host property, converted to the `YYYY-MM-DD` text
+ * `isoDateString` (`src/engine/dates.ts`) produces, before `isUsable` gets a
+ * look at it. Left as a Date, `isUsable` would call it unresolved — a Date is
+ * none of its string, number or boolean — and the reader would be told the
+ * note has no usable value on a property that plainly holds one. That answer
+ * would also be the odd one out: `parse.ts`'s `parseDateBound` already turns a
+ * `from`/`to` Date into this same text, and `dates.ts`'s own
+ * `coerceDate`/`dateValue` already read a Date back as a real date. Rejecting
+ * a Date only here would make this file the one place in the plugin that
+ * calls a Date unusable.
+ */
+function dateAware(value: unknown): unknown {
+  return value instanceof Date ? isoDateString(value) : value;
 }
 
 /**
