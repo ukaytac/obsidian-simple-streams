@@ -191,4 +191,20 @@ describe("runStream — this. references", () => {
       { field: "Project", condition: { kind: "equals", value: "Alpha" } },
     ]);
   });
+
+  it("reports only the unresolved reference, not the pile of notices an unresolved ref would otherwise earn", () => {
+    // date-field, sort and limit each name a field or cutoff that would raise
+    // its own notice if anything had matched. Nothing does, because the ref
+    // is unresolved, and each of those three notices is separately guarded
+    // against an empty result: `dateFallback` needs `reached.length > 0`,
+    // `unresolvedSort` needs `matched.length > 0`, `truncated` needs
+    // `matched > shown`. This pins that the three guards still agree, so the
+    // reader sees exactly the one notice that explains the empty stream.
+    const notes = [note({ path: "a.md", frontmatter: { Project: "Alpha" } })];
+    const query = parseQuery(
+      `${SOURCE}\ndate-field: nope\nsort: nope desc\nlimit: 1`,
+    );
+    const result = runStream(notes, query, NOW, { host: note({ path: "Host.md" }) });
+    expect(result.notices).toEqual([{ kind: "unresolvedRef", fields: ["Project"] }]);
+  });
 });

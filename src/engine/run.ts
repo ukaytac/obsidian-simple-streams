@@ -88,9 +88,12 @@ export interface StreamResult {
    * empty stream's summary names the value it looked for. Read-only, like
    * every query in this engine: `resolveRefs` hands back the caller's own
    * object when the query holds no reference, so editing it here would edit
-   * the block's parsed query too.
+   * the block's parsed query too. `Readonly` only stops this field being
+   * reassigned; it does not stop `where` (or any other array here) being
+   * mutated in place, so that half of the guarantee still rests on
+   * convention, not the type.
    */
-  query: StreamQuery;
+  query: Readonly<StreamQuery>;
 }
 
 export interface StreamOptions {
