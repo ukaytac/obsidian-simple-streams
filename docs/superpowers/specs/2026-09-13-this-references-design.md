@@ -212,3 +212,19 @@ query holding no reference, so the budgets in `perf.test.ts` still hold.
   a second notice kind would exist for a case reached only when a block has no
   file behind it, and the first sentence — that nothing can match — is true
   either way.
+- **A stream on the host note's own property contains that note, and that is
+  left to the folder answer, not fixed in code.** `where: { Project:
+  this.Project }` in a project-note template matches the host note itself —
+  its `Project` equals its own `Project` by construction — so `display: full`
+  puts a row for the note the reader is already on into its own stream (the
+  existing self-reference guard degrades that row to a preview rather than
+  recursing, but the row is still there). The natural exclusion,
+  `file.path: "!= this.file.path"`, is barred by §2: a `this.` reference
+  cannot be a comparison operand, and it stays barred here — a literal
+  alternative (`!= Some/Known/Path.md`) defeats the zero-edit-per-note point of
+  the feature, and a special case letting only *this one* operand through
+  `this.` would be a second, narrower syntax carved out of a rule adopted for
+  its simplicity. Keeping the streamed notes in their own folder, which the
+  README's worked example already does, is offered instead: it is a modeling
+  choice available today, with no new syntax, and it is what excludes the
+  project note from its own stream in practice.

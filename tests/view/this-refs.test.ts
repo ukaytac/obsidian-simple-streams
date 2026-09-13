@@ -4,6 +4,9 @@ import { resetObsidianMock, setRenderHook } from "../mocks/obsidian";
 import { FakeIntersectionObserver, FakeVault, drawnTitles, mountPane, settle } from "./harness";
 import { StreamChild } from "../../src/view/StreamChild";
 
+const PREVIEW_WARNING =
+  "Shown as a preview: this is the note holding the stream, and rendering it in full would nest the stream inside itself.";
+
 const SOURCE =
   "folder: Notes\nsort: file.path asc\ndisplay: title\nwhere:\n  Project: this.Project\n";
 
@@ -156,5 +159,37 @@ describe("this. references in the view", () => {
     expect(container.querySelector(".ss-empty-summary")?.textContent).toContain(
       "Project = Delta",
     );
+  });
+
+  // `where: { Project: this.Project }` matches the host note against itself by
+  // construction — its own Project always equals its own Project, which is
+  // exactly the flagship "put this in a project template" configuration. The
+  // self-reference guard in itemEl.ts is untouched by this feature and is
+  // already covered end to end in tests/view/self-reference.test.ts; this only
+  // confirms a *resolved* reference reaches that same guard rather than
+  // re-testing the guard itself.
+  test("a this. reference that matches the host note itself falls back to the preview guard", async () => {
+    const HOST_BODY =
+      "---\nProject: Alpha\n---\n\nBody of the host note, long enough to read as a preview of itself.\n";
+    const vault = new FakeVault([
+      { path: "Host.md", content: HOST_BODY, frontmatter: { Project: "Alpha" } },
+      { path: "Notes/a.md", frontmatter: { Project: "Alpha" } },
+    ]);
+    const { container } = mountPane();
+    child = new StreamChild(
+      container,
+      vault.app,
+      "sort: file.path asc\ndisplay: full\nwhere:\n  Project: this.Project\n",
+      "Host.md",
+    );
+    child.load();
+    await settle();
+
+    const hostRow = Array.from(container.querySelectorAll(".ss-item")).find(
+      (item) =>
+        item.querySelector<HTMLAnchorElement>(".ss-item-title")?.getAttribute("href") ===
+        "Host.md",
+    );
+    expect(hostRow?.querySelector(".ss-item-warning")?.textContent).toBe(PREVIEW_WARNING);
   });
 });

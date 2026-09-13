@@ -148,13 +148,20 @@ In a note whose properties say `Project: Orbit`, that stream shows every note
 whose `Project` is `Orbit`. Put the block in a template and every project note
 made from it carries its own running history, with nothing to edit per note.
 Beyond frontmatter keys, `this.file.name` and `this.file.path` reference the
-host note itself.
+host note itself — the two file properties worth referencing this way;
+`this.file.ctime` and `this.file.mtime` resolve too, but to raw epoch
+milliseconds, which will not match anything meaningful.
 
 If the host note's property holds a list, the stream matches any of its
 values. If the note has no such property — a template's note before it is
 filled in — the stream matches nothing and says so, rather than quietly
 widening to the whole vault. A `this.` reference has to be the whole
 condition: it cannot sit inside a list or after a comparison operator.
+
+A stream filtering on the host note's own property matches the host note
+too — its `Project` equals its own `Project` by construction. Keeping the
+streamed notes in a folder of their own, as `folder: Notes` does above, is
+what leaves the project note itself out of its own stream.
 
 Dates accept `YYYY-MM-DD`, `today`, `yesterday`, and signed offsets like `-30d`,
 `-2w`, `-6m`, `+1y`. The sign is required — a bare `30d` is an error rather than
