@@ -2,17 +2,44 @@
 
 The text of each GitHub release is taken from here.
 
-## Unreleased
+## 1.1.0
+
+One new thing the filter can ask for: the note the block is sitting in. Until
+now a stream block was a constant — copy it into a second note and it still
+showed the first note's results. It can now read the host note's own
+properties, which is what makes a stream worth putting in a template.
+
+**Installing or updating:** put `main.js`, `manifest.json` and `styles.css` from
+below into `<your vault>/.obsidian/plugins/simple-streams/`, replacing the files
+already there, and reload Obsidian. Requires Obsidian 1.5.7 or newer. Nothing
+about existing blocks changes — this release only adds a value they can use.
 
 ### Added
 
 - **`where` values can reference the note holding the block.**
-  `Project: this.Project` matches notes whose `Project` equals the host
-  note's. A block dropped into a template then gives every note made from it
-  its own running stream, with nothing to edit per note. A host property
-  holding a list matches any of its values; a host note without the property
-  matches nothing and says so, rather than quietly widening to the whole
-  vault.
+  `Project: this.Project` matches notes whose `Project` equals the host note's.
+  A block dropped into a template then gives every note made from it its own
+  running stream, with nothing to edit per note.
+- **`this.file.name` and `this.file.path` name the host note itself**, so a
+  trip note can gather every note tagged to that trip without repeating the
+  trip's name inside the block.
+- **A host property holding a list means "any of its values".** A note whose
+  `country` is `[Portugal, Spain]` streams the notes from either.
+
+### Worth knowing before you use it
+
+- **A note without the property matches nothing, and says so.** That is the
+  case a template creates: the note exists before anyone fills it in. Dropping
+  the condition instead would stream the whole vault, which is the loudest
+  possible wrong answer. An absent property, an empty one and a blank one are
+  all read the same way.
+- **A `this.` reference has to be the whole condition.** Inside a list, or
+  after a comparison operator, it is rejected with an error — compared as plain
+  text it would match nothing and tell you nothing, which is the failure this
+  plugin spends most of its parser preventing.
+- **A stream filtering on the host note's own property contains that note.**
+  Its property equals its own by construction. Keeping the streamed notes in
+  their own folder is how you leave it out.
 
 ## 1.0.2
 
