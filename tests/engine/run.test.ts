@@ -157,3 +157,38 @@ describe("runStream", () => {
     ).not.toContain("dateFallback");
   });
 });
+
+describe("runStream — this. references", () => {
+  const SOURCE = "where:\n  Project: this.Project";
+
+  it("filters by the host note's value", () => {
+    const notes = [
+      note({ path: "a.md", frontmatter: { Project: "Alpha" } }),
+      note({ path: "b.md", frontmatter: { Project: "Beta" } }),
+    ];
+    const host = note({ path: "Host.md", frontmatter: { Project: "Alpha" } });
+    const result = runStream(notes, parseQuery(SOURCE), NOW, { host });
+    expect(result.groups.flatMap((g) => g.notes.map((n) => n.path))).toEqual(["a.md"]);
+    expect(kinds(result)).not.toContain("unresolvedRef");
+  });
+
+  it("matches nothing and says why when the host note lacks the property", () => {
+    const notes = [note({ path: "a.md", frontmatter: { Project: "Alpha" } })];
+    const result = runStream(notes, parseQuery(SOURCE), NOW, { host: note({ path: "Host.md" }) });
+    expect(result.matched).toBe(0);
+    expect(result.notices[0]).toEqual({ kind: "unresolvedRef", fields: ["Project"] });
+  });
+
+  it("matches nothing when there is no host note at all", () => {
+    const notes = [note({ path: "a.md", frontmatter: { Project: "Alpha" } })];
+    expect(runStream(notes, parseQuery(SOURCE), NOW).matched).toBe(0);
+  });
+
+  it("returns the resolved query, so the summary can name a real value", () => {
+    const host = note({ path: "Host.md", frontmatter: { Project: "Alpha" } });
+    const result = runStream([], parseQuery(SOURCE), NOW, { host });
+    expect(result.query.where).toEqual([
+      { field: "Project", condition: { kind: "equals", value: "Alpha" } },
+    ]);
+  });
+});

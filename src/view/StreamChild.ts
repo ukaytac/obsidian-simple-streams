@@ -357,6 +357,10 @@ function renderNotices(root: HTMLElement, result: StreamResult): void {
  */
 function describeNotice(notice: StreamNotice): string {
   switch (notice.kind) {
+    case "unresolvedRef": {
+      const fields = notice.fields.map((field) => `\`${field}\``).join(" or ");
+      return `This note has no ${fields}, so this stream matches nothing. Add it to the note's properties.`;
+    }
     case "dateFallback":
       // "ordered and grouped by" was true only when both happened to be on.
       // With `group: none` and a sort on some other field, neither half held

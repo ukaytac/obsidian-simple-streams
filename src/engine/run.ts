@@ -1,3 +1,4 @@
+import { resolveRefs } from "./context";
 import { coerceDate } from "./dates";
 import { resolveField, resolveNoteDate } from "./fields";
 import { filterNotes } from "./filter";
@@ -51,6 +52,10 @@ function arrange(notes: NoteMeta[], query: StreamQuery, locale?: string): NoteMe
  * compile until someone gives it words. These carry facts, never sentences:
  * the engine holds no user-facing English, and the view owns every word.
  *
+ * - `unresolvedRef` — a `this.` reference the host note could not answer, so
+ *   every clause holding one matches nothing. Listed first: it is the notice
+ *   that explains an empty stream, and the others describe a result that in
+ *   this case does not exist.
  * - `dateFallback` — a declared `date-field` yielded a usable date for no note
  *   the query reached, the signature of a typo in the field name. Judged before
  *   the date range narrowed the result, since a typo sends every note onto the
@@ -65,6 +70,7 @@ function arrange(notes: NoteMeta[], query: StreamQuery, locale?: string): NoteMe
  *   a day's five notes and otherwise read as a complete day.
  */
 export type StreamNotice =
+  | { kind: "unresolvedRef"; fields: string[] }
   | { kind: "dateFallback"; field: string }
   | { kind: "unresolvedSort"; fields: string[] }
   | { kind: "truncated"; shown: number; matched: number };
@@ -76,11 +82,22 @@ export interface StreamResult {
   /** How many notes the groups actually hold. */
   shown: number;
   notices: StreamNotice[];
+  /**
+   * The query actually run: the written one with its `this.` references
+   * answered. The view describes this rather than what the block says, so an
+   * empty stream's summary names the value it looked for. Read-only, like
+   * every query in this engine: `resolveRefs` hands back the caller's own
+   * object when the query holds no reference, so editing it here would edit
+   * the block's parsed query too.
+   */
+  query: StreamQuery;
 }
 
 export interface StreamOptions {
-  /** Formatting locale for group headers and text sorting. Defaults to the host's. */
+  /** Formatting locale for group headers and text sorting. Defaults to the runtime's. */
   locale?: string;
+  /** The note holding the block, which `this.` references are resolved against. */
+  host?: NoteMeta | null;
 }
 
 export function runStream(
@@ -90,33 +107,42 @@ export function runStream(
   options: StreamOptions = {},
 ): StreamResult {
   const { locale } = options;
-  const matched = filterNotes(notes, query, now);
-  const shown = arrange(matched, query, locale).slice(0, query.limit);
+  // Before anything reads the query. A reference the host cannot answer stays
+  // a `ref`, which `matchesClause` refuses for every note, so the rest of this
+  // function runs over an empty result and the notice below explains it.
+  const { query: concrete, unresolved } = resolveRefs(query, options.host ?? null);
+
+  const matched = filterNotes(notes, concrete, now);
+  const shown = arrange(matched, concrete, locale).slice(0, concrete.limit);
 
   // The date-field check is judged against the notes the query reached *before*
   // its range narrowed them. A typo'd date-field puts every note on the ctime
   // fallback, the range then filters on creation time and can exclude them all,
   // and an empty result would suppress the very notice that explains the typo.
   const reached =
-    query.from === null && query.to === null
+    concrete.from === null && concrete.to === null
       ? matched
-      : filterNotes(notes, { ...query, from: null, to: null }, now);
+      : filterNotes(notes, { ...concrete, from: null, to: null }, now);
 
   const notices: StreamNotice[] = [];
 
-  if (
-    query.dateField !== "file.ctime" &&
-    reached.length > 0 &&
-    reached.every((note) => coerceDate(resolveField(note, query.dateField)) === null)
-  ) {
-    notices.push({ kind: "dateFallback", field: query.dateField });
+  if (unresolved.length > 0) {
+    notices.push({ kind: "unresolvedRef", fields: unresolved });
   }
 
-  const unresolved =
+  if (
+    concrete.dateField !== "file.ctime" &&
+    reached.length > 0 &&
+    reached.every((note) => coerceDate(resolveField(note, concrete.dateField)) === null)
+  ) {
+    notices.push({ kind: "dateFallback", field: concrete.dateField });
+  }
+
+  const unresolvedSort =
     matched.length === 0
       ? []
-      : query.sort
-          .filter((spec) => spec.field !== query.dateField)
+      : concrete.sort
+          .filter((spec) => spec.field !== concrete.dateField)
           // `== null`, not `=== undefined`: a key present with no value is
           // exactly what Obsidian's Properties panel writes when you add a
           // property and do not fill it, and every other reading of "absent"
@@ -125,8 +151,8 @@ export function runStream(
           // notice went silent on the one case the host app creates most.
           .filter((spec) => matched.every((note) => resolveField(note, spec.field) == null))
           .map((spec) => spec.field);
-  if (unresolved.length > 0) {
-    notices.push({ kind: "unresolvedSort", fields: unresolved });
+  if (unresolvedSort.length > 0) {
+    notices.push({ kind: "unresolvedSort", fields: unresolvedSort });
   }
 
   if (matched.length > shown.length) {
@@ -134,9 +160,10 @@ export function runStream(
   }
 
   return {
-    groups: groupNotes(shown, query, locale),
+    groups: groupNotes(shown, concrete, locale),
     matched: matched.length,
     shown: shown.length,
     notices,
+    query: concrete,
   };
 }
