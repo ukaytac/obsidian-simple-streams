@@ -35,11 +35,18 @@ Append to `tests/engine/filter-where.test.ts` (its existing `condition()` helper
 ```ts
 describe("matchesClause — an unresolved reference", () => {
   it("matches no note, whatever the note holds", () => {
-    const clause = { field: "Project", condition: { kind: "ref", field: "Project" } } as const;
+    const clause: WhereClause = { field: "Project", condition: { kind: "ref", field: "Project" } };
     expect(matchesClause(note({ frontmatter: { Project: "Alpha" } }), clause)).toBe(false);
     expect(matchesClause(note({ frontmatter: {} }), clause)).toBe(false);
   });
 });
+```
+
+Add the type to that file's imports — `tsconfig.json` includes `tests/**/*.ts`, so
+`npm run build` type-checks these files too:
+
+```ts
+import type { WhereClause } from "../../src/query/types";
 ```
 
 Append to `tests/query/describe.test.ts`:
@@ -554,7 +561,7 @@ sed -i '' 's/NOW, "en-GB")/NOW, { locale: "en-GB" })/g' tests/engine/run.test.ts
 grep -c 'locale: "en-GB"' tests/engine/run.test.ts
 ```
 
-Expected: a count of 18. Then check nothing was missed:
+Expected: a count of 16. Then check nothing was missed:
 
 ```bash
 grep -n '"en-GB"' tests/engine/run.test.ts | grep -v 'locale:'
@@ -631,11 +638,10 @@ describe("runStream — this. references", () => {
 });
 ```
 
-Check the top of `tests/engine/run.test.ts` for a `kinds` helper and a `note` import; both are already used by the existing notice tests. If `note` is not imported there, add it:
-
-```ts
-import { note } from "../fixtures/notes";
-```
+No new imports: `tests/engine/run.test.ts` already defines
+`const kinds = (result: StreamResult): string[] => result.notices.map((n) => n.kind);`
+at the top, already imports `note` from `../fixtures/notes`, and already declares
+`const NOW = new Date(2026, 8, 4);`.
 
 - [ ] **Step 2: Run the test to verify it fails**
 
