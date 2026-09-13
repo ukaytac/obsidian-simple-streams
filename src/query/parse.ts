@@ -346,10 +346,9 @@ function parseCondition(field: string, raw: unknown): WhereCondition {
     }
     const ref = THIS_REF.exec(text);
     if (ref !== null) {
-      // Trimmed for the same reason the operand and every list entry are: a
-      // stray space after the dot is tolerated rather than treated as a typo.
-      // It also means `this. ` with nothing but whitespace after it reaches
-      // the "needs a property name" check below instead of naming " " as the field.
+      // Trimmed as the operand and every list entry already are, so a stray
+      // space after the dot is tolerated rather than treated as a typo — and
+      // so `this. ` falls through to the "needs a property name" check below.
       const target = ref[1].trim();
       if (target === "") {
         throw new QueryError(
