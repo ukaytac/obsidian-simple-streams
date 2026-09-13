@@ -42,6 +42,20 @@ nothing. Fixed with `setCodeText`, which renders the spans as `<code>`.
 - [ ] **Dark and light themes**, and a community theme that restyles code
       blocks.
 
+### `this.` references
+
+- [ ] **A `this.` reference resolves against the note on screen.** Give a note
+      the property `Project: Orbit`, give two other notes the same property,
+      and add a block with `where: {Project: this.Project}`. Both notes
+      appear; notes with another project do not.
+- [ ] **An unfilled property explains itself.** Make a note from a template
+      holding that block, and leave `Project` empty. The stream is empty, and
+      says "This note has no `Project`" with `Project` rendered as code, not
+      as backticks.
+- [ ] **Editing the property moves the stream.** With the stream on screen,
+      change the host note's `Project` in the Properties panel. Within a
+      moment the stream shows the other project's notes.
+
 ### Windows
 
 - [x] **A stream in a popout window refreshes.** Drag a tab holding a stream

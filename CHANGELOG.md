@@ -2,6 +2,18 @@
 
 The text of each GitHub release is taken from here.
 
+## Unreleased
+
+### Added
+
+- **`where` values can reference the note holding the block.**
+  `Project: this.Project` matches notes whose `Project` equals the host
+  note's. A block dropped into a template then gives every note made from it
+  its own running stream, with nothing to edit per note. A host property
+  holding a list matches any of its values; a host note without the property
+  matches nothing and says so, rather than quietly widening to the whole
+  vault.
+
 ## 1.0.2
 
 Two things you would see in an ordinary note, both found by opening the plugin

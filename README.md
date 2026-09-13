@@ -87,7 +87,7 @@ the attestation described under [Installing](#installing).
 | `exclude-folder` | text or list             | —                 | Drop notes under these paths |
 | `exclude-tags`   | text or list             | —                 | Drop notes carrying any of these tags |
 | `title`          | text or `/regex/`        | —                 | Matches the note's file name |
-| `where`          | map                      | —                 | Frontmatter conditions |
+| `where`          | map                      | —                 | Frontmatter conditions, including `this.` references to the host note |
 | `date-field`     | text                     | `file.ctime`      | Which field is "the date" |
 | `from`, `to`     | date                     | —                 | Inclusive date bounds |
 | `sort`           | text or list             | `file.ctime desc` | `"<field> <asc\|desc>"`, direction defaults to `asc` |
@@ -133,6 +133,28 @@ field with no value matches only `missing`.
 Equality looks inside a frontmatter list too: `where: {tags: book}` matches a
 note whose `tags` are `[Book, Read]`. Numbers compare as numbers and booleans
 as booleans.
+
+A `where` value may also name a property of the note the block sits in, by
+writing `this.` in front of it:
+
+```stream
+folder: Notes
+sort: file.ctime desc
+where:
+  Project: this.Project
+```
+
+In a note whose properties say `Project: Orbit`, that stream shows every note
+whose `Project` is `Orbit`. Put the block in a template and every project note
+made from it carries its own running history, with nothing to edit per note.
+Beyond frontmatter keys, `this.file.name` and `this.file.path` reference the
+host note itself.
+
+If the host note's property holds a list, the stream matches any of its
+values. If the note has no such property — a template's note before it is
+filled in — the stream matches nothing and says so, rather than quietly
+widening to the whole vault. A `this.` reference has to be the whole
+condition: it cannot sit inside a list or after a comparison operator.
 
 Dates accept `YYYY-MM-DD`, `today`, `yesterday`, and signed offsets like `-30d`,
 `-2w`, `-6m`, `+1y`. The sign is required — a bare `30d` is an error rather than
