@@ -122,8 +122,13 @@ export function runStream(
   // its range narrowed them. A typo'd date-field puts every note on the ctime
   // fallback, the range then filters on creation time and can exclude them all,
   // and an empty result would suppress the very notice that explains the typo.
+  // Also skipped, and `matched` used as-is, when a reference is unresolved:
+  // `matchesClause` refuses every note on the `ref` clause that stays behind,
+  // so `matched` is already empty and a second full-vault scan with the range
+  // lifted would come back empty too. Either way `dateFallback` below needs
+  // `reached.length > 0`, so this scan could not have made it fire.
   const reached =
-    concrete.from === null && concrete.to === null
+    unresolved.length > 0 || (concrete.from === null && concrete.to === null)
       ? matched
       : filterNotes(notes, { ...concrete, from: null, to: null }, now);
 

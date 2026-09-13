@@ -200,9 +200,13 @@ describe("runStream — this. references", () => {
     // `unresolvedSort` needs `matched.length > 0`, `truncated` needs
     // `matched > shown`. This pins that the three guards still agree, so the
     // reader sees exactly the one notice that explains the empty stream.
+    // `from`/`to` are in the mix too, so this also pins that skipping the
+    // second `filterNotes` pass `reached` runs for a date range — pointless
+    // here, since `matched` is already empty on the unresolved `ref` clause
+    // alone — changes nothing about which notices come out.
     const notes = [note({ path: "a.md", frontmatter: { Project: "Alpha" } })];
     const query = parseQuery(
-      `${SOURCE}\ndate-field: nope\nsort: nope desc\nlimit: 1`,
+      `${SOURCE}\ndate-field: nope\nsort: nope desc\nlimit: 1\nfrom: 2026-01-01\nto: 2026-12-31`,
     );
     const result = runStream(notes, query, NOW, { host: note({ path: "Host.md" }) });
     expect(result.notices).toEqual([{ kind: "unresolvedRef", fields: ["Project"] }]);
