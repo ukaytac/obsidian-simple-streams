@@ -78,12 +78,18 @@ export interface StreamResult {
   notices: StreamNotice[];
 }
 
+export interface StreamOptions {
+  /** Formatting locale for group headers and text sorting. Defaults to the host's. */
+  locale?: string;
+}
+
 export function runStream(
   notes: NoteMeta[],
   query: StreamQuery,
   now: Date,
-  locale?: string,
+  options: StreamOptions = {},
 ): StreamResult {
+  const { locale } = options;
   const matched = filterNotes(notes, query, now);
   const shown = arrange(matched, query, locale).slice(0, query.limit);
 
