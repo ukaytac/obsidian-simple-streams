@@ -769,15 +769,28 @@ export function runStream(
 
 Keep the existing explanatory comments on `reached`, on the `== null` check and on the `dateFallback` branch exactly where they are — only the identifiers change. The local formerly called `unresolved` is renamed `unresolvedSort` to leave the name free for the reference list.
 
+- [ ] **Step 4b: Give the notice its words**
+
+In `src/view/StreamChild.ts`, add the case to `describeNotice`'s switch, first, matching the union's order. The engine reports facts and the view owns every sentence; several fields join with `or`, as `unresolvedSort` already does, and the backticks render as code because the message goes through `setCodeText`:
+
+```ts
+    case "unresolvedRef": {
+      const fields = notice.fields.map((field) => `\`${field}\``).join(" or ");
+      return `This note has no ${fields}, so this stream matches nothing. Add it to the note's properties.`;
+    }
+```
+
+Nothing else in that file changes here — `compute()`, the empty-stream summary and `signatureOf` are Task 8.
+
 - [ ] **Step 5: Run the suite and the type check**
 
 Run: `npm test && npm run build`
-Expected: every test passes. `src/view/StreamChild.ts` compiles unchanged — `StreamResult` only gained a field.
+Expected: every test passes, and the build is green **only because of Step 4b above**. `StreamResult` merely gaining a field would indeed leave the view compiling, but `StreamNotice` gaining a member does not: `describeNotice` in `src/view/StreamChild.ts` switches exhaustively over that union and ends in `assertNeverNotice`, so a member with no case fails to compile. That is the guard working as designed — the comment above `StreamNotice` says as much — and it means the notice's words belong in this same commit, not two tasks later.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/engine/run.ts tests/engine/run.test.ts
+git add src/engine/run.ts src/view/StreamChild.ts tests/engine/run.test.ts
 git commit -m "$(cat <<'MSG'
 feat: run streams against resolved this. references
 
@@ -926,18 +939,7 @@ In `render`, the empty branch becomes:
     }
 ```
 
-- [ ] **Step 3: Give the notice its words**
-
-In `describeNotice`, add the case, first, matching the union's order:
-
-```ts
-    case "unresolvedRef": {
-      const fields = notice.fields.map((field) => `\`${field}\``).join(" or ");
-      return `This note has no ${fields}, so this stream matches nothing. Add it to the note's properties.`;
-    }
-```
-
-- [ ] **Step 4: Put the resolved conditions in the signature**
+- [ ] **Step 3: Put the resolved conditions in the signature**
 
 Replace `signatureOf`'s return and extend its doc comment:
 
@@ -949,12 +951,12 @@ Replace `signatureOf`'s return and extend its doc comment:
   return JSON.stringify([notes, result.notices, result.query.where]);
 ```
 
-- [ ] **Step 5: Run the suite and the type check**
+- [ ] **Step 4: Run the suite and the type check**
 
 Run: `npm test && npm run build`
 Expected: every test passes, clean build. The view tests all use queries with no reference, so their signatures are unchanged in content.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add src/view/StreamChild.ts
