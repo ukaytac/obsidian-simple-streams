@@ -284,6 +284,20 @@ function toPositiveInt(field: string, value: unknown): number {
 const COMPARISON = /^(>=|<=|!=|>|<)\s*(.*)$/;
 const RESERVED = new Set(["exists", "missing"]);
 
+/**
+ * A `this.` value names a property of the note holding the block, resolved at
+ * run time rather than here: a block is parsed once, when its note opens, so a
+ * value resolved at parse time would freeze at what the host note held then.
+ *
+ * The prefix is matched case-insensitively, as `exists` and `missing` already
+ * are. Left strict, `This.Project` became the literal string `"This.Project"`,
+ * matched nothing, and said nothing — the silent failure this file spends most
+ * of its length preventing. The field name after the prefix keeps its own case:
+ * frontmatter lookup is case-sensitive, here as in `where` field names and
+ * `sort` fields.
+ */
+const THIS_REF = /^this\.(.*)$/i;
+
 function parseWhere(value: unknown): WhereClause[] {
   if (value === null || value === undefined) {
     throw new QueryError(
@@ -329,6 +343,16 @@ function parseCondition(field: string, raw: unknown): WhereCondition {
     }
     if (text.toLowerCase() === "missing") {
       return { kind: "missing" };
+    }
+    const ref = THIS_REF.exec(text);
+    if (ref !== null) {
+      const target = ref[1].trim();
+      if (target === "") {
+        throw new QueryError(
+          `\`where.${field}\`: \`this.\` needs a property name, as in ${field}: this.${field}.`,
+        );
+      }
+      return { kind: "ref", field: target };
     }
     const comparison = COMPARISON.exec(text);
     if (comparison) {

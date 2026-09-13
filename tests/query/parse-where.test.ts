@@ -100,6 +100,30 @@ describe("parseQuery — where", () => {
       );
     }
   });
+
+  it("reads a this. value as a reference to the host note", () => {
+    expect(whereOf("where:\n  Project: this.Project")).toEqual([
+      { field: "Project", condition: { kind: "ref", field: "Project" } },
+    ]);
+  });
+
+  it("matches the this. prefix case-insensitively and keeps the field's case", () => {
+    expect(whereOf("where:\n  Project: This.Project")).toEqual([
+      { field: "Project", condition: { kind: "ref", field: "Project" } },
+    ]);
+  });
+
+  it("references a file property as readily as a frontmatter key", () => {
+    expect(whereOf("where:\n  Parent: this.file.name")).toEqual([
+      { field: "Parent", condition: { kind: "ref", field: "file.name" } },
+    ]);
+  });
+
+  it("tolerates space after the prefix", () => {
+    expect(whereOf("where:\n  Project: this. Project")).toEqual([
+      { field: "Project", condition: { kind: "ref", field: "Project" } },
+    ]);
+  });
 });
 
 /** A smallest valid value for each field, to prove the field is wired up. */
