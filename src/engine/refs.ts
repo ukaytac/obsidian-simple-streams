@@ -3,7 +3,7 @@ import { resolveField } from "./fields";
 import type { NoteMeta } from "./note";
 import type { StreamQuery, WhereCondition } from "../query/types";
 
-export interface ResolvedQuery {
+export interface Resolution {
   /** The query with every answerable `this.` reference replaced by a value. */
   query: StreamQuery;
   /** Host fields a reference named and the host note could not answer, once each. */
@@ -22,7 +22,7 @@ export interface ResolvedQuery {
  * turn a template note with an unfilled property into a stream of the whole
  * vault, the loudest possible wrong answer.
  */
-export function resolveRefs(query: StreamQuery, host: NoteMeta | null): ResolvedQuery {
+export function resolveRefs(query: StreamQuery, host: NoteMeta | null): Resolution {
   // No copy for the common query. Every stream refreshes on every vault change,
   // and most hold no reference at all.
   if (!query.where.some((clause) => clause.condition.kind === "ref")) {

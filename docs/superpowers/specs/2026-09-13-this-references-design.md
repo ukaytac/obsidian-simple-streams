@@ -91,7 +91,7 @@ the comparison branch raise the two rejections above.
 
 ### 4.2 Resolution
 
-`src/engine/context.ts` (new):
+`src/engine/refs.ts` (new):
 
 ```ts
 export function resolveRefs(
@@ -174,7 +174,7 @@ Test-driven: each behavior red first.
 | File | Covers |
 |---|---|
 | `tests/query/parse-where.test.ts` | reference parsed, case-insensitive prefix, `this.file.name`, the three rejections |
-| `tests/engine/context.test.ts` (new) | scalar → equals, list → anyOf, absent / null / nested map / empty list / null host → unresolved, non-scalars dropped from a mixed list, a reference-free query returned unchanged |
+| `tests/engine/refs.test.ts` (new) | scalar → equals, list → anyOf, absent / null / nested map / empty list / null host → unresolved, non-scalars dropped from a mixed list, a reference-free query returned unchanged |
 | `tests/engine/filter-where.test.ts` | an unresolved reference matches no note |
 | `tests/engine/run.test.ts` | notice emitted and ordered first, `result.query` resolved, options-object migration |
 | `tests/obsidian/adapter.test.ts` | `hostNote`: present, missing, empty path |

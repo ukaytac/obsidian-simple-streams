@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveRefs } from "../../src/engine/context";
+import { resolveRefs } from "../../src/engine/refs";
 import { parseQuery } from "../../src/query/parse";
 import { note } from "../fixtures/notes";
 

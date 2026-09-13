@@ -201,7 +201,7 @@ export function dateValue(value: unknown): number | null {
  * `YYYY-MM-DD` for a Date's local calendar day, zero-padded. The one
  * definition of what text a Date means, so `parseDateBound`
  * (`src/query/parse.ts`, turning a `from`/`to` Date into the bound
- * `parseDateExpr` accepts) and `resolveRefs` (`src/engine/context.ts`,
+ * `parseDateExpr` accepts) and `resolveRefs` (`src/engine/refs.ts`,
  * turning a Date-valued host property into a value `scalarEquals` can
  * compare) read the same Date the same way rather than drifting apart.
  */

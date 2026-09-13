@@ -1,4 +1,4 @@
-import { resolveRefs } from "./context";
+import { resolveRefs } from "./refs";
 import { coerceDate } from "./dates";
 import { resolveField, resolveNoteDate } from "./fields";
 import { filterNotes } from "./filter";
