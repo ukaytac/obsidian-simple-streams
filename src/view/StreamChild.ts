@@ -1,6 +1,6 @@
 import { Component, MarkdownRenderChild, type App } from "obsidian";
 import { runStream, type StreamNotice, type StreamResult } from "../engine/run";
-import { collectNotes } from "../obsidian/adapter";
+import { collectNotes, hostNote } from "../obsidian/adapter";
 import { describeQuery } from "../query/describe";
 import { parseQuery } from "../query/parse";
 import { renderError } from "./errorEl";
@@ -145,7 +145,12 @@ export class StreamChild extends MarkdownRenderChild {
     if (this.query === null) {
       throw new Error("Simple Streams: no query to run");
     }
-    return runStream(collectNotes(this.app), this.query, new Date());
+    // Read per refresh, not cached: editing the host note's properties is
+    // exactly the event this feature exists to follow, and `StreamRegistry`
+    // already refreshes on the `metadataCache` change that carries it.
+    return runStream(collectNotes(this.app), this.query, new Date(), {
+      host: hostNote(this.app, this.sourcePath),
+    });
   }
 
   private async render(precomputed?: StreamResult): Promise<void> {
@@ -214,7 +219,9 @@ export class StreamChild extends MarkdownRenderChild {
 
     if (this.rows.length === 0) {
       root.createDiv({ cls: "ss-empty", text: "No notes match this stream." });
-      root.createDiv({ cls: "ss-empty-summary", text: describeQuery(this.query) });
+      // `result.query`, not `this.query`: the written query still says
+      // `this.Project`, and what the reader needs is the value it stood for.
+      root.createDiv({ cls: "ss-empty-summary", text: describeQuery(result.query) });
       return;
     }
 
@@ -408,5 +415,9 @@ function signatureOf(result: StreamResult): string {
   const notes = result.groups.flatMap((group) =>
     group.notes.map((note) => [note.path, note.mtime] as const),
   );
-  return JSON.stringify([notes, result.notices]);
+  // The resolved `where` clauses too. A `this.` reference moving from one
+  // value to another while both match nothing leaves groups and notices
+  // identical, so no re-render fires and the summary on screen keeps naming
+  // the old value — the one line whose whole job is saying what was looked for.
+  return JSON.stringify([notes, result.notices, result.query.where]);
 }
