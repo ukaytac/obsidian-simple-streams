@@ -156,7 +156,9 @@ If the host note's property holds a list, the stream matches any of its
 values. If the note has no such property — a template's note before it is
 filled in — the stream matches nothing and says so, rather than quietly
 widening to the whole vault. A `this.` reference has to be the whole
-condition: it cannot sit inside a list or after a comparison operator.
+condition: it cannot sit inside a list or after a comparison operator. A value
+starting with `this.` is always read this way, so there is no way to match a
+property whose own text genuinely starts with `this.`.
 
 A stream filtering on the host note's own property matches the host note
 too — its `Project` equals its own `Project` by construction. Keeping the
