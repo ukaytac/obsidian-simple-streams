@@ -87,4 +87,11 @@ describe("hostNote", () => {
   it("returns null for an empty path", () => {
     expect(hostNote(app(), "")).toBeNull();
   });
+
+  it("yields empty collections for a host note with no cache", () => {
+    const uncached = fakeApp([[file("Projects/New.md"), null]]);
+    const host = hostNote(uncached, "Projects/New.md");
+    expect(host?.tags).toEqual([]);
+    expect(host?.frontmatter).toEqual({});
+  });
 });

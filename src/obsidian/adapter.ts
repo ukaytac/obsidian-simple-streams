@@ -29,6 +29,10 @@ export function collectNotes(app: App): NoteMeta[] {
  * path names nothing. A code block processor is handed a `sourcePath` that can
  * be empty in contexts with no file behind them, and a note can be deleted
  * while its block is still on screen, so both are ordinary, not exceptional.
+ * The empty-path check stays explicit rather than left to `getFileByPath`:
+ * that method is a lookup against an internal path map that no file is ever
+ * keyed by `""` in, but that is Obsidian's unspecified behavior to keep, not
+ * this function's to depend on.
  */
 export function hostNote(app: App, sourcePath: string): NoteMeta | null {
   if (sourcePath === "") {
