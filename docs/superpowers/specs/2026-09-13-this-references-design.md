@@ -149,8 +149,13 @@ screen keeps naming Alpha.
 The engine reports facts; `StreamChild.describeNotice` owns the sentence, and it
 goes through `setCodeText` so the backticks render as code:
 
-> This note has no `Project`, so this stream matches nothing. Add it to the
-> note's properties.
+> This note has no usable `Project`, so this stream matches nothing. Give it
+> a value in the note's properties.
+
+"Usable" and "give it a value" hold whether the property is absent or present
+and empty (`[]`, `{}`, `""`) — the previous wording asserted absence and told
+the reader to add something that, for the present-but-empty cases, is already
+there.
 
 Several fields join with `or`, as `unresolvedSort` does. In the summary line an
 unresolved reference prints as `Project = this.Project (not set here)`.
@@ -202,7 +207,7 @@ query holding no reference, so the budgets in `perf.test.ts` still hold.
 - **One sentence for every unresolved reference, tuned to the common case.** A
   `this.file.name` reference is unresolvable only when there is no host note at
   all — an empty or unknown `sourcePath` — never because a note lacks a name.
-  The notice's closing advice, "Add it to the note's properties", is wrong for
+  The notice's closing advice, "Give it a value in the note's properties", is wrong for
   that case. It is kept anyway: the frontmatter reference is what people write,
   a second notice kind would exist for a case reached only when a block has no
   file behind it, and the first sentence — that nothing can match — is true

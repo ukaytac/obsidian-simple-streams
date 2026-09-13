@@ -68,10 +68,25 @@ describe("this. references in the view", () => {
 
     expect(drawnTitles(container)).toEqual([]);
     expect(container.querySelector(".ss-empty")).not.toBeNull();
-    expect(noticeText(container)).toContain("This note has no Project");
+    expect(noticeText(container)).toContain("This note has no usable Project");
     expect(container.querySelector(".ss-empty-summary")?.textContent).toContain(
       "Project = this.Project (not set here)",
     );
+  });
+
+  test("matches nothing and says why when the host note's property is present but empty", async () => {
+    // `Project: []` is what an emptied list property looks like in Obsidian's
+    // Properties panel — present, not absent — so the notice must not claim
+    // the note has no such property.
+    const vault = vaultWith({ Project: [] });
+    const { container } = mountPane();
+    child = new StreamChild(container, vault.app, SOURCE, "Host.md");
+    child.load();
+    await settle();
+
+    expect(drawnTitles(container)).toEqual([]);
+    expect(container.querySelector(".ss-empty")).not.toBeNull();
+    expect(noticeText(container)).toContain("This note has no usable Project");
   });
 
   test("names the resolved value in the summary of an empty stream", async () => {
@@ -110,7 +125,7 @@ describe("this. references in the view", () => {
     await settle();
 
     expect(drawnTitles(container)).toEqual([]);
-    expect(noticeText(container)).toContain("This note has no Project");
+    expect(noticeText(container)).toContain("This note has no usable Project");
 
     vault.setNotes(notesWith({ Project: "Alpha" }));
     await child.refresh();
@@ -124,7 +139,7 @@ describe("this. references in the view", () => {
     await settle();
 
     expect(drawnTitles(container)).toEqual([]);
-    expect(noticeText(container)).toContain("This note has no Project");
+    expect(noticeText(container)).toContain("This note has no usable Project");
   });
 
   test("redraws the summary when the reference moves between two values that match nothing", async () => {

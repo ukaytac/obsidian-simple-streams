@@ -365,8 +365,13 @@ function renderNotices(root: HTMLElement, result: StreamResult): void {
 function describeNotice(notice: StreamNotice): string {
   switch (notice.kind) {
     case "unresolvedRef": {
+      // "no `Project`" and "add it" are both false for `Project: []` or
+      // `Project: {}` — the property is right there, just empty or shaped
+      // wrong to match on. "No usable" and "give it a value" hold for that
+      // case and for a genuinely absent property alike: either way, there is
+      // nothing on the note yet for the reference to match against.
       const fields = notice.fields.map((field) => `\`${field}\``).join(" or ");
-      return `This note has no ${fields}, so this stream matches nothing. Add it to the note's properties.`;
+      return `This note has no usable ${fields}, so this stream matches nothing. Give it a value in the note's properties.`;
     }
     case "dateFallback":
       // "ordered and grouped by" was true only when both happened to be on.
