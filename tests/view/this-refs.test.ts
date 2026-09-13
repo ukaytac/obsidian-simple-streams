@@ -7,14 +7,19 @@ import { StreamChild } from "../../src/view/StreamChild";
 const SOURCE =
   "folder: Notes\nsort: file.path asc\ndisplay: title\nwhere:\n  Project: this.Project\n";
 
-/** A vault of two projects' notes, plus the note the block lives in. */
-function vaultWith(hostFrontmatter: Record<string, unknown> | undefined): FakeVault {
-  return new FakeVault([
+/** Two projects' notes, plus the note the block lives in, with only the host varying. */
+function notesWith(hostFrontmatter: Record<string, unknown> | undefined) {
+  return [
     { path: "Host.md", frontmatter: hostFrontmatter },
     { path: "Notes/a.md", frontmatter: { Project: "Alpha" } },
     { path: "Notes/b.md", frontmatter: { Project: "Beta" } },
     { path: "Notes/c.md", frontmatter: { Project: "Alpha" } },
-  ]);
+  ];
+}
+
+/** A vault of two projects' notes, plus the note the block lives in. */
+function vaultWith(hostFrontmatter: Record<string, unknown> | undefined): FakeVault {
+  return new FakeVault(notesWith(hostFrontmatter));
 }
 
 function noticeText(container: HTMLElement): string | null {
@@ -36,6 +41,12 @@ afterEach(() => {
   setRenderHook(null);
 });
 
+// Every layer here is unit-tested on its own: parsing, resolveRefs, runStream,
+// the notice text. What none of those tests can see is a real StreamChild
+// running the whole path — load() drawing the resolved notes, and refresh()
+// deciding whether a this. reference actually changed anything. Tests 4, 5 and
+// 6 are the ones that exercise signatureOf and the refresh path; no unit test
+// below this file reaches either.
 describe("this. references in the view", () => {
   test("shows the notes sharing the host note's project", async () => {
     const vault = vaultWith({ Project: "Alpha" });
@@ -84,16 +95,36 @@ describe("this. references in the view", () => {
     await settle();
     expect(drawnTitles(container)).toEqual(["a", "c"]);
 
-    vault.setNotes([
-      { path: "Host.md", frontmatter: { Project: "Beta" } },
-      { path: "Notes/a.md", frontmatter: { Project: "Alpha" } },
-      { path: "Notes/b.md", frontmatter: { Project: "Beta" } },
-      { path: "Notes/c.md", frontmatter: { Project: "Alpha" } },
-    ]);
+    vault.setNotes(notesWith({ Project: "Beta" }));
     await child.refresh();
     await settle();
 
     expect(drawnTitles(container)).toEqual(["b"]);
+  });
+
+  test("picks up the notes once an empty property is filled in, and drops them again when it's cleared", async () => {
+    const vault = vaultWith(undefined);
+    const { container } = mountPane();
+    child = new StreamChild(container, vault.app, SOURCE, "Host.md");
+    child.load();
+    await settle();
+
+    expect(drawnTitles(container)).toEqual([]);
+    expect(noticeText(container)).toContain("This note has no Project");
+
+    vault.setNotes(notesWith({ Project: "Alpha" }));
+    await child.refresh();
+    await settle();
+
+    expect(drawnTitles(container)).toEqual(["a", "c"]);
+    expect(noticeText(container)).toBeNull();
+
+    vault.setNotes(notesWith(undefined));
+    await child.refresh();
+    await settle();
+
+    expect(drawnTitles(container)).toEqual([]);
+    expect(noticeText(container)).toContain("This note has no Project");
   });
 
   test("redraws the summary when the reference moves between two values that match nothing", async () => {
@@ -103,12 +134,7 @@ describe("this. references in the view", () => {
     child.load();
     await settle();
 
-    vault.setNotes([
-      { path: "Host.md", frontmatter: { Project: "Delta" } },
-      { path: "Notes/a.md", frontmatter: { Project: "Alpha" } },
-      { path: "Notes/b.md", frontmatter: { Project: "Beta" } },
-      { path: "Notes/c.md", frontmatter: { Project: "Alpha" } },
-    ]);
+    vault.setNotes(notesWith({ Project: "Delta" }));
     await child.refresh();
     await settle();
 
