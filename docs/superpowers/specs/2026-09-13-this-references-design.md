@@ -199,3 +199,11 @@ query holding no reference, so the budgets in `perf.test.ts` still hold.
   compare against the literal text and match nothing, silently.
 - **No literal escape for text beginning with `this.`.** `file.` is reserved on
   the same terms.
+- **One sentence for every unresolved reference, tuned to the common case.** A
+  `this.file.name` reference is unresolvable only when there is no host note at
+  all — an empty or unknown `sourcePath` — never because a note lacks a name.
+  The notice's closing advice, "Add it to the note's properties", is wrong for
+  that case. It is kept anyway: the frontmatter reference is what people write,
+  a second notice kind would exist for a case reached only when a block has no
+  file behind it, and the first sentence — that nothing can match — is true
+  either way.
