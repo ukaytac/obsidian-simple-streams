@@ -23,3 +23,17 @@ export function collectNotes(app: App): NoteMeta[] {
     .getMarkdownFiles()
     .map((file) => toNoteMeta(file, app.metadataCache.getFileCache(file)));
 }
+
+/**
+ * The note holding a stream block, for `this.` references, or null when the
+ * path names nothing. A code block processor is handed a `sourcePath` that can
+ * be empty in contexts with no file behind them, and a note can be deleted
+ * while its block is still on screen, so both are ordinary, not exceptional.
+ */
+export function hostNote(app: App, sourcePath: string): NoteMeta | null {
+  if (sourcePath === "") {
+    return null;
+  }
+  const file = app.vault.getFileByPath(sourcePath);
+  return file === null ? null : toNoteMeta(file, app.metadataCache.getFileCache(file));
+}
