@@ -124,6 +124,24 @@ describe("parseQuery — where", () => {
       { field: "Project", condition: { kind: "ref", field: "Project" } },
     ]);
   });
+
+  it("rejects a this. with no property name", () => {
+    expect(() => parseQuery("where:\n  Project: this.")).toThrow(
+      /`this\.` needs a property name/,
+    );
+  });
+
+  it("rejects a reference inside a list", () => {
+    expect(() => parseQuery("where:\n  Project: [this.Project, Alpha]")).toThrow(
+      /cannot use `this\.Project` inside a list/,
+    );
+  });
+
+  it("rejects a reference as a comparison operand", () => {
+    expect(() => parseQuery('where:\n  date: ">this.start"')).toThrow(
+      /cannot compare against `this\.start`/,
+    );
+  });
 });
 
 /** A smallest valid value for each field, to prove the field is wired up. */

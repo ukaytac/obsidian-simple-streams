@@ -346,6 +346,10 @@ function parseCondition(field: string, raw: unknown): WhereCondition {
     }
     const ref = THIS_REF.exec(text);
     if (ref !== null) {
+      // Trimmed for the same reason the operand and every list entry are: a
+      // stray space after the dot is tolerated rather than treated as a typo.
+      // It also means `this. ` with nothing but whitespace after it reaches
+      // the "needs a property name" check below instead of naming " " as the field.
       const target = ref[1].trim();
       if (target === "") {
         throw new QueryError(
@@ -360,6 +364,11 @@ function parseCondition(field: string, raw: unknown): WhereCondition {
       if (operand === "") {
         throw new QueryError(
           `\`where.${field}\` has the operator \`${comparison[1]}\` with nothing to compare against`,
+        );
+      }
+      if (THIS_REF.test(operand)) {
+        throw new QueryError(
+          `\`where.${field}\` cannot compare against \`${operand}\`. A \`this.\` reference has to be the whole condition.`,
         );
       }
       return { kind: "compare", op: comparison[1] as CompareOp, operand };
@@ -380,6 +389,11 @@ function asAnyOfValue(field: string, item: unknown): string | number | boolean {
   const value = asScalar(field, item);
   if (typeof value === "string") {
     const text = value.trim();
+    if (THIS_REF.test(text)) {
+      throw new QueryError(
+        `\`where.${field}\` cannot use \`${text}\` inside a list. A list means "any of these values"; a \`this.\` reference has to be the whole condition.`,
+      );
+    }
     if (COMPARISON.test(text) || RESERVED.has(text.toLowerCase())) {
       throw new QueryError(
         `\`where.${field}\` cannot use \`${text}\` inside a list. A list means "any of these values"; a comparison or \`exists\`/\`missing\` has to be the whole condition.`,
