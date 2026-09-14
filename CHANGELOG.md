@@ -4,6 +4,14 @@ The text of each GitHub release is taken from here.
 
 ## [Unreleased]
 
+## 1.3.1
+
+Fixes a compatibility slip in 1.3.0 that never reached anyone: 1.3.0's release was still a draft when this was found, so 1.3.1 is the first published version carrying the sidebar. The 1.3.0 notes below describe what it does.
+
+`Workspace.revealLeaf` returns `void` through Obsidian 1.6.7 and a promise from 1.7.2 on. Opening the sidebar awaited it, which asked for a guarantee the manifest's 1.5.7 floor does not make. It was harmless in practice — awaiting a non-promise resolves a moment later and nothing followed the call — but it was a promise to users with nothing behind it, which is the thing `minAppVersion` exists to prevent.
+
+**Installing or updating:** put `main.js`, `manifest.json` and `styles.css` from below into `<your vault>/.obsidian/plugins/simple-streams/`, replacing the files already there, and reload Obsidian. Requires Obsidian 1.5.7 or newer.
+
 ## 1.3.0
 
 A stream no longer has to live in a note. This release adds a sidebar that runs one query beside whatever you are reading and re-runs it as you move, so a related-notes feed no longer costs a block in every note that wants one.
