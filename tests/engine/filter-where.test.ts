@@ -145,3 +145,46 @@ describe("matchesClause — an unresolved reference", () => {
     expect(matchesClause(note({ frontmatter: {} }), clause)).toBe(false);
   });
 });
+
+describe("matchesClause — link-valued properties", () => {
+  it("matches a linked candidate against a plain query value", () => {
+    const n = note({ frontmatter: { Project: "[[My Project]]" } });
+    expect(matchesClause(n, condition("where:\n  Project: My Project"))).toBe(true);
+  });
+
+  it("matches a plain candidate against a linked query value", () => {
+    const n = note({ frontmatter: { Project: "My Project" } });
+    expect(matchesClause(n, condition('where:\n  Project: "[[My Project]]"'))).toBe(true);
+  });
+
+  it("matches across an alias and a heading", () => {
+    const aliased = note({ frontmatter: { Project: "[[My Project|MP]]" } });
+    const headed = note({ frontmatter: { Project: "[[My Project#Goals]]" } });
+    const clause = condition('where:\n  Project: "[[My Project]]"');
+    expect(matchesClause(aliased, clause)).toBe(true);
+    expect(matchesClause(headed, clause)).toBe(true);
+  });
+
+  it("still tells two different notes apart", () => {
+    const n = note({ frontmatter: { Project: "[[Other Project]]" } });
+    expect(matchesClause(n, condition('where:\n  Project: "[[My Project]]"'))).toBe(false);
+  });
+
+  it("looks inside a list of links", () => {
+    const n = note({ frontmatter: { Project: ["[[Other]]", "[[My Project]]"] } });
+    expect(matchesClause(n, condition("where:\n  Project: My Project"))).toBe(true);
+  });
+
+  it("reads a linked member of an any-of list", () => {
+    const n = note({ frontmatter: { Project: "My Project" } });
+    expect(matchesClause(n, condition('where:\n  Project: ["[[My Project]]", "[[Other]]"]'))).toBe(
+      true,
+    );
+  });
+
+  it("answers != the way it answers =", () => {
+    const n = note({ frontmatter: { Project: "[[My Project]]" } });
+    expect(matchesClause(n, condition('where:\n  Project: "!=My Project"'))).toBe(false);
+    expect(matchesClause(n, condition('where:\n  Project: "!=Other Project"'))).toBe(true);
+  });
+});

@@ -1,5 +1,6 @@
 import { dateValue, resolveDateExpr } from "./dates";
 import { resolveField, resolveNoteDate } from "./fields";
+import { unwrapLink } from "./links";
 import { normalizeTag } from "./note";
 import type { NoteMeta } from "./note";
 import type { CompareOp, StreamQuery, TitleMatcher, WhereClause } from "../query/types";
@@ -150,7 +151,11 @@ function scalarEquals(left: unknown, right: string | number | boolean): boolean 
   if (typeof right === "boolean") {
     return typeof left === "boolean" ? left === right : String(left).toLowerCase() === String(right);
   }
-  return String(left).trim().toLowerCase() === String(right).trim().toLowerCase();
+  // Both sides, never one. Reducing only the query side would make equality
+  // asymmetric — `a = b` true while `b = a` is false — and the same normalizing
+  // on both sides can only merge two spellings of one note, never split one
+  // note in two, so no stream that matches today stops matching.
+  return unwrapLink(String(left)).toLowerCase() === unwrapLink(right).toLowerCase();
 }
 
 function compareValue(left: unknown, op: CompareOp, operand: string): boolean {
@@ -183,7 +188,12 @@ function compareOrder(left: unknown, operand: string): number {
     return Math.sign(leftDate - rightDate);
   }
 
-  return String(left).trim().toLowerCase().localeCompare(String(operand).trim().toLowerCase());
+  // The same reduction `scalarEquals` makes, so `!=` answers the question `=`
+  // answers. Left as raw text, `!=` would call a note holding `My Project`
+  // different from one holding `[[My Project]]` while `=` called them the
+  // same — an inconsistency, not a second opinion. The number and date
+  // branches above are untouched: a wikilink is neither.
+  return unwrapLink(String(left)).toLowerCase().localeCompare(unwrapLink(operand).toLowerCase());
 }
 
 function toNumber(value: unknown): number | null {
