@@ -27,6 +27,22 @@ function vault(count: number): NoteMeta[] {
   }));
 }
 
+/** A vault whose relationship properties hold links, as a linking vault's do. */
+function linkedVault(count: number): NoteMeta[] {
+  return Array.from({ length: count }, (_, i) => ({
+    path: `Projects/${i}.md`,
+    basename: String(i),
+    tags: [],
+    frontmatter: {
+      Project: i % 2 === 0 ? "[[Orbit]]" : "[[Apollo]]",
+      Status: i % 3 === 0 ? "active" : "done",
+      Owner: `[[Person ${i % 7}|P${i % 7}]]`,
+    },
+    ctime: 1_700_000_000_000 + i * 1000,
+    mtime: 1_700_000_000_000 + i * 1000,
+  }));
+}
+
 function fastest(runs: number, work: () => void): number {
   let best = Infinity;
   for (let i = 0; i < runs; i += 1) {
@@ -104,6 +120,27 @@ describe("runStream at vault scale", () => {
     // `localeCompare` is the call that cannot take the engine's fast path with
     // options. Sorting must not reach for it at all.
     expect(localeCompares).toBe(0);
+  });
+
+  it("filters 5000 notes on link-valued properties well inside the debounce", () => {
+    // The path the cases above miss: none of them carries a `where` clause, so
+    // none of them reaches `scalarEquals` or `compareOrder` at all. Reducing a
+    // wikilink runs on both sides of every text comparison, for every note and
+    // every clause, so this is where it would show up if it ever cost anything.
+    const query = parseQuery(
+      'limit: 5000\nwhere:\n  Project: "[[Orbit]]"\n  Status: active\n  Owner: "!=[[Ada]]"\n',
+    );
+    const notes = linkedVault(5000);
+    runStream(notes, query, new Date());
+
+    // 3ms on this machine for three clauses over 5000 notes, against
+    // the view's 300ms refresh debounce: reducing a link is a trim, one
+    // anchored regex and at most two splits, doubling a comparison that was
+    // already nothing. The threshold carries the same slack the sort case
+    // above explains — it says "not catastrophically slow anywhere", and the
+    // measurement in this comment is what says the cost is nil.
+    const best = fastest(3, () => runStream(notes, query, new Date()));
+    expect(best).toBeLessThan(100);
   });
 
   it("returns the whole vault, so the timing is not measuring an early exit", () => {

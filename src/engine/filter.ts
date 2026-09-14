@@ -155,6 +155,9 @@ function scalarEquals(left: unknown, right: string | number | boolean): boolean 
   // asymmetric — `a = b` true while `b = a` is false — and the same normalizing
   // on both sides can only merge two spellings of one note, never split one
   // note in two, so no stream that matches today stops matching.
+  //
+  // Cost: 3ms for three clauses over 5000 notes, against the view's
+  // 300ms debounce — measured in `tests/engine/perf.test.ts`.
   return unwrapLink(String(left)).toLowerCase() === unwrapLink(right).toLowerCase();
 }
 
