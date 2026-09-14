@@ -2,23 +2,50 @@
 
 The text of each GitHub release is taken from here.
 
-## Unreleased
+## 1.2.0
 
-Streams now read properties that hold links. A `Project` of `[[My Project]]`
-and a `Project` of `My Project` are the same project, and an alias or a heading
-inside the link — `[[My Project|MP]]`, `[[My Project#Goals]]` — names the same
-note as the plain link does. Nothing that matched before stops matching; this
-only joins spellings that were being kept apart.
+Vaults that keep relationships as links now work. Obsidian hands a plugin your
+frontmatter as raw text, so a property holding a link arrived as the characters
+`[[My Project]]` — brackets and all — and a stream only found a note if it
+happened to have spelled the relationship the same way the block did. It no
+longer matters which way either of them wrote it.
 
-A `this.` reference can be written as a link too, as
-`Project: "[[this.Project]]"`, which is what reads naturally in a vault that
-stores relationships that way. It resolves to one link whether the host note
-holds `My Project` or `[[My Project]]`.
+**Installing or updating:** put `main.js`, `manifest.json` and `styles.css` from
+below into `<your vault>/.obsidian/plugins/simple-streams/`, replacing the files
+already there, and reload Obsidian. Requires Obsidian 1.5.7 or newer. Every
+block that works today keeps working and keeps finding everything it finds
+today: this release only joins spellings that were being held apart.
 
-Writing a reference not quite right — an alias inside it, an embed marker in
-front, text either side of the brackets — is now an error naming the problem,
-where it used to be a match against the literal text that found nothing and
-said nothing.
+### Added
+
+- **Property values are compared as the notes they name.** `[[My Project]]`,
+  `[[My Project|MP]]`, `[[My Project#Goals]]` and plain `My Project` all match
+  one another, in `where` conditions and in `!=` and the ordering comparisons
+  alike, so `=` and `!=` cannot disagree about whether two notes are the same.
+- **A `this.` reference can be written as a link** — `Project: "[[this.Project]]"`
+  — which is what reads naturally in a vault whose properties hold links. It
+  resolves to exactly one link whether the host note's own property holds
+  `My Project` or `[[My Project]]`, and a host property holding a list gives one
+  link per value.
+
+### Fixed
+
+- **A reference typed not quite right now says so, instead of quietly matching
+  nothing.** An alias or heading inside one (`"[[this.Project|MP]]"`), an embed
+  marker in front of one (`"![[this.Project]]"`), stray text either side of the
+  brackets, and a misplaced space are all errors naming the problem. Every one
+  of them used to become a comparison against its own literal text — no
+  results, no message, and nothing pointing at the block that was wrong.
+
+### Worth knowing before you use it
+
+- `sort` still orders on the raw text. Filtering by a link-valued property is
+  link-aware; *ordering* by one is not, so a vault with mixed spellings will
+  interleave `[[Orbit]]` and `Orbit` in a `sort: Project asc`. Say so if that
+  bites and it can be fixed.
+- A property holding an embed (`![[My Project]]`) is not read as a link. An
+  embed is a rendering instruction rather than a value, and treating it as one
+  would make `![[x]]` and `[[x]]` the same note.
 
 ## 1.1.0
 
