@@ -34,7 +34,7 @@ Each release asset carries a signed provenance attestation, so a downloaded buil
 gh attestation verify main.js --repo ukaytac/obsidian-simple-streams
 ```
 
-Requires Obsidian 1.5.7 or newer. Works on desktop and mobile.
+Requires Obsidian 1.7.2 or newer. Works on desktop and mobile.
 
 ## What it reads, and what it never does
 

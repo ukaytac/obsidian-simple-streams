@@ -112,20 +112,19 @@ export default class SimpleStreamsPlugin extends Plugin {
       return;
     }
     await leaf.setViewState({ type: SIDEBAR_VIEW_TYPE, active: true });
-    // Point it at whatever is active before revealing, so it opens with
-    // results rather than the empty state and a flicker.
+    // Revealed before the view is touched, and awaited, because from 1.7.2 a
+    // leaf can be deferred: until this resolves `leaf.view` is a `DeferredView`
+    // and the `instanceof` below would not match, leaving the pane in its empty
+    // state until the tracker next fired. Awaiting is what loads it, which is
+    // the whole reason the manifest's floor is 1.7.2 rather than 1.5.7 — at
+    // 1.5.7 this returns `void` and there is nothing to await.
+    await this.app.workspace.revealLeaf(leaf);
+    // Point it at whatever is active, so it opens with results rather than the
+    // empty state its own `onOpen` drew.
     const view = leaf.view;
     if (view instanceof StreamSidebarView) {
       view.follow(this.tracker?.current() ?? null);
     }
-    // Not awaited, deliberately. `revealLeaf` returns `void` at the 1.5.7 floor
-    // the manifest promises and `Promise<void>` from 1.7.2 on, so awaiting it
-    // claims a guarantee the floor does not make. `await undefined` is harmless
-    // at runtime, which is exactly why this is worth a comment: nothing — not
-    // `tsc`, not `npm run check:floor`, both of which pass on the awaited
-    // version — can catch it, because awaiting a non-promise is legal
-    // TypeScript. Nothing here depends on the reveal having finished.
-    void this.app.workspace.revealLeaf(leaf);
   }
 
   /** Close every sidebar. The other half of the settings toggle. */
