@@ -25,8 +25,10 @@ export function collectNotes(app: App): NoteMeta[] {
 }
 
 /**
- * The note holding a stream block, for `this.` references, or null when the
- * path names nothing. A code block processor is handed a `sourcePath` that can
+ * The note at a path, as plain data, or null when the path names nothing.
+ *
+ * Used for both reference scopes: the note holding a block, and the note the
+ * workspace is on. A code block processor is handed a `sourcePath` that can
  * be empty in contexts with no file behind them, and a note can be deleted
  * while its block is still on screen, so both are ordinary, not exceptional.
  * The empty-path check stays explicit rather than left to `getFileByPath`:
@@ -34,10 +36,10 @@ export function collectNotes(app: App): NoteMeta[] {
  * keyed by `""` in, but that is Obsidian's unspecified behavior to keep, not
  * this function's to depend on.
  */
-export function hostNote(app: App, sourcePath: string): NoteMeta | null {
-  if (sourcePath === "") {
+export function noteAt(app: App, path: string): NoteMeta | null {
+  if (path === "") {
     return null;
   }
-  const file = app.vault.getFileByPath(sourcePath);
+  const file = app.vault.getFileByPath(path);
   return file === null ? null : toNoteMeta(file, app.metadataCache.getFileCache(file));
 }

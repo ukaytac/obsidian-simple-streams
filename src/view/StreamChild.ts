@@ -1,6 +1,6 @@
 import { Component, MarkdownRenderChild, type App } from "obsidian";
 import { runStream, type StreamNotice, type StreamResult } from "../engine/run";
-import { collectNotes, hostNote } from "../obsidian/adapter";
+import { collectNotes, noteAt } from "../obsidian/adapter";
 import { describeQuery } from "../query/describe";
 import { parseQuery } from "../query/parse";
 import { renderError } from "./errorEl";
@@ -149,7 +149,7 @@ export class StreamChild extends MarkdownRenderChild {
     // exactly the event this feature exists to follow, and `StreamRegistry`
     // already refreshes on the `metadataCache` change that carries it.
     return runStream(collectNotes(this.app), this.query, new Date(), {
-      host: hostNote(this.app, this.sourcePath),
+      host: noteAt(this.app, this.sourcePath),
     });
   }
 

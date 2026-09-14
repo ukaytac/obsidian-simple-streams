@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { App, CachedMetadata, TFile } from "obsidian";
-import { collectNotes, hostNote, toNoteMeta } from "../../src/obsidian/adapter";
+import { collectNotes, noteAt, toNoteMeta } from "../../src/obsidian/adapter";
 
 function file(path: string, ctime = 1_000, mtime = 2_000): TFile {
   return {
@@ -68,29 +68,29 @@ describe("collectNotes", () => {
   });
 });
 
-describe("hostNote", () => {
+describe("noteAt", () => {
   const app = () =>
     fakeApp([
       [file("Projects/Alpha.md"), { frontmatter: { Project: "Alpha" } } as unknown as CachedMetadata],
     ]);
 
   it("reads the note at the given path", () => {
-    const host = hostNote(app(), "Projects/Alpha.md");
+    const host = noteAt(app(), "Projects/Alpha.md");
     expect(host?.basename).toBe("Alpha");
     expect(host?.frontmatter).toEqual({ Project: "Alpha" });
   });
 
   it("returns null for a path naming no note", () => {
-    expect(hostNote(app(), "Projects/Gone.md")).toBeNull();
+    expect(noteAt(app(), "Projects/Gone.md")).toBeNull();
   });
 
   it("returns null for an empty path", () => {
-    expect(hostNote(app(), "")).toBeNull();
+    expect(noteAt(app(), "")).toBeNull();
   });
 
   it("yields empty collections for a host note with no cache", () => {
     const uncached = fakeApp([[file("Projects/New.md"), null]]);
-    const host = hostNote(uncached, "Projects/New.md");
+    const host = noteAt(uncached, "Projects/New.md");
     expect(host?.tags).toEqual([]);
     expect(host?.frontmatter).toEqual({});
   });
