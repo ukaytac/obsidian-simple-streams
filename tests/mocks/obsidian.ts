@@ -176,6 +176,19 @@ export class Notice {
   }
 }
 
+/**
+ * Enough of a MarkdownView for `getActiveViewOfType` and the tracker's
+ * `instanceof` check. `file` is the whole payload.
+ */
+export class MarkdownView extends Component {
+  file: { path: string; basename: string; extension: string } | null = null;
+
+  constructor(file: MarkdownView["file"] = null) {
+    super();
+    this.file = file;
+  }
+}
+
 /** Drop the state the mock accumulates. Call between tests in one file. */
 export function resetObsidianMock(): void {
   renderChildren.length = 0;
