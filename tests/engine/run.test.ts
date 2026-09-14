@@ -176,7 +176,11 @@ describe("runStream — this. references", () => {
     const notes = [note({ path: "a.md", frontmatter: { Project: "Alpha" } })];
     const result = runStream(notes, parseQuery(SOURCE), NOW, { host: note({ path: "Host.md" }) });
     expect(result.matched).toBe(0);
-    expect(result.notices[0]).toEqual({ kind: "unresolvedRef", fields: ["Project"] });
+    expect(result.notices[0]).toEqual({
+      kind: "unresolvedRef",
+      scope: "this",
+      fields: ["Project"],
+    });
   });
 
   it("matches nothing when there is no host note at all", () => {
@@ -209,6 +213,67 @@ describe("runStream — this. references", () => {
       `${SOURCE}\ndate-field: nope\nsort: nope desc\nlimit: 1\nfrom: 2026-01-01\nto: 2026-12-31`,
     );
     const result = runStream(notes, query, NOW, { host: note({ path: "Host.md" }) });
-    expect(result.notices).toEqual([{ kind: "unresolvedRef", fields: ["Project"] }]);
+    expect(result.notices).toEqual([
+      { kind: "unresolvedRef", scope: "this", fields: ["Project"] },
+    ]);
+  });
+});
+
+describe("runStream — active references", () => {
+  const QUERY = "where:\n  Project: active.Project";
+
+  it("matches against the active note", () => {
+    const notes = [
+      note({ path: "a.md", frontmatter: { Project: "Alpha" } }),
+      note({ path: "b.md", frontmatter: { Project: "Beta" } }),
+    ];
+    const result = runStream(notes, parseQuery(QUERY), new Date(), {
+      active: note({ path: "Active.md", frontmatter: { Project: "Alpha" } }),
+    });
+    expect(result.groups.flatMap((group) => group.notes.map((n) => n.path))).toEqual([
+      "a.md",
+    ]);
+  });
+
+  it("raises a scoped notice when the active note cannot answer", () => {
+    const result = runStream([note({ path: "a.md" })], parseQuery(QUERY), new Date(), {
+      active: note({ path: "Active.md" }),
+    });
+    expect(result.notices).toContainEqual({
+      kind: "unresolvedRef",
+      scope: "active",
+      fields: ["Project"],
+    });
+  });
+
+  it("keeps the this scope on a host-note notice", () => {
+    const result = runStream(
+      [note({ path: "a.md" })],
+      parseQuery("where:\n  Project: this.Project"),
+      new Date(),
+      { host: note({ path: "Host.md" }) },
+    );
+    expect(result.notices).toContainEqual({
+      kind: "unresolvedRef",
+      scope: "this",
+      fields: ["Project"],
+    });
+  });
+
+  it("raises one notice per scope, this before active, each naming only its own fields", () => {
+    // REF_SCOPES is ["this", "active"], and the notice loop walks it in that
+    // order — pinned here so a reorder (or a collapse back to one notice) is
+    // caught rather than silently reshuffling which note the reader is told
+    // to go fix first.
+    const result = runStream(
+      [note({ path: "a.md" })],
+      parseQuery("where:\n  a: this.Project\n  b: active.Team"),
+      new Date(),
+      { host: note({ path: "Host.md" }), active: note({ path: "Active.md" }) },
+    );
+    expect(result.notices).toEqual([
+      { kind: "unresolvedRef", scope: "this", fields: ["Project"] },
+      { kind: "unresolvedRef", scope: "active", fields: ["Team"] },
+    ]);
   });
 });

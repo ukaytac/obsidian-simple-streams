@@ -5,7 +5,7 @@ import { filterNotes } from "./filter";
 import { groupNotes, type StreamGroup } from "./group";
 import { sortNotes } from "./sort";
 import type { NoteMeta } from "./note";
-import type { StreamQuery } from "../query/types";
+import { REF_SCOPES, type RefScope, type StreamQuery } from "../query/types";
 
 /**
  * Arrange the notes the way the view reads them: the declared sort keys first,
@@ -52,10 +52,10 @@ function arrange(notes: NoteMeta[], query: StreamQuery, locale?: string): NoteMe
  * compile until someone gives it words. These carry facts, never sentences:
  * the engine holds no user-facing English, and the view owns every word.
  *
- * - `unresolvedRef` — a `this.` reference the host note could not answer, so
- *   every clause holding one matches nothing. Listed first: it is the notice
- *   that explains an empty stream, and the others describe a result that in
- *   this case does not exist.
+ * - `unresolvedRef` — a reference the note its scope names could not answer,
+ *   so every clause holding one matches nothing. Listed first: it is the
+ *   notice that explains an empty stream, and the others describe a result
+ *   that in this case does not exist.
  * - `dateFallback` — a declared `date-field` yielded a usable date for no note
  *   the query reached, the signature of a typo in the field name. Judged before
  *   the date range narrowed the result, since a typo sends every note onto the
@@ -70,7 +70,7 @@ function arrange(notes: NoteMeta[], query: StreamQuery, locale?: string): NoteMe
  *   a day's five notes and otherwise read as a complete day.
  */
 export type StreamNotice =
-  | { kind: "unresolvedRef"; fields: string[] }
+  | { kind: "unresolvedRef"; scope: RefScope; fields: string[] }
   | { kind: "dateFallback"; field: string }
   | { kind: "unresolvedSort"; fields: string[] }
   | { kind: "truncated"; shown: number; matched: number };
@@ -101,6 +101,8 @@ export interface StreamOptions {
   locale?: string;
   /** The note holding the block, which `this.` references are resolved against. */
   host?: NoteMeta | null;
+  /** The note the workspace is on, which `active.` references are resolved against. */
+  active?: NoteMeta | null;
 }
 
 export function runStream(
@@ -110,10 +112,14 @@ export function runStream(
   options: StreamOptions = {},
 ): StreamResult {
   const { locale } = options;
-  // Before anything reads the query. A reference the host cannot answer stays
-  // a `ref`, which `matchesClause` refuses for every note, so the rest of this
-  // function runs over an empty result and the notice below explains it.
-  const { query: concrete, unresolved } = resolveRefs(query, options.host ?? null);
+  // Before anything reads the query. A reference its scope's note cannot
+  // answer stays a `ref`, which `matchesClause` refuses for every note, so the
+  // rest of this function runs over an empty result and the notice below
+  // explains it.
+  const { query: concrete, unresolved } = resolveRefs(query, {
+    host: options.host ?? null,
+    active: options.active ?? null,
+  });
 
   const matched = filterNotes(notes, concrete, now);
   const shown = arrange(matched, concrete, locale).slice(0, concrete.limit);
@@ -135,7 +141,16 @@ export function runStream(
   const notices: StreamNotice[] = [];
 
   if (unresolved.length > 0) {
-    notices.push({ kind: "unresolvedRef", fields: unresolved });
+    // Grouped by scope rather than assumed to be one: `assertScope` does
+    // enforce a single scope per query today, but a notice that quietly
+    // mislabels half its fields if that ever changes is not worth the one
+    // saved line.
+    for (const scope of REF_SCOPES) {
+      const fields = unresolved.filter((entry) => entry.scope === scope).map((e) => e.field);
+      if (fields.length > 0) {
+        notices.push({ kind: "unresolvedRef", scope, fields });
+      }
+    }
   }
 
   if (
