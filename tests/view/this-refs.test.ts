@@ -193,3 +193,46 @@ describe("this. references in the view", () => {
     expect(hostRow?.querySelector(".ss-item-warning")?.textContent).toBe(PREVIEW_WARNING);
   });
 });
+
+/** The same block as SOURCE, with the reference written as a link. */
+const LINK_SOURCE =
+  'folder: Notes\nsort: file.path asc\ndisplay: title\nwhere:\n  Project: "[[this.Project]]"\n';
+
+describe("link-valued properties in the view", () => {
+  test("reads a link reference against plain candidates", async () => {
+    const vault = vaultWith({ Project: "Alpha" });
+    const { container } = mountPane();
+    child = new StreamChild(container, vault.app, LINK_SOURCE, "Host.md");
+    child.load();
+    await settle();
+
+    expect(drawnTitles(container)).toEqual(["a", "c"]);
+    expect(noticeText(container)).toBeNull();
+  });
+
+  test("reads a link reference when the host property is itself a link", async () => {
+    const vault = vaultWith({ Project: "[[Alpha]]" });
+    const { container } = mountPane();
+    child = new StreamChild(container, vault.app, LINK_SOURCE, "Host.md");
+    child.load();
+    await settle();
+
+    expect(drawnTitles(container)).toEqual(["a", "c"]);
+    expect(noticeText(container)).toBeNull();
+  });
+
+  test("matches linked candidates from a plain host, through the plain spelling", async () => {
+    const vault = new FakeVault([
+      { path: "Host.md", frontmatter: { Project: "Alpha" } },
+      { path: "Notes/a.md", frontmatter: { Project: "[[Alpha]]" } },
+      { path: "Notes/b.md", frontmatter: { Project: "[[Beta]]" } },
+      { path: "Notes/c.md", frontmatter: { Project: "[[Alpha|A]]" } },
+    ]);
+    const { container } = mountPane();
+    child = new StreamChild(container, vault.app, SOURCE, "Host.md");
+    child.load();
+    await settle();
+
+    expect(drawnTitles(container)).toEqual(["a", "c"]);
+  });
+});
