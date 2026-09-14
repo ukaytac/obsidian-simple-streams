@@ -219,6 +219,86 @@ describe("runStream — this. references", () => {
   });
 });
 
+describe("runStream — excludePath", () => {
+  const notes = [
+    note({ path: "a.md", frontmatter: { Project: "Alpha" } }),
+    note({ path: "b.md", frontmatter: { Project: "Alpha" } }),
+    note({ path: "c.md", frontmatter: { Project: "Alpha" } }),
+  ];
+  const query = parseQuery("where:\n  Project: Alpha\nsort: file.path asc");
+
+  it("leaves the named note out of the results", () => {
+    const result = runStream(notes, query, new Date(), { excludePath: "b.md" });
+    expect(result.groups.flatMap((group) => group.notes.map((n) => n.path))).toEqual([
+      "a.md",
+      "c.md",
+    ]);
+  });
+
+  it("counts only what is left, so truncation stays honest", () => {
+    const result = runStream(notes, { ...query, limit: 2 }, new Date(), {
+      excludePath: "b.md",
+    });
+    expect(result.matched).toBe(2);
+    expect(result.shown).toBe(2);
+    expect(result.notices).not.toContainEqual(
+      expect.objectContaining({ kind: "truncated" }),
+    );
+  });
+
+  it("counts truncation against the pool, not the full vault", () => {
+    // The absence case above (limit 2, excluded down to exactly 2) can't tell
+    // a pool-based guard from a full-vault one — both land on "no truncation".
+    // Four notes, excluded down to three, limit 2, forces `matched > shown`
+    // to be judged on the post-exclusion count: a full-vault `matched` of 4
+    // would report "Showing 2 of 4" over a pool that only ever held 3.
+    const four = [
+      note({ path: "a.md", frontmatter: { Project: "Alpha" } }),
+      note({ path: "b.md", frontmatter: { Project: "Alpha" } }),
+      note({ path: "c.md", frontmatter: { Project: "Alpha" } }),
+      note({ path: "d.md", frontmatter: { Project: "Alpha" } }),
+    ];
+    const result = runStream(four, { ...query, limit: 2 }, new Date(), {
+      excludePath: "b.md",
+    });
+    expect(result.notices).toContainEqual({ kind: "truncated", shown: 2, matched: 3 });
+  });
+
+  it("is a no-op for a path no note has", () => {
+    const result = runStream(notes, query, new Date(), { excludePath: "nowhere.md" });
+    expect(result.matched).toBe(3);
+  });
+
+  it("excludes nothing when the option is left out", () => {
+    expect(runStream(notes, query, new Date()).matched).toBe(3);
+  });
+
+  it("judges the date-fallback notice on the pool, not the full vault", () => {
+    // `runStream` scans the pool twice: once for `matched`, once more for
+    // `reached`, which decides `dateFallback`. Only b.md carries a usable
+    // `dat` value, so excluding it should make every reached note fail the
+    // date-field and raise the notice — but only if that second scan also
+    // reads the pool. Left reading the full vault, b.md would resurrect
+    // itself into the judgement and the notice would stay silent.
+    const dated = [
+      note({ path: "a.md", frontmatter: { Project: "Alpha" } }),
+      note({ path: "b.md", frontmatter: { Project: "Alpha", dat: "2026-01-15" } }),
+      note({ path: "c.md", frontmatter: { Project: "Alpha" } }),
+    ];
+    const rangedQuery = parseQuery(
+      "where:\n  Project: Alpha\ndate-field: dat\nfrom: 2026-01-01\nto: 2026-01-31",
+    );
+
+    const excluded = runStream(dated, rangedQuery, new Date(), { excludePath: "b.md" });
+    expect(excluded.notices).toContainEqual({ kind: "dateFallback", field: "dat" });
+
+    const kept = runStream(dated, rangedQuery, new Date());
+    expect(kept.notices).not.toContainEqual(
+      expect.objectContaining({ kind: "dateFallback" }),
+    );
+  });
+});
+
 describe("runStream — active references", () => {
   const QUERY = "where:\n  Project: active.Project";
 

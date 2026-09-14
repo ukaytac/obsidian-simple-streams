@@ -103,6 +103,13 @@ export interface StreamOptions {
   host?: NoteMeta | null;
   /** The note the workspace is on, which `active.` references are resolved against. */
   active?: NoteMeta | null;
+  /**
+   * A path to drop from the pool before anything reads it. The sidebar passes
+   * the note it is following: `Project: active.Project` matches that note by
+   * construction, and a related-notes feed whose top result is the note already
+   * on screen is noise.
+   */
+  excludePath?: string;
 }
 
 export function runStream(
@@ -112,6 +119,14 @@ export function runStream(
   options: StreamOptions = {},
 ): StreamResult {
   const { locale } = options;
+  // Before the filter, not after the limit. Removing it later would leave
+  // `matched` and the `truncated` notice counting a note the reader is never
+  // shown — "Showing 20 of 21" over twenty results.
+  const pool =
+    options.excludePath === undefined
+      ? notes
+      : notes.filter((candidate) => candidate.path !== options.excludePath);
+
   // Before anything reads the query. A reference its scope's note cannot
   // answer stays a `ref`, which `matchesClause` refuses for every note, so the
   // rest of this function runs over an empty result and the notice below
@@ -121,7 +136,7 @@ export function runStream(
     active: options.active ?? null,
   });
 
-  const matched = filterNotes(notes, concrete, now);
+  const matched = filterNotes(pool, concrete, now);
   const shown = arrange(matched, concrete, locale).slice(0, concrete.limit);
 
   // The date-field check is judged against the notes the query reached *before*
@@ -136,7 +151,7 @@ export function runStream(
   const reached =
     unresolved.length > 0 || (concrete.from === null && concrete.to === null)
       ? matched
-      : filterNotes(notes, { ...concrete, from: null, to: null }, now);
+      : filterNotes(pool, { ...concrete, from: null, to: null }, now);
 
   const notices: StreamNotice[] = [];
 
