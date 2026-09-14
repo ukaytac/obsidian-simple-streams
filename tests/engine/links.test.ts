@@ -39,6 +39,13 @@ describe("unwrapLink", () => {
   it("trims plain text too, so callers need no second trim", () => {
     expect(unwrapLink("  My Project  ")).toBe("My Project");
   });
+
+  it("leaves empty brackets alone, by both routes that reach them", () => {
+    // `[[]]` never matches — the capture needs a character — while `[[ ]]`
+    // matches and then trims to nothing. Same answer, different paths.
+    expect(unwrapLink("[[]]")).toBe("[[]]");
+    expect(unwrapLink("[[ ]]")).toBe("[[ ]]");
+  });
 });
 
 describe("asLink", () => {
@@ -55,5 +62,10 @@ describe("asLink", () => {
   it("takes the other scalars a property can hold", () => {
     expect(asLink(5)).toBe("[[5]]");
     expect(asLink(true)).toBe("[[true]]");
+  });
+
+  it("wraps text it cannot read as a link as it stands", () => {
+    expect(asLink("![[My Project]]")).toBe("[[![[My Project]]]]");
+    expect(asLink("[[#Goals]]")).toBe("[[[[#Goals]]]]");
   });
 });

@@ -28,9 +28,9 @@ export function unwrapLink(text: string): string {
   if (match === null) {
     return trimmed;
   }
-  // Alias before heading: Obsidian writes `[[target#heading|alias]]`, so
-  // splitting on `|` first leaves `target#heading` for the `#` split. The
-  // other order would leave the alias stuck to the target.
+  // Alias and heading both come off: `[[target#heading|alias]]` names the same
+  // note as `[[target]]`. The two splits are order-independent — between them
+  // they truncate at whichever of `#` and `|` appears first.
   const target = match[1].split("|")[0].split("#")[0].trim();
   return target === "" ? trimmed : target;
 }
@@ -38,10 +38,18 @@ export function unwrapLink(text: string): string {
 /**
  * The value as exactly one wikilink.
  *
- * Unwrapped before it is wrapped, so a host property already holding a link
- * yields `[[My Project]]` rather than `[[[[My Project]]]]`. That is the common
- * case, not the edge one: a vault that stores relationships as links stores
- * them that way on the host note too.
+ * A well-formed link is unwrapped before it is wrapped, so a host property
+ * already holding one yields `[[My Project]]` rather than
+ * `[[[[My Project]]]]`. That is the common case, not the edge one: a vault
+ * that stores relationships as links stores them that way on the host note
+ * too.
+ *
+ * Text `unwrapLink` does not read as a link is wrapped as it stands, brackets
+ * and all, so `![[x]]` becomes `[[![[x]]]]` and matches nothing. An embed and
+ * a heading-only link carry no note name, so there is no right answer to give
+ * and a value that matches nothing is the honest one. Inventing a name by
+ * stripping the brackets `unwrapLink` deliberately kept would be the wrong
+ * trade: it would leave these two functions disagreeing about what a link is.
  *
  * Takes the scalars a property can hold, not just strings. `5` and `true` are
  * complete values, and a note may well be named `5`.
