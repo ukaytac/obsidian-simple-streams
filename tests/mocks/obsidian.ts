@@ -224,10 +224,96 @@ export class ItemView extends Component {
   async onClose(): Promise<void> {}
 }
 
+/**
+ * Enough of Obsidian's `TextAreaComponent` for the settings tab under test: a
+ * real `<textarea>`, so `.rows` and `.classList` behave the way they do in a
+ * real vault, `setValue`, and an `onChange` that stores its callback instead
+ * of wiring a DOM `input` listener — a test fires the stored callback
+ * directly rather than simulating a keystroke through jsdom.
+ */
+export class MockTextAreaComponent {
+  readonly inputEl: HTMLTextAreaElement;
+  private changeCallback: ((value: string) => void) | null = null;
+
+  constructor(containerEl: HTMLElement) {
+    this.inputEl = document.createElement("textarea");
+    containerEl.appendChild(this.inputEl);
+  }
+
+  setValue(value: string): this {
+    this.inputEl.value = value;
+    return this;
+  }
+
+  onChange(callback: (value: string) => void): this {
+    this.changeCallback = callback;
+    return this;
+  }
+
+  /** Fire the stored `onChange` callback, the way typing a value would. */
+  fireChange(value: string): void {
+    this.changeCallback?.(value);
+  }
+}
+
+/**
+ * Every `MockTextAreaComponent` built since the last `resetObsidianMock`, in
+ * construction order — how a test reaches the `onChange` callback a settings
+ * tab registered without holding a reference to the `Setting` that built it.
+ */
+export const textAreaComponents: MockTextAreaComponent[] = [];
+
+/**
+ * Enough of Obsidian's `Setting` for the settings tab: `setName`/`setDesc`
+ * are no-ops, and `addTextArea` actually builds a `MockTextAreaComponent` and
+ * calls back into it, so a test reaches the real `onChange` handler the tab
+ * registered rather than only proving `addTextArea` was called at all.
+ */
+export class Setting {
+  constructor(readonly containerEl: HTMLElement) {}
+
+  setName(_name: string): this {
+    return this;
+  }
+
+  setDesc(_desc: string): this {
+    return this;
+  }
+
+  addTextArea(callback: (area: MockTextAreaComponent) => void): this {
+    const area = new MockTextAreaComponent(this.containerEl);
+    textAreaComponents.push(area);
+    callback(area);
+    return this;
+  }
+}
+
+/**
+ * Obsidian's `PluginSettingTab`, to the depth a settings tab under test uses
+ * it: a container element to draw into, and the constructor's `(app, plugin)`
+ * shape. `display`/`hide` are called directly by a test, not by Obsidian.
+ */
+export class PluginSettingTab {
+  app: unknown;
+  plugin: unknown;
+  readonly containerEl: HTMLElement;
+
+  constructor(app: unknown, plugin: unknown) {
+    this.app = app;
+    this.plugin = plugin;
+    this.containerEl = document.createElement("div");
+  }
+
+  display(): void {}
+
+  hide(): void {}
+}
+
 /** Drop the state the mock accumulates. Call between tests in one file. */
 export function resetObsidianMock(): void {
   renderChildren.length = 0;
   renderCalls.length = 0;
   notices.length = 0;
   renderHook = null;
+  textAreaComponents.length = 0;
 }

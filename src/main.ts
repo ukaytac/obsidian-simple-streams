@@ -3,6 +3,7 @@ import { ActiveNoteTracker } from "./obsidian/activeNote";
 import { noteAt } from "./obsidian/adapter";
 import { StreamRegistry } from "./obsidian/registry";
 import { DEFAULT_SETTINGS, type SimpleStreamsSettings } from "./settings";
+import { SimpleStreamsSettingTab } from "./view/SettingsTab";
 import { StreamChild } from "./view/StreamChild";
 import { SIDEBAR_VIEW_TYPE, StreamSidebarView } from "./view/StreamSidebarView";
 
@@ -69,6 +70,8 @@ export default class SimpleStreamsPlugin extends Plugin {
         void this.openSidebar();
       },
     });
+
+    this.addSettingTab(new SimpleStreamsSettingTab(this.app, this));
   }
 
   onunload(): void {

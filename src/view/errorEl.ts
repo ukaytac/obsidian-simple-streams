@@ -6,10 +6,11 @@ export function renderError(container: HTMLElement, error: unknown): void {
   container.empty();
   const box = container.createDiv({ cls: "ss-error" });
   box.createDiv({ cls: "ss-error-title", text: "Simple Streams" });
-  setCodeText(box.createDiv({ cls: "ss-error-message" }), messageOf(error));
+  setCodeText(box.createDiv({ cls: "ss-error-message" }), errorMessage(error));
 }
 
-function messageOf(error: unknown): string {
+/** One line describing a failure, with a query's line number when it has one. */
+export function errorMessage(error: unknown): string {
   if (error instanceof QueryError) {
     return error.line === undefined ? error.message : `Line ${error.line}: ${error.message}`;
   }
