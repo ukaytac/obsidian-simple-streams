@@ -371,7 +371,13 @@ function describeNotice(notice: StreamNotice): string {
       // case and for a genuinely absent property alike: either way, there is
       // nothing on the note yet for the reference to match against.
       const fields = notice.fields.map((field) => `\`${field}\``).join(" or ");
-      return `This note has no usable ${fields}, so this stream matches nothing. Give it a value in the note's properties.`;
+      // Which note, in the reader's terms. In a block the note is the one they
+      // are editing; in the sidebar it is the one they are looking at, which
+      // is a different note from the one holding the query — "this note" there
+      // would send them to the settings tab.
+      const subject =
+        notice.scope === "this" ? "This note has" : "The note you are looking at has";
+      return `${subject} no usable ${fields}, so this stream matches nothing. Give it a value in the note's properties.`;
     }
     case "dateFallback":
       // "ordered and grouped by" was true only when both happened to be on.
