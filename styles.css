@@ -144,3 +144,57 @@
   font-family: var(--font-monospace, monospace);
   font-size: 0.9em;
 }
+
+/*
+ * The sidebar. `.ss-sidebar-body` is the scroller — `StreamChild.scrollerEl`
+ * looks for this class by name so the paging observer roots on the element
+ * that actually scrolls, rather than falling back to the viewport and
+ * preloading nothing.
+ */
+.ss-sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 0;
+}
+
+.ss-sidebar-header {
+  flex: 0 0 auto;
+  padding: var(--size-4-2) var(--size-4-3);
+  border-bottom: 1px solid var(--background-modifier-border);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  /* One line, whatever the note is called: a long title must not push the
+     results down or wrap the pane into a second column of chrome. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Nothing followed, so nothing to say — and no empty bordered strip either. */
+.ss-sidebar-header:empty {
+  display: none;
+}
+
+.ss-sidebar-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: var(--size-4-2) var(--size-4-3);
+}
+
+.ss-sidebar-empty {
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+
+.ss-settings-query {
+  width: 100%;
+  min-height: 8em;
+  font-family: var(--font-monospace, monospace);
+}
+
+.ss-settings-error {
+  margin-top: var(--size-2-2);
+  color: var(--text-error);
+  font-size: var(--font-ui-smaller);
+}
