@@ -190,6 +190,42 @@ a guess at which direction you meant. Month and year offsets clamp to the end of
 the target month, so one month before 31 March is 28 February in a common
 year and 29 February in a leap year.
 
+## The sidebar
+
+Simple Streams can also run one stream in a sidebar that follows whichever note
+you are looking at. Open it from the ribbon icon, or from the command palette
+with **Simple Streams: Open sidebar**.
+
+Its query lives in **Settings → Simple Streams → Sidebar query**, and it is the
+same syntax a `stream` block uses, with one addition: `active.Property` names a
+property of the note you are currently on.
+
+```yaml
+where:
+  Project: active.Project
+sort: file.mtime desc
+display: preview
+```
+
+Open a project note and the sidebar lists that project's notes; move to a client
+note and it lists that client's. Nothing has to be added to the notes
+themselves.
+
+`active.file.name`, `active.file.path`, `active.file.ctime` and
+`active.file.mtime` work too, as do the link spellings — `"[[active.Project]]"`
+for vaults that store relationships as links.
+
+**`this.` and `active.` are not interchangeable.** `this.` names the note
+holding a stream block, so it works in a block and not in the sidebar.
+`active.` names the note you are looking at, so it works in the sidebar and not
+in a block — a block's results must not change depending on which pane has
+focus. Writing either one in the wrong place is an error that names the spelling
+to use instead.
+
+The sidebar keeps following the last Markdown note when you click into the
+sidebar itself or open a PDF, and leaves the followed note out of its own
+results.
+
 ## Several streams on one page
 
 Nothing stops a note from holding as many blocks as it needs. These are all

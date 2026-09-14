@@ -118,3 +118,75 @@ nothing. Fixed with `setCodeText`, which renders the spans as `<code>`.
       stream.** Type the reference wrong on purpose —
       `where: { Project: "![[this.Project]]" }`. The block shows an error
       naming the problem, not an empty stream.
+
+## The sidebar
+
+Set the sidebar's query, in **Settings → Simple Streams → Sidebar query**, to:
+
+```yaml
+where:
+  Project: active.Project
+sort: file.mtime desc
+display: preview
+```
+
+- [ ] **Follows.** Open a note with `Project: Alpha`. Open the sidebar. It
+      lists the other Alpha notes, header reads `Following: <that note>`, and
+      the note itself is not in the list.
+- [ ] **Moves.** Open a note with `Project: Beta`. The list and the header both
+      change.
+- [ ] **Sticks on focus.** Click into the sidebar and scroll it. The list does
+      not change or reset. Open a PDF. Still unchanged.
+- [ ] **Sticks across panes.** Split the pane and click between two notes. The
+      sidebar follows each click.
+- [ ] **Empties.** Close every note. The sidebar reads "Open a note to see
+      related notes."
+- [ ] **Follows an edit.** With a note followed, change its `Project` in the
+      Properties panel. Within a moment the list changes to the new project.
+- [ ] **Renames.** Rename the followed note. The header shows the new title,
+      the list is unchanged, and the renamed note itself does not appear in
+      its own list.
+- [ ] **Deletes.** Delete the followed note. The sidebar falls back to another
+      open note, or to the empty state.
+- [ ] **Says what is missing.** Open a note with no `Project`. The sidebar
+      shows "The note you are looking at has no usable Project…".
+- [ ] **Refuses the wrong scope.** Put `Project: this.Project` in the sidebar
+      query — the pane shows an error naming `active.Project`. Put
+      `Project: active.Project` in a `stream` block in a note — the block
+      shows an error naming `this.Project`.
+- [ ] **Settings do not flicker.** Type a query slowly in settings. The error
+      line under the field updates as you type; the sidebar redraws only once
+      you pause.
+- [ ] **Pages.** Point it at a project with more than 20 notes and scroll the
+      sidebar to the bottom. More load, and they load before you reach the
+      end.
+
+### Open questions this pass must settle
+
+These four did not come from the plan. Each is a real unknown raised in code
+review, not a formality expected to pass — settle them by hand and report the
+actual answer, including the bad one.
+
+- **Does closing the last note really empty the sidebar?** Check "Empties"
+  above assumes it does. The sidebar's third fallback rule reads
+  `workspace.getActiveFile()`, and Obsidian's own type docs describe that as
+  returning "the most recently active file" when the current view is not a
+  file view — which may mean it keeps naming a note that has just been closed.
+  If the sidebar does not reach its empty state, that rule is resurrecting a
+  closed note and needs narrowing.
+- **What happens to an open sidebar when the plugin is disabled and
+  re-enabled?** `onunload` deliberately does not detach the sidebar's leaves,
+  because Obsidian's plugin guidelines advise against detaching on unload — it
+  would destroy the reader's layout on every plugin update. The cost may be a
+  stale pane surviving a disable. Report what actually happens: a clean
+  recovery, a frozen pane, or an error.
+- **Does the empty state show a bare bordered strip above it?** The header is
+  hidden by a `.ss-sidebar-header:empty` CSS rule, which only matches if
+  `setText("")` leaves no text node behind. That is true in the test harness;
+  it is unverified in a real vault. If a thin empty bordered strip appears
+  above "Open a note to see related notes.", the rule is not matching.
+- **Does the paging preload actually work in the sidebar?** "Pages" above
+  covers the visible half. The specific thing to watch is whether the next
+  page loads *before* you reach the bottom, which is what confirms the
+  `IntersectionObserver` rooted on `.ss-sidebar-body` rather than falling back
+  to the viewport.

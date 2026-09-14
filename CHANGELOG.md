@@ -2,6 +2,18 @@
 
 The text of each GitHub release is taken from here.
 
+## [Unreleased]
+
+### Added
+
+- A sidebar view that follows the active Markdown note, opened from the ribbon
+  or the **Simple Streams: Open sidebar** command. Its query lives in settings.
+- `active.Property` references, naming a property of the note you are looking
+  at. They work in the sidebar; `this.Property` continues to name the note
+  holding a stream block, and works in a block. Either one in the wrong place is
+  an error naming the spelling to use instead.
+- The sidebar leaves the note it is following out of its own results.
+
 ## 1.2.0
 
 Vaults that keep relationships as links now work. Obsidian hands a plugin your
