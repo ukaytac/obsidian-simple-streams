@@ -66,9 +66,10 @@ leaving you to find it in a permissions list.
 - **It reads note bodies only to draw them.** `vault.cachedRead`, and only for
   the items a stream actually renders — bounded by the query's `limit` and, for
   a long stream, by how far you have scrolled.
-- **It never writes.** No note is created, edited, renamed or deleted. It
-  subscribes to those events to know when to re-run a query; it does not cause
-  them. The plugin stores no settings of its own.
+- **It never writes to your notes.** None is created, edited, renamed or
+  deleted. It subscribes to those events to know when to re-run a query; it does
+  not cause them. The one thing it does write is its own settings file — the
+  sidebar query, in `data.json` inside the plugin's folder in your vault.
 - **It never talks to the network.** There is no `fetch`, no `requestUrl`, and
   no dependency that makes one. Nothing about your vault leaves your machine.
 

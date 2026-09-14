@@ -4,6 +4,28 @@ The text of each GitHub release is taken from here.
 
 ## [Unreleased]
 
+## 1.3.0
+
+A stream no longer has to live in a note. This release adds a sidebar that runs
+one query beside whatever you are reading and re-runs it as you move, so a
+related-notes feed no longer costs a block in every note that wants one.
+
+The query is held in settings and may name properties of the note you are
+looking at: `where: {Project: active.Project}` beside a project note lists that
+project's notes, and beside a client note lists that client's. Nothing is added
+to the notes themselves, and the note being followed is left out of its own
+feed.
+
+**Installing or updating:** put `main.js`, `manifest.json` and `styles.css` from
+below into `<your vault>/.obsidian/plugins/simple-streams/`, replacing the files
+already there, and reload Obsidian. Requires Obsidian 1.5.7 or newer. Every
+existing block keeps working unchanged: the sidebar is an addition, and
+`this.Property` in a block means exactly what it meant before.
+
+This is also the first version that stores anything. The sidebar query lives in
+the plugin's own `data.json`, inside its folder in your vault. Nothing else is
+written, and nothing leaves your machine.
+
 ### Added
 
 - A sidebar view that follows the active Markdown note, opened from the **Show

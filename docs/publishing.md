@@ -87,9 +87,11 @@ answerable is the shape of the access, so lead with that:
 - Everything read per note — path, name, tags, frontmatter, timestamps — is
   already in the metadata cache; the plugin adds no scanning of its own.
 - Bodies are read only for rendered items, through `vault.cachedRead`.
-- No writes, no stored settings, no network. The claim is checkable in one
-  command: `grep -rn "fetch\|requestUrl\|vault.modify\|saveData" src/` returns
-  nothing.
+- No writes to the vault's notes, and no network. The claim is checkable in one
+  command: `grep -rn "fetch\|requestUrl\|vault.modify\|vault.create\|vault.delete" src/`
+  returns nothing. `saveData` is the one exception and is not a vault write: it
+  is Obsidian's own per-plugin settings store, and holds the single sidebar
+  query.
 
 The same four points are in the README under "What it reads, and what it never
 does", so a user deciding whether to install sees them without reading the
