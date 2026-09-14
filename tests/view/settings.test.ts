@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import type { App } from "obsidian";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type SimpleStreamsPlugin from "../../src/main";
+import { DEBOUNCE_MS } from "../../src/obsidian/registry";
 import { SimpleStreamsSettingTab, validateSidebarQuery } from "../../src/view/SettingsTab";
 import { resetObsidianMock, textAreaComponents } from "../mocks/obsidian";
 import "./harness";
@@ -55,6 +56,13 @@ describe("SimpleStreamsSettingTab", () => {
     resetObsidianMock();
   });
 
+  // Real timers, restored unconditionally even if a test above fails an
+  // assertion mid-run: `vi.useFakeTimers()` otherwise leaks into whichever
+  // test in this file runs next.
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("saves an invalid query immediately but only schedules the rebuild", () => {
     const plugin = new FakePlugin();
     const tab = new SimpleStreamsSettingTab(
@@ -78,5 +86,56 @@ describe("SimpleStreamsSettingTab", () => {
     // Not rebuilt yet: the rebuild is debounced on `DEBOUNCE_MS`, and no time
     // has passed since the keystroke.
     expect(plugin.rebuildCalls).toBe(0);
+  });
+
+  it("fires the scheduled rebuild once the debounce elapses", () => {
+    vi.useFakeTimers();
+
+    const plugin = new FakePlugin();
+    const tab = new SimpleStreamsSettingTab(
+      {} as unknown as App,
+      plugin as unknown as SimpleStreamsPlugin,
+    );
+
+    tab.display();
+    const area = textAreaComponents[textAreaComponents.length - 1];
+    area.fireChange("limit: lots");
+
+    // Still nothing before the debounce elapses — the companion to the test
+    // above, carried out to the far side of the timer instead of stopping
+    // short of it.
+    expect(plugin.rebuildCalls).toBe(0);
+
+    vi.advanceTimersByTime(DEBOUNCE_MS);
+
+    expect(plugin.rebuildCalls).toBe(1);
+  });
+
+  it("flushes a pending edit immediately when the tab closes, and does not rebuild a second time once the debounce would have fired", () => {
+    vi.useFakeTimers();
+
+    const plugin = new FakePlugin();
+    const tab = new SimpleStreamsSettingTab(
+      {} as unknown as App,
+      plugin as unknown as SimpleStreamsPlugin,
+    );
+
+    tab.display();
+    const area = textAreaComponents[textAreaComponents.length - 1];
+    area.fireChange("limit: lots");
+
+    // The reader closes the tab before the debounce has a chance to fire on
+    // its own, so `hide()` is the only thing standing between this edit and
+    // being lost.
+    tab.hide();
+
+    expect(plugin.rebuildCalls).toBe(1);
+
+    // The pending timer has to be cleared, not merely beaten to the punch: if
+    // `hide()` rebuilt without cancelling it, the original timer would still
+    // fire here and double the rebuild.
+    vi.advanceTimersByTime(DEBOUNCE_MS);
+
+    expect(plugin.rebuildCalls).toBe(1);
   });
 });
