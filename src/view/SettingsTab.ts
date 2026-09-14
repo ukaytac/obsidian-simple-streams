@@ -26,15 +26,25 @@ export function validateSidebarQuery(source: string): string | null {
  *
  * Obsidian's own typings call `display()` "a fallback for plugins that need to
  * support Obsidian versions older than 1.13.0", which is this plugin exactly:
- * the manifest promises 1.5.7. Adopting the declarative API would put
+ * the manifest promises 1.7.2. Adopting the declarative API would put
  * `SettingDefinitionItem` — a type that does not exist before 1.13.0 — in
  * `src/`, and `npm run check:floor` type-checks `src/` against the typings for
- * the version the manifest promises, so it would fail. The two are not
- * reconcilable while the floor stands where it does.
+ * the version the manifest promises, so it would fail.
  *
- * What that costs: on 1.13.0 and later these two settings do not appear in
- * Obsidian's settings search. Worth revisiting the moment `minAppVersion`
- * reaches 1.13.0, and not before.
+ * Raising the floor again is not the answer it was for `revealLeaf`. That move
+ * cost users on versions roughly two years old and bought a correctness fix.
+ * This one would cost everyone who has not updated in the last few months —
+ * 1.13.0 is one minor behind current — and buy a search index entry.
+ *
+ * Nor is declaring the shape by hand. `getSettingDefinitions` is called by
+ * name at runtime, so a locally typed copy would work and would satisfy the
+ * linter, but it means maintaining a mirror of somebody else's type surface
+ * that nothing checks against the original.
+ *
+ * What the choice costs: on 1.13.0 and later these two settings do not appear
+ * in Obsidian's settings search. The tab itself is still listed and still
+ * opens. Worth revisiting the day `minAppVersion` reaches 1.13.0 for a reason
+ * of its own, and not before.
  */
 export class SimpleStreamsSettingTab extends PluginSettingTab {
   private readonly plugin: SimpleStreamsPlugin;
