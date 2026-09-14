@@ -187,4 +187,13 @@ describe("matchesClause — link-valued properties", () => {
     expect(matchesClause(n, condition('where:\n  Project: "!=My Project"'))).toBe(false);
     expect(matchesClause(n, condition('where:\n  Project: "!=Other Project"'))).toBe(true);
   });
+
+  it("orders link values by the note they name", () => {
+    // `>` and friends share compareOrder with `!=`, so they reduce links too.
+    // Raw, `[` precedes every letter, so every link would sort ahead of every
+    // plain name and this would come out the other way round.
+    const zebra = note({ frontmatter: { Project: "[[Zebra]]" } });
+    expect(matchesClause(zebra, condition('where:\n  Project: ">Apple"'))).toBe(true);
+    expect(matchesClause(zebra, condition('where:\n  Project: "<Apple"'))).toBe(false);
+  });
 });

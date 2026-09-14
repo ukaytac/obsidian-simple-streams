@@ -191,8 +191,12 @@ function compareOrder(left: unknown, operand: string): number {
   // The same reduction `scalarEquals` makes, so `!=` answers the question `=`
   // answers. Left as raw text, `!=` would call a note holding `My Project`
   // different from one holding `[[My Project]]` while `=` called them the
-  // same — an inconsistency, not a second opinion. The number and date
-  // branches above are untouched: a wikilink is neither.
+  // same — an inconsistency, not a second opinion.
+  //
+  // `>`, `>=`, `<` and `<=` come through here too, and want the same answer:
+  // raw, `[` precedes every letter, so every link would sort ahead of every
+  // plain name. The number and date branches above are untouched: a wikilink
+  // is neither.
   return unwrapLink(String(left)).toLowerCase().localeCompare(unwrapLink(operand).toLowerCase());
 }
 
