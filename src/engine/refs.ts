@@ -1,5 +1,6 @@
 import { isoDateString } from "./dates";
 import { resolveField } from "./fields";
+import { asLink } from "./links";
 import type { NoteMeta } from "./note";
 import type { StreamQuery, WhereCondition } from "../query/types";
 
@@ -34,7 +35,7 @@ export function resolveRefs(query: StreamQuery, host: NoteMeta | null): Resoluti
     if (clause.condition.kind !== "ref") {
       return clause;
     }
-    const resolved = resolveCondition(clause.condition.field, host);
+    const resolved = resolveCondition(clause.condition.field, host, clause.condition.link);
     if (resolved === null) {
       unresolved.push(clause.condition.field);
       return clause;
@@ -48,7 +49,11 @@ export function resolveRefs(query: StreamQuery, host: NoteMeta | null): Resoluti
 }
 
 /** The condition a host field yields, or null when it yields nothing usable. */
-function resolveCondition(field: string, host: NoteMeta | null): WhereCondition | null {
+function resolveCondition(
+  field: string,
+  host: NoteMeta | null,
+  link: boolean,
+): WhereCondition | null {
   if (host === null) {
     return null;
   }
@@ -60,11 +65,25 @@ function resolveCondition(field: string, host: NoteMeta | null): WhereCondition 
     // A list is any-of, matching what writing the list out by hand means. A
     // nested list or map inside it has no scalar to compare against, so it is
     // dropped; a list of nothing but those leaves nothing to match on.
-    const values = raw.map(dateAware).filter(isUsable);
+    const values = raw.map(dateAware).filter(isUsable).map((value) => wrap(value, link));
     return values.length === 0 ? null : { kind: "anyOf", values };
   }
   const value = dateAware(raw);
-  return isUsable(value) ? { kind: "equals", value } : null;
+  return isUsable(value) ? { kind: "equals", value: wrap(value, link) } : null;
+}
+
+/**
+ * A value written back in the spelling the reader asked for. `asLink` unwraps
+ * before it wraps, so a host property that already holds a link resolves to one
+ * link rather than to `[[[[My Project]]]]` — the common case, since a vault
+ * that stores relationships as links stores them that way on the host note too.
+ *
+ * Runs after `isUsable`, never before: a blank or absent property is
+ * unresolved, and wrapping first would turn it into `[[]]`, a condition that
+ * matches nothing while claiming to have been answered.
+ */
+function wrap(value: string | number | boolean, link: boolean): string | number | boolean {
+  return link ? asLink(value) : value;
 }
 
 /**

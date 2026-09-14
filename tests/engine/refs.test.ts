@@ -118,3 +118,61 @@ describe("resolveRefs", () => {
     expect(resolved.unresolved).toEqual([]);
   });
 });
+
+const LINK_REF = 'where:\n  Project: "[[this.Project]]"';
+
+describe("resolveRefs — a link reference", () => {
+  it("wraps a plain host value", () => {
+    const host = note({ frontmatter: { Project: "My Project" } });
+    expect(conditionOf(LINK_REF, host)).toEqual({ kind: "equals", value: "[[My Project]]" });
+  });
+
+  it("unwraps before it wraps, so a host link yields one link", () => {
+    const host = note({ frontmatter: { Project: "[[My Project]]" } });
+    expect(conditionOf(LINK_REF, host)).toEqual({ kind: "equals", value: "[[My Project]]" });
+  });
+
+  it("drops an alias the host wrote", () => {
+    const host = note({ frontmatter: { Project: "[[My Project|MP]]" } });
+    expect(conditionOf(LINK_REF, host)).toEqual({ kind: "equals", value: "[[My Project]]" });
+  });
+
+  it("wraps every member of a list", () => {
+    const host = note({ frontmatter: { Project: ["Alpha", "[[Beta]]"] } });
+    expect(conditionOf(LINK_REF, host)).toEqual({
+      kind: "anyOf",
+      values: ["[[Alpha]]", "[[Beta]]"],
+    });
+  });
+
+  it("wraps a date after converting it, so daily-note links work", () => {
+    const host = note({ frontmatter: { Project: new Date(2026, 8, 14) } });
+    expect(conditionOf(LINK_REF, host)).toEqual({ kind: "equals", value: "[[2026-09-14]]" });
+  });
+
+  it("wraps the host note's own name", () => {
+    const host = note({ path: "Projects/Orbit.md" });
+    expect(conditionOf('where:\n  Parent: "[[this.file.name]]"', host)).toEqual({
+      kind: "equals",
+      value: "[[Orbit]]",
+    });
+  });
+
+  it("leaves a blank host property unresolved rather than wrapping nothing", () => {
+    const host = note({ frontmatter: { Project: "   " } });
+    expect(conditionOf(LINK_REF, host)).toEqual({
+      kind: "ref",
+      field: "Project",
+      link: true,
+    });
+  });
+
+  it("leaves an absent host property unresolved", () => {
+    const host = note({ frontmatter: {} });
+    expect(conditionOf(LINK_REF, host)).toEqual({
+      kind: "ref",
+      field: "Project",
+      link: true,
+    });
+  });
+});
