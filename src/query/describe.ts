@@ -59,11 +59,17 @@ function describeCondition(condition: WhereCondition): string {
       return "missing";
     case "compare":
       return `${condition.op} ${condition.operand}`;
-    case "ref":
+    case "ref": {
       // Only an *unresolved* reference reaches here: `runStream` hands the
       // view its resolved query, where an answered reference is already an
       // `equals` or an `anyOf` printing the host note's real value.
-      return `= this.${condition.field} (not set here)`;
+      //
+      // Echoed in the spelling the reader used. The line's whole job is
+      // pointing at the block, and pointing at a `this.Project` that the block
+      // spells `[[this.Project]]` makes the reader hunt for a second condition.
+      const written = condition.link ? `[[this.${condition.field}]]` : `this.${condition.field}`;
+      return `= ${written} (not set here)`;
+    }
   }
 }
 

@@ -70,4 +70,14 @@ describe("describeQuery — an unresolved reference", () => {
     };
     expect(describeQuery(query)).toContain("Project = this.Project (not set here)");
   });
+
+  it("prints a link reference in the spelling it was written in", () => {
+    const query = {
+      ...defaultQuery(),
+      where: [
+        { field: "Project", condition: { kind: "ref" as const, field: "Project", link: true } },
+      ],
+    };
+    expect(describeQuery(query)).toContain("Project = [[this.Project]] (not set here)");
+  });
 });
