@@ -92,6 +92,17 @@ export class StreamSidebarView extends ItemView {
 
     const file = this.followed;
     if (file === null) {
+      // Hidden via the `hidden` property rather than a `.ss-sidebar-header:empty`
+      // CSS rule keyed off `setText("")`: `:empty` only matches an element with
+      // no child nodes at all, and `obsidian` ships only type declarations in
+      // this repo, no runtime, so whether its real `setText` clears the element
+      // outright or does something like `empty(); appendChild(textNode)` can't
+      // be verified here. If it's the latter, `setText("")` leaves an empty text
+      // node behind, `:empty` stops matching, and a bare bordered strip appears
+      // above "Open a note to see related notes." on every first run — fresh
+      // install, no note open yet. Setting `hidden` directly does not depend on
+      // that guess.
+      header.hidden = true;
       header.setText("");
       body.createDiv({
         cls: "ss-sidebar-empty",
@@ -100,6 +111,7 @@ export class StreamSidebarView extends ItemView {
       return;
     }
 
+    header.hidden = false;
     header.setText(`Following: ${file.basename}`);
 
     // `sourcePath` and `excludePath` below are `file.path` captured by value,

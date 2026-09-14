@@ -158,6 +158,11 @@
   padding: 0;
 }
 
+/*
+ * Nothing sets `display` on this element: hiding it when nothing is followed
+ * is done in StreamSidebarView by setting the `hidden` property directly, and
+ * the UA `[hidden] { display: none }` rule needs nothing here to win.
+ */
 .ss-sidebar-header {
   flex: 0 0 auto;
   padding: var(--size-4-2) var(--size-4-3);
@@ -169,11 +174,6 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-/* Nothing followed, so nothing to say — and no empty bordered strip either. */
-.ss-sidebar-header:empty {
-  display: none;
 }
 
 .ss-sidebar-body {

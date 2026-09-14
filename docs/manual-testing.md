@@ -139,10 +139,22 @@ display: preview
       not change or reset. Open a PDF. Still unchanged.
 - [ ] **Sticks across panes.** Split the pane and click between two notes. The
       sidebar follows each click.
+- [ ] **Two sidebars at once.** Open a second Simple Streams pane (drag one
+      into a new split, or run the command again) so two are visible together.
+      Click into a different note in each pane's area. Each sidebar's header
+      and list follow only the note last active for that pane — editing a
+      property that changes one sidebar's list does not redraw, flicker, or
+      clear the other, and closing one sidebar leaves the other running.
 - [ ] **Empties.** Close every note. The sidebar reads "Open a note to see
       related notes."
 - [ ] **Follows an edit.** With a note followed, change its `Project` in the
       Properties panel. Within a moment the list changes to the new project.
+- [ ] **Cross-note refresh.** With a note followed, open a *different*,
+      unfollowed note that does not currently appear in the sidebar's list and
+      change its `Project` to match the followed note's project. Within a
+      moment it appears in the list — without ever touching the followed note
+      itself. Change that other note's `Project` again so it no longer
+      matches; within a moment it drops back out.
 - [ ] **Renames.** Rename the followed note. The header shows the new title,
       the list is unchanged, and the renamed note itself does not appear in
       its own list.
@@ -163,7 +175,7 @@ display: preview
 
 ### Open questions this pass must settle
 
-These four did not come from the plan. Each is a real unknown raised in code
+These three did not come from the plan. Each is a real unknown raised in code
 review, not a formality expected to pass — settle them by hand and report the
 actual answer, including the bad one.
 
@@ -180,11 +192,6 @@ actual answer, including the bad one.
   would destroy the reader's layout on every plugin update. The cost may be a
   stale pane surviving a disable. Report what actually happens: a clean
   recovery, a frozen pane, or an error.
-- **Does the empty state show a bare bordered strip above it?** The header is
-  hidden by a `.ss-sidebar-header:empty` CSS rule, which only matches if
-  `setText("")` leaves no text node behind. That is true in the test harness;
-  it is unverified in a real vault. If a thin empty bordered strip appears
-  above "Open a note to see related notes.", the rule is not matching.
 - **Does the paging preload actually work in the sidebar?** "Pages" above
   covers the visible half. The specific thing to watch is whether the next
   page loads *before* you reach the bottom, which is what confirms the

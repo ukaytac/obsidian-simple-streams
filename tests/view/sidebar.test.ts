@@ -43,6 +43,14 @@ function noticeText(view: StreamSidebarView): string | null {
   return view.contentEl.querySelector(".ss-notice")?.textContent ?? null;
 }
 
+function headerHidden(view: StreamSidebarView): boolean {
+  const el = view.contentEl.querySelector(".ss-sidebar-header");
+  if (el === null) {
+    throw new Error("no .ss-sidebar-header in the DOM");
+  }
+  return (el as HTMLElement).hidden;
+}
+
 /**
  * How many streams a registry is still holding. `StreamRegistry` has no
  * public way to ask this — `register`/`unregister` are its whole surface —
@@ -78,6 +86,26 @@ describe("the sidebar", () => {
       "Open a note to see related notes.",
     );
     expect(headerText(view)).toBe("");
+  });
+
+  test("hides the header explicitly rather than relying on it being empty", async () => {
+    // Pins Finding 1: the header must be hidden through its own `hidden`
+    // property, not through a `.ss-sidebar-header:empty` CSS rule keyed off
+    // `setText("")` leaving no child nodes — behavior of Obsidian's real
+    // `setText` this repo cannot verify, since `obsidian` ships only type
+    // declarations here, no runtime.
+    const vault = vaultWith({ Project: "Alpha" });
+    view = mount(vault);
+    await view.onOpen();
+    await settle();
+
+    expect(headerHidden(view)).toBe(true);
+
+    view.follow(fileAt(vault, "Active.md"));
+    await settle();
+
+    expect(headerHidden(view)).toBe(false);
+    expect(headerText(view)).toBe("Following: Active");
   });
 
   test("shows the notes sharing the followed note's project", async () => {
