@@ -32,9 +32,32 @@ export class SimpleStreamsSettingTab extends PluginSettingTab {
   display(): void {
     this.containerEl.empty();
 
+    new Setting(this.containerEl)
+      .setName("Show sidebar")
+      .setDesc("Open the stream sidebar in the right split.")
+      .addToggle((toggle) => {
+        // Read off the workspace rather than out of a stored boolean. Obsidian
+        // draws this screen as a modal, so nothing can open or close a leaf
+        // while it is up, and an answer taken from the leaves themselves
+        // cannot drift from them the way a saved `true` does the moment the
+        // reader closes the pane by its tab.
+        toggle.setValue(this.plugin.hasSidebar());
+        toggle.onChange((value) => {
+          if (value) {
+            void this.plugin.openSidebar();
+          } else {
+            this.plugin.closeSidebar();
+          }
+        });
+      });
+
     let errorEl: HTMLElement | null = null;
 
     new Setting(this.containerEl)
+      // Drops the row to `display: block`, which puts the field under the
+      // description at full width instead of into the narrow control column,
+      // where a four-line query wraps into eleven fragments.
+      .setClass("ss-settings-query-item")
       .setName("Sidebar query")
       .setDesc(
         "The stream the sidebar shows, in the same syntax a `stream` block uses. Use active.Property to name a property of the note you are looking at.",

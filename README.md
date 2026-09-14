@@ -193,10 +193,10 @@ year and 29 February in a leap year.
 ## The sidebar
 
 Simple Streams can also run one stream in a sidebar that follows whichever note
-you are looking at. Open it from the ribbon icon, or from the command palette
-with **Simple Streams: Open sidebar**.
+you are looking at. Turn it on with **Settings → Simple Streams → Show
+sidebar**, or from the command palette with **Simple Streams: Open sidebar**.
 
-Its query lives in **Settings → Simple Streams → Sidebar query**, and it is the
+Its query lives just below that toggle, in **Sidebar query**, and it is the
 same syntax a `stream` block uses, with one addition: `active.Property` names a
 property of the note you are currently on.
 

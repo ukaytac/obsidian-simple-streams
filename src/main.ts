@@ -60,9 +60,6 @@ export default class SimpleStreamsPlugin extends Plugin {
     // a note that is plainly on screen.
     this.app.workspace.onLayoutReady(() => tracker.sync());
 
-    this.addRibbonIcon("layers", "Open Simple Streams sidebar", () => {
-      void this.openSidebar();
-    });
     this.addCommand({
       id: "open-sidebar",
       name: "Open sidebar",
@@ -102,8 +99,13 @@ export default class SimpleStreamsPlugin extends Plugin {
       .filter((view): view is StreamSidebarView => view instanceof StreamSidebarView);
   }
 
+  /** Whether a sidebar is on screen. What the settings toggle reads. */
+  hasSidebar(): boolean {
+    return this.sidebars().length > 0;
+  }
+
   /** Reveal the sidebar, opening it in the right split if it is not there. */
-  private async openSidebar(): Promise<void> {
+  async openSidebar(): Promise<void> {
     const existing = this.app.workspace.getLeavesOfType(SIDEBAR_VIEW_TYPE);
     const leaf: WorkspaceLeaf | null = existing[0] ?? this.app.workspace.getRightLeaf(false);
     if (leaf === null) {
@@ -117,5 +119,10 @@ export default class SimpleStreamsPlugin extends Plugin {
       view.follow(this.tracker?.current() ?? null);
     }
     await this.app.workspace.revealLeaf(leaf);
+  }
+
+  /** Close every sidebar. The other half of the settings toggle. */
+  closeSidebar(): void {
+    this.app.workspace.detachLeavesOfType(SIDEBAR_VIEW_TYPE);
   }
 }

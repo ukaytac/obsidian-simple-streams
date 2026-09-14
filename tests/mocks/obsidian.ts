@@ -264,13 +264,53 @@ export class MockTextAreaComponent {
 export const textAreaComponents: MockTextAreaComponent[] = [];
 
 /**
+ * Enough of Obsidian's `ToggleComponent` for the settings tab: a boolean and
+ * an `onChange` stored rather than wired to a DOM event, on the same shape as
+ * `MockTextAreaComponent` above — a test flips it by calling `fireChange`.
+ */
+export class MockToggleComponent {
+  value = false;
+  private changeCallback: ((value: boolean) => void) | null = null;
+
+  setValue(value: boolean): this {
+    this.value = value;
+    return this;
+  }
+
+  onChange(callback: (value: boolean) => void): this {
+    this.changeCallback = callback;
+    return this;
+  }
+
+  /** Fire the stored `onChange`, the way clicking the toggle would. */
+  fireChange(value: boolean): void {
+    this.value = value;
+    this.changeCallback?.(value);
+  }
+}
+
+/** Every `MockToggleComponent` built since the last `resetObsidianMock`. */
+export const toggleComponents: MockToggleComponent[] = [];
+
+/**
  * Enough of Obsidian's `Setting` for the settings tab: `setName`/`setDesc`
- * are no-ops, and `addTextArea` actually builds a `MockTextAreaComponent` and
- * calls back into it, so a test reaches the real `onChange` handler the tab
- * registered rather than only proving `addTextArea` was called at all.
+ * are no-ops, and `addTextArea`/`addToggle` actually build a component and
+ * call back into it, so a test reaches the real `onChange` handler the tab
+ * registered rather than only proving the method was called at all.
+ *
+ * `settingEl` and `controlEl` exist because `setClass` writes to the first and
+ * the layout the tab asks for is read off the second. The real `Setting` nests
+ * them the same way, so a class the tab sets lands on the element the
+ * stylesheet names.
  */
 export class Setting {
-  constructor(readonly containerEl: HTMLElement) {}
+  readonly settingEl: HTMLElement;
+  readonly controlEl: HTMLElement;
+
+  constructor(readonly containerEl: HTMLElement) {
+    this.settingEl = containerEl.createDiv({ cls: "setting-item" });
+    this.controlEl = this.settingEl.createDiv({ cls: "setting-item-control" });
+  }
 
   setName(_name: string): this {
     return this;
@@ -280,10 +320,22 @@ export class Setting {
     return this;
   }
 
+  setClass(cls: string): this {
+    this.settingEl.classList.add(cls);
+    return this;
+  }
+
   addTextArea(callback: (area: MockTextAreaComponent) => void): this {
-    const area = new MockTextAreaComponent(this.containerEl);
+    const area = new MockTextAreaComponent(this.controlEl);
     textAreaComponents.push(area);
     callback(area);
+    return this;
+  }
+
+  addToggle(callback: (toggle: MockToggleComponent) => void): this {
+    const toggle = new MockToggleComponent();
+    toggleComponents.push(toggle);
+    callback(toggle);
     return this;
   }
 }
@@ -316,4 +368,5 @@ export function resetObsidianMock(): void {
   notices.length = 0;
   renderHook = null;
   textAreaComponents.length = 0;
+  toggleComponents.length = 0;
 }

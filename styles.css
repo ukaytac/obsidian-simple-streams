@@ -187,10 +187,29 @@
   font-size: var(--font-ui-small);
 }
 
+/*
+ * The query setting, stacked rather than in a row. Obsidian lays a setting out
+ * as name and description on the left, control on the right, which leaves a
+ * multi-line query a few characters wide and breaks it mid-word. `block` puts
+ * the control on its own line under the description, where it can have the
+ * whole width.
+ */
+.ss-settings-query-item {
+  display: block;
+}
+
+.ss-settings-query-item .setting-item-control {
+  width: 100%;
+  padding-top: var(--size-4-2);
+}
+
 .ss-settings-query {
   width: 100%;
   min-height: 8em;
   font-family: var(--font-monospace, monospace);
+  /* Taller when a query outgrows ten rows; not wider, which would push it past
+     the settings pane. */
+  resize: vertical;
 }
 
 .ss-settings-error {
