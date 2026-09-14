@@ -205,12 +205,30 @@ describe("parseQuery — where", () => {
     expect(() => whereOf('where:\n  Project: "[[[[this.Project]]]]"')).toThrow(
       /has to be the whole value/,
     );
+    expect(() => whereOf('where:\n  Project: "[[this .Project]]"')).toThrow(
+      /has to be the whole value/,
+    );
+    expect(() => whereOf('where:\n  Project: "[ [this.Project]]"')).toThrow(
+      /has to be the whole value/,
+    );
   });
 
   it("still reports a comparison operand as a comparison problem", () => {
     // The near-miss guard sits after the comparison branch so this keeps its
     // own, more specific message.
     expect(() => whereOf('where:\n  date: ">[[this.start]]"')).toThrow(/cannot compare against/);
+  });
+
+  it("rejects a near miss as a comparison operand too", () => {
+    // The operand gate asks the same two questions the value gate does; a near
+    // miss here used to become a literal comparison value, silently.
+    expect(() => whereOf('where:\n  date: ">[[this.start]]extra"')).toThrow(
+      /cannot compare against/,
+    );
+    expect(() => whereOf('where:\n  date: ">![[this.start]]"')).toThrow(/cannot compare against/);
+    expect(() => whereOf('where:\n  date: ">=[[[[this.start]]]]"')).toThrow(
+      /cannot compare against/,
+    );
   });
 
   it("rejects a near miss inside a list too", () => {
@@ -222,6 +240,13 @@ describe("parseQuery — where", () => {
   it("does not trip the near-miss guard on ordinary text containing the word this", () => {
     expect(whereOf('where:\n  Note: "read this. then that"')).toEqual([
       { field: "Note", condition: { kind: "equals", value: "read this. then that" } },
+    ]);
+  });
+
+  it("leaves a single-bracketed value alone, the near miss guard needing two", () => {
+    // Quoted: unquoted `[this.Project]` is a YAML flow sequence, not a string.
+    expect(whereOf('where:\n  Project: "[this.Project]"')).toEqual([
+      { field: "Project", condition: { kind: "equals", value: "[this.Project]" } },
     ]);
   });
 });

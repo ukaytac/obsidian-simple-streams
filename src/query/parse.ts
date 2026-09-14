@@ -319,9 +319,11 @@ function isThisRef(text: string): boolean {
  * equality against its own literal text — no match, no error, the silent empty
  * stream this file exists to prevent, in the syntax it has just gained. Nobody
  * writes `[[this.` meaning those characters, so the near miss is worth a
- * sentence rather than a shrug.
+ * sentence rather than a shrug. Whitespace is tolerated at each join — a space
+ * inside the brackets or before the dot is a typo reaching for the same thing,
+ * not a different value.
  */
-const NEAR_LINK_REF = /\[\[\s*this\./i;
+const NEAR_LINK_REF = /\[\s*\[\s*this\s*\./i;
 
 function parseWhere(value: unknown): WhereClause[] {
   if (value === null || value === undefined) {
@@ -404,7 +406,7 @@ function parseCondition(field: string, raw: unknown): WhereCondition {
           `\`where.${field}\` has the operator \`${comparison[1]}\` with nothing to compare against`,
         );
       }
-      if (isThisRef(operand)) {
+      if (isThisRef(operand) || NEAR_LINK_REF.test(operand)) {
         throw new QueryError(
           `\`where.${field}\` cannot compare against \`${operand}\`. A \`this.\` reference has to be the whole condition.`,
         );
