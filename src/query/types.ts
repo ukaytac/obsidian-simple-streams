@@ -16,6 +16,15 @@ export type TitleMatcher =
   | { kind: "text"; value: string }
   | { kind: "regex"; source: string; flags: string };
 
+/**
+ * Which note a `ref` condition names. `this` is the note holding the stream
+ * block; `active` is the note the workspace is on, which only the sidebar
+ * follows. One list, and the type derived from it, as `DISPLAY_MODES` already
+ * is.
+ */
+export const REF_SCOPES = ["this", "active"] as const;
+export type RefScope = (typeof REF_SCOPES)[number];
+
 export type WhereCondition =
   | { kind: "equals"; value: string | number | boolean }
   | { kind: "anyOf"; values: Array<string | number | boolean> }
@@ -23,14 +32,14 @@ export type WhereCondition =
   | { kind: "missing" }
   | { kind: "compare"; op: CompareOp; operand: string }
   /**
-   * A `this.X` value, until `resolveRefs` answers it from the host note.
-   * `link` records which spelling it was written in — `this.X` or
-   * `[[this.X]]` — so the resolved value can be written back as a link and an
-   * unresolved one can be described in the words the reader used. Required
-   * rather than optional: every site then states the answer, and the compiler
-   * finds every site.
+   * A `this.X` or `active.X` value, until `resolveRefs` answers it from the
+   * note its `scope` names. `link` records which spelling it was written in —
+   * `this.X` or `[[this.X]]` — so the resolved value can be written back as a
+   * link and an unresolved one can be described in the words the reader used.
+   * Both are required rather than optional: every site then states the answer,
+   * and the compiler finds every site.
    */
-  | { kind: "ref"; field: string; link: boolean };
+  | { kind: "ref"; field: string; link: boolean; scope: RefScope };
 
 export interface WhereClause {
   field: string;

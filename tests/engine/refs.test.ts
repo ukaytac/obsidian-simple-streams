@@ -77,6 +77,7 @@ describe("resolveRefs", () => {
         kind: "ref",
         field: "Project",
         link: false,
+        scope: "this",
       });
       expect(resolved.unresolved).toEqual(["Project"]);
     }
@@ -93,6 +94,7 @@ describe("resolveRefs", () => {
       kind: "ref",
       field: "Project",
       link: false,
+      scope: "this",
     });
     expect(resolved.unresolved).toEqual(["Project"]);
   });
@@ -164,6 +166,7 @@ describe("resolveRefs — a link reference", () => {
       kind: "ref",
       field: "Project",
       link: true,
+      scope: "this",
     });
   });
 
@@ -173,6 +176,7 @@ describe("resolveRefs — a link reference", () => {
       kind: "ref",
       field: "Project",
       link: true,
+      scope: "this",
     });
   });
 });

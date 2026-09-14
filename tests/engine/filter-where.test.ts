@@ -142,7 +142,7 @@ describe("matchesClause — an unresolved reference", () => {
   it("matches no note, whatever the note holds", () => {
     const clause: WhereClause = {
       field: "Project",
-      condition: { kind: "ref", field: "Project", link: false },
+      condition: { kind: "ref", field: "Project", link: false, scope: "this" },
     };
     expect(matchesClause(note({ frontmatter: { Project: "Alpha" } }), clause)).toBe(false);
     expect(matchesClause(note({ frontmatter: {} }), clause)).toBe(false);

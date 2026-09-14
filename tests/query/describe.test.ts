@@ -65,7 +65,10 @@ describe("describeQuery — an unresolved reference", () => {
     const query = {
       ...defaultQuery(),
       where: [
-        { field: "Project", condition: { kind: "ref" as const, field: "Project", link: false } },
+        {
+          field: "Project",
+          condition: { kind: "ref" as const, field: "Project", link: false, scope: "this" as const },
+        },
       ],
     };
     expect(describeQuery(query)).toContain("Project = this.Project (not set here)");
@@ -75,7 +78,10 @@ describe("describeQuery — an unresolved reference", () => {
     const query = {
       ...defaultQuery(),
       where: [
-        { field: "Project", condition: { kind: "ref" as const, field: "Project", link: true } },
+        {
+          field: "Project",
+          condition: { kind: "ref" as const, field: "Project", link: true, scope: "this" as const },
+        },
       ],
     };
     expect(describeQuery(query)).toContain("Project = [[this.Project]] (not set here)");

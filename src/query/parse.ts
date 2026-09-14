@@ -396,7 +396,7 @@ function parseCondition(field: string, raw: unknown): WhereCondition {
           `\`where.${field}\` cannot use \`${text}\`. A \`this.\` reference names a property, so an alias or heading has no meaning here.`,
         );
       }
-      return { kind: "ref", field: target, link: linkRef !== null };
+      return { kind: "ref", field: target, link: linkRef !== null, scope: "this" };
     }
     const comparison = COMPARISON.exec(text);
     if (comparison) {

@@ -103,25 +103,25 @@ describe("parseQuery — where", () => {
 
   it("reads a this. value as a reference to the host note", () => {
     expect(whereOf("where:\n  Project: this.Project")).toEqual([
-      { field: "Project", condition: { kind: "ref", field: "Project", link: false } },
+      { field: "Project", condition: { kind: "ref", field: "Project", link: false, scope: "this" } },
     ]);
   });
 
   it("matches the this. prefix case-insensitively and keeps the field's case", () => {
     expect(whereOf("where:\n  Project: This.Project")).toEqual([
-      { field: "Project", condition: { kind: "ref", field: "Project", link: false } },
+      { field: "Project", condition: { kind: "ref", field: "Project", link: false, scope: "this" } },
     ]);
   });
 
   it("references a file property as readily as a frontmatter key", () => {
     expect(whereOf("where:\n  Parent: this.file.name")).toEqual([
-      { field: "Parent", condition: { kind: "ref", field: "file.name", link: false } },
+      { field: "Parent", condition: { kind: "ref", field: "file.name", link: false, scope: "this" } },
     ]);
   });
 
   it("tolerates space after the prefix", () => {
     expect(whereOf("where:\n  Project: this. Project")).toEqual([
-      { field: "Project", condition: { kind: "ref", field: "Project", link: false } },
+      { field: "Project", condition: { kind: "ref", field: "Project", link: false, scope: "this" } },
     ]);
   });
 
@@ -145,25 +145,25 @@ describe("parseQuery — where", () => {
 
   it("reads a link-wrapped reference", () => {
     expect(whereOf('where:\n  Project: "[[this.Project]]"')).toEqual([
-      { field: "Project", condition: { kind: "ref", field: "Project", link: true } },
+      { field: "Project", condition: { kind: "ref", field: "Project", link: true, scope: "this" } },
     ]);
   });
 
   it("reads a link-wrapped reference case-insensitively, keeping the field's case", () => {
     expect(whereOf('where:\n  Project: "[[This.Project]]"')).toEqual([
-      { field: "Project", condition: { kind: "ref", field: "Project", link: true } },
+      { field: "Project", condition: { kind: "ref", field: "Project", link: true, scope: "this" } },
     ]);
   });
 
   it("tolerates spaces inside the brackets", () => {
     expect(whereOf('where:\n  Project: "[[ this.Project ]]"')).toEqual([
-      { field: "Project", condition: { kind: "ref", field: "Project", link: true } },
+      { field: "Project", condition: { kind: "ref", field: "Project", link: true, scope: "this" } },
     ]);
   });
 
   it("reads a link-wrapped file property", () => {
     expect(whereOf('where:\n  Parent: "[[this.file.name]]"')).toEqual([
-      { field: "Parent", condition: { kind: "ref", field: "file.name", link: true } },
+      { field: "Parent", condition: { kind: "ref", field: "file.name", link: true, scope: "this" } },
     ]);
   });
 
