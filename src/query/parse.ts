@@ -9,6 +9,7 @@ import {
   defaultQuery,
   type CompareOp,
   type SortSpec,
+  type RefScope,
   type StreamQuery,
   type TitleMatcher,
   type WhereClause,
@@ -280,9 +281,9 @@ const COMPARISON = /^(>=|<=|!=|>|<)\s*(.*)$/;
 const RESERVED = new Set(["exists", "missing"]);
 
 /**
- * A `this.` value names a property of the note holding the block, resolved at
- * run time rather than here: a block is parsed once, when its note opens, so a
- * value resolved at parse time would freeze at what the host note held then.
+ * A `this.` or `active.` value names a property of a note, resolved at run time
+ * rather than here: a block is parsed once, when its note opens, so a value
+ * resolved at parse time would freeze at what the note held then.
  *
  * The prefix is matched case-insensitively, as `exists` and `missing` already
  * are. Left strict, `This.Project` became the literal string `"This.Project"`,
@@ -290,40 +291,43 @@ const RESERVED = new Set(["exists", "missing"]);
  * of its length preventing. The field name after the prefix keeps its own case:
  * frontmatter lookup is case-sensitive, here as in `where` field names and
  * `sort` fields.
+ *
+ * One regex over both prefixes, with the scope captured, rather than a pair per
+ * spelling: four regexes and four gates is how one spelling gets quietly missed
+ * by the list or comparison check, which is the state `[[this.Project]]` was in
+ * before `isRef` existed.
  */
-const THIS_REF = /^this\.(.*)$/i;
+const PLAIN_REF = /^(this|active)\.(.*)$/i;
 
 /**
  * The same reference written as a link, for the vaults where a relationship
- * property holds one: `Project: "[[this.Project]]"`. Matched
+ * property holds one: `Project: "[[active.Project]]"`. Matched
  * case-insensitively, and with the inner whitespace trimmed, on exactly the
- * terms `THIS_REF` already is.
+ * terms `PLAIN_REF` already is.
  */
-const LINK_REF = /^\[\[\s*this\.(.*?)\s*\]\]$/i;
+const LINK_REF = /^\[\[\s*(this|active)\.(.*?)\s*\]\]$/i;
 
 /**
- * Either spelling. Every gate in this file asks through here rather than
- * testing a regex of its own, so a spelling added to the condition path cannot
- * be quietly missed by the list and comparison gates — which is the state
- * `[[this.Project]]` was in before this function existed: read as literal
- * text, matching nothing, saying nothing.
+ * Either spelling, of either scope. Every gate in this file asks through here
+ * rather than testing a regex of its own, so a spelling added to the condition
+ * path cannot be quietly missed by the list and comparison gates.
  */
-function isThisRef(text: string): boolean {
-  return THIS_REF.test(text) || LINK_REF.test(text);
+function isRef(text: string): boolean {
+  return PLAIN_REF.test(text) || LINK_REF.test(text);
 }
 
 /**
- * Text reaching for a link reference without being one: `![[this.X]]`, a
+ * Text reaching for a link reference without being one: `![[active.X]]`, a
  * doubled bracket, or anything with text either side of the brackets.
  * `LINK_REF` is anchored, so every one of these falls through to an ordinary
  * equality against its own literal text — no match, no error, the silent empty
  * stream this file exists to prevent, in the syntax it has just gained. Nobody
- * writes `[[this.` meaning those characters, so the near miss is worth a
- * sentence rather than a shrug. Whitespace is tolerated at each join — a space
- * inside the brackets or before the dot is a typo reaching for the same thing,
- * not a different value.
+ * writes `[[this.` or `[[active.` meaning those characters, so the near miss is
+ * worth a sentence rather than a shrug. Whitespace is tolerated at each join — a
+ * space inside the brackets or before the dot is a typo reaching for the same
+ * thing, not a different value.
  */
-const NEAR_LINK_REF = /\[\s*\[\s*this\s*\./i;
+const NEAR_LINK_REF = /\[\s*\[\s*(this|active)\s*\./i;
 
 function parseWhere(value: unknown): WhereClause[] {
   if (value === null || value === undefined) {
@@ -371,32 +375,33 @@ function parseCondition(field: string, raw: unknown): WhereCondition {
     if (text.toLowerCase() === "missing") {
       return { kind: "missing" };
     }
-    // The link spelling first. It cannot collide — `THIS_REF` is anchored at
-    // `this.` and a link starts with a bracket — but asking in this order keeps
-    // `linkRef` the single thing the rest of the block branches on.
+    // The link spelling first. It cannot collide — `PLAIN_REF` is anchored at
+    // the prefix and a link starts with a bracket — but asking in this order
+    // keeps `linkRef` the single thing the rest of the block branches on.
     const linkRef = LINK_REF.exec(text);
-    const ref = linkRef ?? THIS_REF.exec(text);
+    const ref = linkRef ?? PLAIN_REF.exec(text);
     if (ref !== null) {
+      const scope = ref[1].toLowerCase() as RefScope;
       // Trimmed as the operand and every list entry already are, so a stray
       // space after the dot is tolerated rather than treated as a typo — and
       // so `this. ` falls through to the "needs a property name" check below.
-      const target = ref[1].trim();
+      const target = ref[2].trim();
       if (target === "") {
         throw new QueryError(
           linkRef === null
-            ? `\`where.${field}\`: \`this.\` needs a property name, as in ${field}: this.${field}.`
-            : `\`where.${field}\`: \`[[this.]]\` needs a property name, as in ${field}: "[[this.${field}]]".`,
+            ? `\`where.${field}\`: \`${scope}.\` needs a property name, as in ${field}: ${scope}.${field}.`
+            : `\`where.${field}\`: \`[[${scope}.]]\` needs a property name, as in ${field}: "[[${scope}.${field}]]".`,
         );
       }
       // An alias or a heading has no meaning in a match, and the alternative to
       // saying so is looking up a frontmatter key literally named
-      // `Project|MP` — reporting the host note missing a property nobody wrote.
+      // `Project|MP` — reporting the note missing a property nobody wrote.
       if (linkRef !== null && /[|#]/.test(target)) {
         throw new QueryError(
-          `\`where.${field}\` cannot use \`${text}\`. A \`this.\` reference names a property, so an alias or heading has no meaning here.`,
+          `\`where.${field}\` cannot use \`${text}\`. A \`${scope}.\` reference names a property, so an alias or heading has no meaning here.`,
         );
       }
-      return { kind: "ref", field: target, link: linkRef !== null, scope: "this" };
+      return { kind: "ref", field: target, link: linkRef !== null, scope };
     }
     const comparison = COMPARISON.exec(text);
     if (comparison) {
@@ -406,16 +411,22 @@ function parseCondition(field: string, raw: unknown): WhereCondition {
           `\`where.${field}\` has the operator \`${comparison[1]}\` with nothing to compare against`,
         );
       }
-      if (isThisRef(operand) || NEAR_LINK_REF.test(operand)) {
+      if (isRef(operand) || NEAR_LINK_REF.test(operand)) {
         throw new QueryError(
-          `\`where.${field}\` cannot compare against \`${operand}\`. A \`this.\` reference has to be the whole condition.`,
+          `\`where.${field}\` cannot compare against \`${operand}\`. A \`this.\` or \`active.\` reference has to be the whole condition.`,
         );
       }
       return { kind: "compare", op: comparison[1] as CompareOp, operand };
     }
-    if (NEAR_LINK_REF.test(text)) {
+    const nearMiss = NEAR_LINK_REF.exec(text);
+    if (nearMiss !== null) {
+      // The corrective example echoes the prefix the reader actually wrote —
+      // telling someone who typed `active.` that `this.` is expected is the
+      // same misleading-error failure this file exists to prevent, in the
+      // syntax `active.` has just gained.
+      const scope = nearMiss[1].toLowerCase();
       throw new QueryError(
-        `\`where.${field}\` cannot use \`${text}\`. A link reference has to be the whole value, as in ${field}: "[[this.${field}]]".`,
+        `\`where.${field}\` cannot use \`${text}\`. A link reference has to be the whole value, as in ${field}: "[[${scope}.${field}]]".`,
       );
     }
     return { kind: "equals", value: text };
@@ -434,9 +445,9 @@ function asAnyOfValue(field: string, item: unknown): string | number | boolean {
   const value = asScalar(field, item);
   if (typeof value === "string") {
     const text = value.trim();
-    if (isThisRef(text) || NEAR_LINK_REF.test(text)) {
+    if (isRef(text) || NEAR_LINK_REF.test(text)) {
       throw new QueryError(
-        `\`where.${field}\` cannot use \`${text}\` inside a list. A list means "any of these values"; a \`this.\` reference has to be the whole condition.`,
+        `\`where.${field}\` cannot use \`${text}\` inside a list. A list means "any of these values"; a \`this.\` or \`active.\` reference has to be the whole condition.`,
       );
     }
     if (COMPARISON.test(text) || RESERVED.has(text.toLowerCase())) {

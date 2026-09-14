@@ -251,6 +251,113 @@ describe("parseQuery — where", () => {
   });
 });
 
+describe("parseQuery — active. references", () => {
+  it("reads a plain active reference", () => {
+    expect(whereOf("where:\n  Project: active.Project")).toEqual([
+      {
+        field: "Project",
+        condition: { kind: "ref", field: "Project", link: false, scope: "active" },
+      },
+    ]);
+  });
+
+  it("matches the prefix case-insensitively and keeps the field's case", () => {
+    expect(whereOf("where:\n  Project: Active.Project")).toEqual([
+      {
+        field: "Project",
+        condition: { kind: "ref", field: "Project", link: false, scope: "active" },
+      },
+    ]);
+  });
+
+  it("reads file properties", () => {
+    expect(whereOf("where:\n  Parent: active.file.name")).toEqual([
+      {
+        field: "Parent",
+        condition: { kind: "ref", field: "file.name", link: false, scope: "active" },
+      },
+    ]);
+  });
+
+  it("reads the link spelling", () => {
+    expect(whereOf('where:\n  Project: "[[active.Project]]"')).toEqual([
+      {
+        field: "Project",
+        condition: { kind: "ref", field: "Project", link: true, scope: "active" },
+      },
+    ]);
+  });
+
+  it("tolerates whitespace inside the brackets", () => {
+    expect(whereOf('where:\n  Project: "[[ active.Project ]]"')).toEqual([
+      {
+        field: "Project",
+        condition: { kind: "ref", field: "Project", link: true, scope: "active" },
+      },
+    ]);
+  });
+
+  it("rejects a reference with no property name", () => {
+    expect(() => whereOf("where:\n  Project: active.")).toThrow(/needs a property name/);
+    expect(() => whereOf('where:\n  Project: "[[active.]]"')).toThrow(/needs a property name/);
+  });
+
+  it("rejects an alias or a heading", () => {
+    expect(() => whereOf('where:\n  Project: "[[active.Project|MP]]"')).toThrow(
+      /alias or heading/,
+    );
+    expect(() => whereOf('where:\n  Project: "[[active.Project#Log]]"')).toThrow(
+      /alias or heading/,
+    );
+  });
+
+  it("rejects a reference inside a list", () => {
+    expect(() => whereOf("where:\n  Project: [active.Project, Beta]")).toThrow(
+      /has to be the whole condition/,
+    );
+    expect(() => whereOf('where:\n  Project: ["[[active.Project]]", Beta]')).toThrow(
+      /has to be the whole condition/,
+    );
+  });
+
+  it("rejects a reference as a comparison operand", () => {
+    expect(() => whereOf('where:\n  date: ">active.start"')).toThrow(
+      /has to be the whole condition/,
+    );
+    expect(() => whereOf('where:\n  date: ">[[active.start]]"')).toThrow(
+      /has to be the whole condition/,
+    );
+  });
+
+  it("rejects a near-miss link rather than matching it literally", () => {
+    expect(() => whereOf('where:\n  Project: "![[active.Project]]"')).toThrow(
+      /has to be the whole value/,
+    );
+    expect(() => whereOf('where:\n  Project: "see [[active.Project]]"')).toThrow(
+      /has to be the whole value/,
+    );
+  });
+
+  it("names active. in the near-miss message rather than this.", () => {
+    // The corrective example must echo the prefix the reader actually wrote —
+    // telling someone who typed `active.` that `this.` is expected is the same
+    // misleading-error failure this file exists to prevent. Pinned to the
+    // corrective example specifically, not the whole message: the message's
+    // opening sentence echoes the reader's literal input, which already
+    // contains the substring `[[active.Project]]` regardless of what the
+    // corrective example says.
+    expect(() => whereOf('where:\n  Project: "![[active.Project]]"')).toThrow(
+      /as in Project: "\[\[active\.Project\]\]"/,
+    );
+  });
+
+  it("does not trip the near-miss guard on ordinary text containing the word active", () => {
+    expect(whereOf('where:\n  Note: "read active. then that"')).toEqual([
+      { field: "Note", condition: { kind: "equals", value: "read active. then that" } },
+    ]);
+  });
+});
+
 /** A smallest valid value for each field, to prove the field is wired up. */
 const MINIMAL: Record<(typeof QUERY_FIELDS)[number], string> = {
   folder: "Journal",
