@@ -10,11 +10,19 @@ Raises the minimum Obsidian version to 1.7.2, and fixes what the old floor was h
 
 Obsidian 1.7.2 introduced deferred views: a leaf can exist before its view does, and `Workspace.revealLeaf` became the call you await to load it. Opening the sidebar read `leaf.view` without awaiting the reveal, so from 1.7.2 on it could be handed a `DeferredView` instead — in which case the pane opens in its empty state and stays there until you next switch notes. The reveal is now awaited, and the view is pointed at the active note after it resolves rather than before.
 
-That await only means something above 1.7.2, where `revealLeaf` returns a promise. At the old 1.5.7 floor it returns `void` and there is nothing to wait for, so supporting both versions meant writing one of them wrong. The floor moved to where the correct version is the only version. If you are on Obsidian 1.5.7 through 1.6.7, 1.3.0 remains installable and works as it did.
+That await only means something above 1.7.2, where `revealLeaf` returns a promise. At the old 1.5.7 floor it returns `void` and there is nothing to wait for, so supporting both versions meant writing one of them wrong. The floor moved to where the correct version is the only version. If you are on Obsidian 1.5.7 through 1.6.7, 1.3.1 remains installable and works as it did.
 
-**Installing or updating:** put `main.js`, `manifest.json` and `styles.css` from below into `<your vault>/.obsidian/plugins/simple-streams/`, replacing the files already there, and reload Obsidian. Requires Obsidian 1.7.2 or newer. Coming from 1.3.0, nothing else changes: the sidebar, its settings and its query syntax are identical.
+**Installing or updating:** put `main.js`, `manifest.json` and `styles.css` from below into `<your vault>/.obsidian/plugins/simple-streams/`, replacing the files already there, and reload Obsidian. Requires Obsidian 1.7.2 or newer. Coming from 1.3.0 or 1.3.1, nothing else changes: the sidebar, its settings and its query syntax are identical.
 
-There is no 1.3.1. It was tagged and then superseded by this before it was ever published.
+## 1.3.1
+
+A compatibility fix for 1.3.0, which it replaces.
+
+`Workspace.revealLeaf` returns `void` through Obsidian 1.6.7 and a promise from 1.7.2 on. Opening the sidebar awaited it, which asked for a guarantee the manifest's 1.5.7 floor did not make. Nothing misbehaved — awaiting a non-promise resolves a moment later, and nothing ran after the call — so there was nothing on 1.3.0 to watch out for.
+
+**Installing or updating:** put `main.js`, `manifest.json` and `styles.css` from below into `<your vault>/.obsidian/plugins/simple-streams/`, replacing the files already there, and reload Obsidian. Requires Obsidian 1.5.7 or newer. Coming from 1.3.0, nothing else changes.
+
+This is the last version that installs on Obsidian 1.5.7 through 1.6.7. From 1.4.0 the floor is 1.7.2.
 
 ## 1.3.0
 
