@@ -142,6 +142,53 @@ describe("parseQuery — where", () => {
       /cannot compare against `this\.start`/,
     );
   });
+
+  it("reads a link-wrapped reference", () => {
+    expect(whereOf('where:\n  Project: "[[this.Project]]"')).toEqual([
+      { field: "Project", condition: { kind: "ref", field: "Project", link: true } },
+    ]);
+  });
+
+  it("reads a link-wrapped reference case-insensitively, keeping the field's case", () => {
+    expect(whereOf('where:\n  Project: "[[This.Project]]"')).toEqual([
+      { field: "Project", condition: { kind: "ref", field: "Project", link: true } },
+    ]);
+  });
+
+  it("tolerates spaces inside the brackets", () => {
+    expect(whereOf('where:\n  Project: "[[ this.Project ]]"')).toEqual([
+      { field: "Project", condition: { kind: "ref", field: "Project", link: true } },
+    ]);
+  });
+
+  it("reads a link-wrapped file property", () => {
+    expect(whereOf('where:\n  Parent: "[[this.file.name]]"')).toEqual([
+      { field: "Parent", condition: { kind: "ref", field: "file.name", link: true } },
+    ]);
+  });
+
+  it("rejects a link-wrapped reference with no property name", () => {
+    expect(() => whereOf('where:\n  Project: "[[this.]]"')).toThrow(/needs a property name/);
+  });
+
+  it("rejects an alias or a heading, which cannot mean anything in a match", () => {
+    expect(() => whereOf('where:\n  Project: "[[this.Project|MP]]"')).toThrow(
+      /alias or heading has no meaning/,
+    );
+    expect(() => whereOf('where:\n  Project: "[[this.Project#Goals]]"')).toThrow(
+      /alias or heading has no meaning/,
+    );
+  });
+
+  it("rejects a link-wrapped reference inside a list", () => {
+    expect(() => whereOf('where:\n  Project: ["[[this.Project]]", Beta]')).toThrow(
+      /inside a list/,
+    );
+  });
+
+  it("rejects a link-wrapped reference as a comparison operand", () => {
+    expect(() => whereOf('where:\n  date: ">[[this.start]]"')).toThrow(/cannot compare against/);
+  });
 });
 
 /** A smallest valid value for each field, to prove the field is wired up. */

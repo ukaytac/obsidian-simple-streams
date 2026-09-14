@@ -293,6 +293,25 @@ const RESERVED = new Set(["exists", "missing"]);
  */
 const THIS_REF = /^this\.(.*)$/i;
 
+/**
+ * The same reference written as a link, for the vaults where a relationship
+ * property holds one: `Project: "[[this.Project]]"`. Matched
+ * case-insensitively, and with the inner whitespace trimmed, on exactly the
+ * terms `THIS_REF` already is.
+ */
+const LINK_REF = /^\[\[\s*this\.(.*?)\s*\]\]$/i;
+
+/**
+ * Either spelling. Every gate in this file asks through here rather than
+ * testing a regex of its own, so a spelling added to the condition path cannot
+ * be quietly missed by the list and comparison gates — which is the state
+ * `[[this.Project]]` was in before this function existed: read as literal
+ * text, matching nothing, saying nothing.
+ */
+function isThisRef(text: string): boolean {
+  return THIS_REF.test(text) || LINK_REF.test(text);
+}
+
 function parseWhere(value: unknown): WhereClause[] {
   if (value === null || value === undefined) {
     throw new QueryError(
@@ -339,7 +358,11 @@ function parseCondition(field: string, raw: unknown): WhereCondition {
     if (text.toLowerCase() === "missing") {
       return { kind: "missing" };
     }
-    const ref = THIS_REF.exec(text);
+    // The link spelling first. It cannot collide — `THIS_REF` is anchored at
+    // `this.` and a link starts with a bracket — but asking in this order keeps
+    // `linkRef` the single thing the rest of the block branches on.
+    const linkRef = LINK_REF.exec(text);
+    const ref = linkRef ?? THIS_REF.exec(text);
     if (ref !== null) {
       // Trimmed as the operand and every list entry already are, so a stray
       // space after the dot is tolerated rather than treated as a typo — and
@@ -347,10 +370,20 @@ function parseCondition(field: string, raw: unknown): WhereCondition {
       const target = ref[1].trim();
       if (target === "") {
         throw new QueryError(
-          `\`where.${field}\`: \`this.\` needs a property name, as in ${field}: this.${field}.`,
+          linkRef === null
+            ? `\`where.${field}\`: \`this.\` needs a property name, as in ${field}: this.${field}.`
+            : `\`where.${field}\`: \`[[this.]]\` needs a property name, as in ${field}: "[[this.${field}]]".`,
         );
       }
-      return { kind: "ref", field: target, link: false };
+      // An alias or a heading has no meaning in a match, and the alternative to
+      // saying so is looking up a frontmatter key literally named
+      // `Project|MP` — reporting the host note missing a property nobody wrote.
+      if (linkRef !== null && /[|#]/.test(target)) {
+        throw new QueryError(
+          `\`where.${field}\` cannot use \`${text}\`. A \`this.\` reference names a property, so an alias or heading has no meaning here.`,
+        );
+      }
+      return { kind: "ref", field: target, link: linkRef !== null };
     }
     const comparison = COMPARISON.exec(text);
     if (comparison) {
@@ -360,7 +393,7 @@ function parseCondition(field: string, raw: unknown): WhereCondition {
           `\`where.${field}\` has the operator \`${comparison[1]}\` with nothing to compare against`,
         );
       }
-      if (THIS_REF.test(operand)) {
+      if (isThisRef(operand)) {
         throw new QueryError(
           `\`where.${field}\` cannot compare against \`${operand}\`. A \`this.\` reference has to be the whole condition.`,
         );
@@ -383,7 +416,7 @@ function asAnyOfValue(field: string, item: unknown): string | number | boolean {
   const value = asScalar(field, item);
   if (typeof value === "string") {
     const text = value.trim();
-    if (THIS_REF.test(text)) {
+    if (isThisRef(text)) {
       throw new QueryError(
         `\`where.${field}\` cannot use \`${text}\` inside a list. A list means "any of these values"; a \`this.\` reference has to be the whole condition.`,
       );
