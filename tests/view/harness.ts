@@ -17,6 +17,8 @@
  */
 
 import type { App } from "obsidian";
+import { noteAt } from "../../src/obsidian/adapter";
+import type { StreamContext } from "../../src/view/StreamChild";
 
 /* -------------------------------------------------------------------------- */
 /* Obsidian's element helpers                                                 */
@@ -389,6 +391,16 @@ export function numberedNotes(count: number, mtimeBase = DAY_ONE): FakeNote[] {
 /* -------------------------------------------------------------------------- */
 /* The block's surroundings                                                   */
 /* -------------------------------------------------------------------------- */
+
+/** The context a code block is rendered in, for tests that only care about one. */
+export function blockContext(app: App, sourcePath: string): StreamContext {
+  return {
+    sourcePath,
+    scope: "this",
+    note: () => noteAt(app, sourcePath),
+    excludePath: null,
+  };
+}
 
 export interface Pane {
   /** The `.cm-scroller` ancestor `scrollerEl()` is meant to find. */

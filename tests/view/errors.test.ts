@@ -5,6 +5,7 @@ import {
   DAY_ONE,
   FakeIntersectionObserver,
   FakeVault,
+  blockContext,
   drawnTitles,
   mountPane,
   numberedNotes,
@@ -67,7 +68,7 @@ describe("error paths", () => {
     });
 
     const { container } = mountPane();
-    child = new StreamChild(container, vault.app, FULL, "Host.md");
+    child = new StreamChild(container, vault.app, FULL, blockContext(vault.app, "Host.md"));
     child.load();
     await settle();
 
@@ -88,7 +89,7 @@ describe("error paths", () => {
   test("a clean refresh after an item throw repaints instead of short-circuiting", async () => {
     vault.setNotes(numberedNotes(5));
     const { container } = mountPane();
-    child = new StreamChild(container, vault.app, FULL, "Host.md");
+    child = new StreamChild(container, vault.app, FULL, blockContext(vault.app, "Host.md"));
     child.load();
     await settle();
     expect(drawnTitles(container)).toHaveLength(5);
@@ -126,7 +127,7 @@ describe("error paths", () => {
    */
   test("a throw from a sentinel-triggered page shows the error box", async () => {
     const { container } = mountPane();
-    child = new StreamChild(container, vault.app, FULL, "Host.md");
+    child = new StreamChild(container, vault.app, FULL, blockContext(vault.app, "Host.md"));
     child.load();
     await settle();
     expect(drawnTitles(container)).toHaveLength(20);
@@ -146,7 +147,7 @@ describe("error paths", () => {
 
   test("a parse failure shows its message, and refresh leaves it alone", async () => {
     const { container } = mountPane();
-    child = new StreamChild(container, vault.app, "display: nonsense\n", "Host.md");
+    child = new StreamChild(container, vault.app, "display: nonsense\n", blockContext(vault.app, "Host.md"));
     child.load();
     await settle();
 
@@ -171,7 +172,7 @@ describe("error paths", () => {
   test("a query that cannot be run shows the error on first paint", async () => {
     vault.failScans("the vault is unavailable");
     const { container } = mountPane();
-    child = new StreamChild(container, vault.app, FULL, "Host.md");
+    child = new StreamChild(container, vault.app, FULL, blockContext(vault.app, "Host.md"));
     child.load();
     await settle();
 
@@ -181,7 +182,7 @@ describe("error paths", () => {
 
   test("a failing refresh shows the error and keeps the block refreshable", async () => {
     const { container } = mountPane();
-    child = new StreamChild(container, vault.app, FULL, "Host.md");
+    child = new StreamChild(container, vault.app, FULL, blockContext(vault.app, "Host.md"));
     child.load();
     await settle();
 
@@ -201,7 +202,7 @@ describe("error paths", () => {
     vault.setNotes(numberedNotes(3));
     vault.failReadsFor("Notes/001.md");
     const { container } = mountPane();
-    child = new StreamChild(container, vault.app, FULL, "Host.md");
+    child = new StreamChild(container, vault.app, FULL, blockContext(vault.app, "Host.md"));
     child.load();
     await settle();
 
@@ -220,7 +221,7 @@ describe("error paths", () => {
     vault.setNotes(numberedNotes(2));
     vault.hideFile("Notes/000.md");
     const { container } = mountPane();
-    child = new StreamChild(container, vault.app, FULL, "Host.md");
+    child = new StreamChild(container, vault.app, FULL, blockContext(vault.app, "Host.md"));
     child.load();
     await settle();
 

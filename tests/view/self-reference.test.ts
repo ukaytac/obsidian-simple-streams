@@ -2,7 +2,7 @@
 import { Component } from "obsidian";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { renderCalls, resetObsidianMock } from "../mocks/obsidian";
-import { FakeIntersectionObserver, FakeVault, mountPane, settle } from "./harness";
+import { FakeIntersectionObserver, FakeVault, blockContext, mountPane, settle } from "./harness";
 import { extractPreview, stripFrontmatter } from "../../src/engine/preview";
 import { parseQuery } from "../../src/query/parse";
 import { StreamChild } from "../../src/view/StreamChild";
@@ -126,7 +126,7 @@ describe("a stream that would render itself", () => {
     nested.className = "block-language-stream";
     body.appendChild(nested);
 
-    child = new StreamChild(nested, vault.app, "sort: file.path asc\n", "Streams.md");
+    child = new StreamChild(nested, vault.app, "sort: file.path asc\n", blockContext(vault.app, "Streams.md"));
     child.load();
     await settle();
 
@@ -143,7 +143,7 @@ describe("a stream that would render itself", () => {
 
   test("a top-level block is unaffected by the nesting guard", async () => {
     const { container } = mountPane();
-    child = new StreamChild(container, vault.app, "sort: file.path asc\n", "Streams.md");
+    child = new StreamChild(container, vault.app, "sort: file.path asc\n", blockContext(vault.app, "Streams.md"));
     child.load();
     await settle();
 
@@ -154,7 +154,7 @@ describe("a stream that would render itself", () => {
 
   test("a block that is emptied into an item body stops running on refresh", async () => {
     const { container } = mountPane();
-    child = new StreamChild(container, vault.app, "sort: file.path asc\n", "Streams.md");
+    child = new StreamChild(container, vault.app, "sort: file.path asc\n", blockContext(vault.app, "Streams.md"));
     child.load();
     await settle();
     expect(container.querySelectorAll(".ss-item")).toHaveLength(2);

@@ -5,6 +5,7 @@ import {
   DAY_ONE,
   FakeIntersectionObserver,
   FakeVault,
+  blockContext,
   drawnTitles,
   mountPane,
   numberedNotes,
@@ -36,7 +37,7 @@ afterEach(() => {
 describe("refresh", () => {
   test("an unchanged result touches no DOM and scans the vault once", async () => {
     const { container } = mountPane();
-    child = new StreamChild(container, vault.app, TITLES, "Host.md");
+    child = new StreamChild(container, vault.app, TITLES, blockContext(vault.app, "Host.md"));
     child.load();
     await settle();
 
@@ -61,7 +62,7 @@ describe("refresh", () => {
 
   test("a changed result repaints, keeping the pages already loaded", async () => {
     const { container } = mountPane();
-    child = new StreamChild(container, vault.app, TITLES, "Host.md");
+    child = new StreamChild(container, vault.app, TITLES, blockContext(vault.app, "Host.md"));
     child.load();
     await settle();
 
@@ -85,7 +86,7 @@ describe("refresh", () => {
 
   test("a changed result restores the scroll position it was read at", async () => {
     const { scroller, container } = mountPane();
-    child = new StreamChild(container, vault.app, FULL, "Host.md");
+    child = new StreamChild(container, vault.app, FULL, blockContext(vault.app, "Host.md"));
     child.load();
     await settle();
 
@@ -112,7 +113,7 @@ describe("refresh", () => {
 
   test("a refresh after unload does nothing at all", async () => {
     const { container } = mountPane();
-    child = new StreamChild(container, vault.app, TITLES, "Host.md");
+    child = new StreamChild(container, vault.app, TITLES, blockContext(vault.app, "Host.md"));
     child.load();
     await settle();
     const drawn = drawnTitles(container);
@@ -137,7 +138,7 @@ describe("refresh", () => {
 
   test("a refresh whose notes vanished shows the empty state", async () => {
     const { container } = mountPane();
-    child = new StreamChild(container, vault.app, TITLES, "Host.md");
+    child = new StreamChild(container, vault.app, TITLES, blockContext(vault.app, "Host.md"));
     child.load();
     await settle();
 

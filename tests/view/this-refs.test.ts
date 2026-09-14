@@ -1,7 +1,14 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { resetObsidianMock, setRenderHook } from "../mocks/obsidian";
-import { FakeIntersectionObserver, FakeVault, drawnTitles, mountPane, settle } from "./harness";
+import {
+  FakeIntersectionObserver,
+  FakeVault,
+  blockContext,
+  drawnTitles,
+  mountPane,
+  settle,
+} from "./harness";
 import { StreamChild } from "../../src/view/StreamChild";
 
 const PREVIEW_WARNING =
@@ -54,7 +61,7 @@ describe("this. references in the view", () => {
   test("shows the notes sharing the host note's project", async () => {
     const vault = vaultWith({ Project: "Alpha" });
     const { container } = mountPane();
-    child = new StreamChild(container, vault.app, SOURCE, "Host.md");
+    child = new StreamChild(container, vault.app, SOURCE, blockContext(vault.app, "Host.md"));
     child.load();
     await settle();
 
@@ -65,7 +72,7 @@ describe("this. references in the view", () => {
   test("matches nothing and says why when the host note has no such property", async () => {
     const vault = vaultWith(undefined);
     const { container } = mountPane();
-    child = new StreamChild(container, vault.app, SOURCE, "Host.md");
+    child = new StreamChild(container, vault.app, SOURCE, blockContext(vault.app, "Host.md"));
     child.load();
     await settle();
 
@@ -83,7 +90,7 @@ describe("this. references in the view", () => {
     // the note has no such property.
     const vault = vaultWith({ Project: [] });
     const { container } = mountPane();
-    child = new StreamChild(container, vault.app, SOURCE, "Host.md");
+    child = new StreamChild(container, vault.app, SOURCE, blockContext(vault.app, "Host.md"));
     child.load();
     await settle();
 
@@ -95,7 +102,7 @@ describe("this. references in the view", () => {
   test("names the resolved value in the summary of an empty stream", async () => {
     const vault = vaultWith({ Project: "Gamma" });
     const { container } = mountPane();
-    child = new StreamChild(container, vault.app, SOURCE, "Host.md");
+    child = new StreamChild(container, vault.app, SOURCE, blockContext(vault.app, "Host.md"));
     child.load();
     await settle();
 
@@ -108,7 +115,7 @@ describe("this. references in the view", () => {
   test("follows an edit to the host note's property", async () => {
     const vault = vaultWith({ Project: "Alpha" });
     const { container } = mountPane();
-    child = new StreamChild(container, vault.app, SOURCE, "Host.md");
+    child = new StreamChild(container, vault.app, SOURCE, blockContext(vault.app, "Host.md"));
     child.load();
     await settle();
     expect(drawnTitles(container)).toEqual(["a", "c"]);
@@ -123,7 +130,7 @@ describe("this. references in the view", () => {
   test("picks up the notes once an empty property is filled in, and drops them again when it's cleared", async () => {
     const vault = vaultWith(undefined);
     const { container } = mountPane();
-    child = new StreamChild(container, vault.app, SOURCE, "Host.md");
+    child = new StreamChild(container, vault.app, SOURCE, blockContext(vault.app, "Host.md"));
     child.load();
     await settle();
 
@@ -148,7 +155,7 @@ describe("this. references in the view", () => {
   test("redraws the summary when the reference moves between two values that match nothing", async () => {
     const vault = vaultWith({ Project: "Gamma" });
     const { container } = mountPane();
-    child = new StreamChild(container, vault.app, SOURCE, "Host.md");
+    child = new StreamChild(container, vault.app, SOURCE, blockContext(vault.app, "Host.md"));
     child.load();
     await settle();
 
@@ -180,7 +187,7 @@ describe("this. references in the view", () => {
       container,
       vault.app,
       "sort: file.path asc\ndisplay: full\nwhere:\n  Project: this.Project\n",
-      "Host.md",
+      blockContext(vault.app, "Host.md"),
     );
     child.load();
     await settle();
@@ -202,7 +209,7 @@ describe("link-valued properties in the view", () => {
   test("reads a link reference against plain candidates", async () => {
     const vault = vaultWith({ Project: "Alpha" });
     const { container } = mountPane();
-    child = new StreamChild(container, vault.app, LINK_SOURCE, "Host.md");
+    child = new StreamChild(container, vault.app, LINK_SOURCE, blockContext(vault.app, "Host.md"));
     child.load();
     await settle();
 
@@ -213,7 +220,7 @@ describe("link-valued properties in the view", () => {
   test("reads a link reference when the host property is itself a link", async () => {
     const vault = vaultWith({ Project: "[[Alpha]]" });
     const { container } = mountPane();
-    child = new StreamChild(container, vault.app, LINK_SOURCE, "Host.md");
+    child = new StreamChild(container, vault.app, LINK_SOURCE, blockContext(vault.app, "Host.md"));
     child.load();
     await settle();
 
@@ -229,10 +236,33 @@ describe("link-valued properties in the view", () => {
       { path: "Notes/c.md", frontmatter: { Project: "[[Alpha|A]]" } },
     ]);
     const { container } = mountPane();
-    child = new StreamChild(container, vault.app, SOURCE, "Host.md");
+    child = new StreamChild(container, vault.app, SOURCE, blockContext(vault.app, "Host.md"));
     child.load();
     await settle();
 
     expect(drawnTitles(container)).toEqual(["a", "c"]);
+  });
+});
+
+describe("scope violations in the view", () => {
+  test("refuses an active. reference in a block, naming the fix", async () => {
+    const vault = vaultWith({ Project: "Alpha" });
+    const { container } = mountPane();
+    child = new StreamChild(container, vault.app, "where:\n  Project: active.Project\n", {
+      sourcePath: "Host.md",
+      scope: "this",
+      note: () => null,
+      excludePath: null,
+    });
+    child.load();
+    await settle();
+
+    // Not "cannot use `active.Project` here" verbatim: `setCodeText` (used by
+    // `renderError`) consumes backticks as delimiters for `<code>` spans
+    // rather than keeping them in the rendered text, same as every other
+    // error this plugin shows on screen.
+    expect(container.querySelector(".ss-error-message")?.textContent).toContain(
+      "cannot use active.Project here",
+    );
   });
 });

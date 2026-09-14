@@ -4,6 +4,7 @@ import { renderCalls, resetObsidianMock } from "../mocks/obsidian";
 import {
   FakeIntersectionObserver,
   FakeVault,
+  blockContext,
   drawnTitles,
   mountPane,
   numberedNotes,
@@ -35,7 +36,7 @@ afterEach(() => {
 describe("lazy paging", () => {
   test("draws one page, then one more page per sentinel hit", async () => {
     const { scroller, container } = mountPane();
-    child = new StreamChild(container, vault.app, SOURCE, "Host.md");
+    child = new StreamChild(container, vault.app, SOURCE, blockContext(vault.app, "Host.md"));
     child.load();
     await settle();
 
@@ -60,7 +61,7 @@ describe("lazy paging", () => {
 
   test("a sentinel hit that is not an intersection draws nothing", async () => {
     const { container } = mountPane();
-    child = new StreamChild(container, vault.app, SOURCE, "Host.md");
+    child = new StreamChild(container, vault.app, SOURCE, blockContext(vault.app, "Host.md"));
     child.load();
     await settle();
 
@@ -89,7 +90,7 @@ describe("lazy paging", () => {
    */
   test("repeated sentinel hits mid-page draw every note exactly once, in order", async () => {
     const { container } = mountPane();
-    child = new StreamChild(container, vault.app, SOURCE, "Host.md");
+    child = new StreamChild(container, vault.app, SOURCE, blockContext(vault.app, "Host.md"));
     child.load();
     await settle();
     expect(drawnTitles(container)).toHaveLength(PAGE_SIZE);
@@ -134,7 +135,7 @@ describe("lazy paging", () => {
   test("the last page stops at the row count, not at the page boundary", async () => {
     vault.setNotes(numberedNotes(25));
     const { container } = mountPane();
-    child = new StreamChild(container, vault.app, SOURCE, "Host.md");
+    child = new StreamChild(container, vault.app, SOURCE, blockContext(vault.app, "Host.md"));
     child.load();
     await settle();
 
@@ -149,7 +150,7 @@ describe("lazy paging", () => {
   test("a stream that fits in one page never gets a sentinel", async () => {
     vault.setNotes(numberedNotes(5));
     const { container } = mountPane();
-    child = new StreamChild(container, vault.app, SOURCE, "Host.md");
+    child = new StreamChild(container, vault.app, SOURCE, blockContext(vault.app, "Host.md"));
     child.load();
     await settle();
 

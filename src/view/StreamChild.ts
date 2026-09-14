@@ -1,13 +1,14 @@
 import { Component, MarkdownRenderChild, type App } from "obsidian";
 import { runStream, type StreamNotice, type StreamResult } from "../engine/run";
-import { collectNotes, noteAt } from "../obsidian/adapter";
+import { collectNotes } from "../obsidian/adapter";
+import { assertScope } from "../query/scopes";
 import { describeQuery } from "../query/describe";
 import { parseQuery } from "../query/parse";
 import { renderError } from "./errorEl";
 import { setCodeText } from "./codeText";
 import { renderItem } from "./itemEl";
 import type { NoteMeta } from "../engine/note";
-import type { StreamQuery } from "../query/types";
+import type { RefScope, StreamQuery } from "../query/types";
 
 const PAGE_SIZE = 20;
 
@@ -17,9 +18,38 @@ interface Row {
   note: NoteMeta;
 }
 
+/**
+ * Everything a stream needs from the place it is rendered.
+ *
+ * `note` is a function, not a value: it is read on every refresh, not cached.
+ * Editing the followed note's properties is exactly the event this plugin
+ * exists to follow, and a snapshot taken at construction would leave a
+ * sidebar answering for a property that changed an hour ago.
+ *
+ * One note, not `RefContext`'s `host` and `active` both: `scope` already says
+ * which of the two this context answers for, and `assertScope` guarantees a
+ * query holds references of only that one scope, so a second field could only
+ * ever sit unused as null or, worse, be filled in and disagree with `scope` —
+ * a `"this"` context whose caller populated `active` would resolve nothing
+ * and report "no usable Project" with no error and nothing to catch it.
+ * `compute()` places the single note into whichever side of `RefContext`
+ * `scope` names, which makes that mismatch structurally impossible instead of
+ * a convention every call site has to keep by hand.
+ */
+export interface StreamContext {
+  /** Path used to resolve relative links in rendered previews. */
+  sourcePath: string;
+  /** The reference scope this context can answer. Any other is refused. */
+  scope: RefScope;
+  /** The note references resolve against, read fresh on every refresh. */
+  note: () => NoteMeta | null;
+  /** A path to drop from the pool before filtering, or null. */
+  excludePath: string | null;
+}
+
 export class StreamChild extends MarkdownRenderChild {
   private readonly app: App;
-  private readonly sourcePath: string;
+  private readonly context: StreamContext;
   private query: StreamQuery | null = null;
   private failure: unknown = null;
 
@@ -60,12 +90,19 @@ export class StreamChild extends MarkdownRenderChild {
    */
   private items: Component | null = null;
 
-  constructor(containerEl: HTMLElement, app: App, source: string, sourcePath: string) {
+  constructor(containerEl: HTMLElement, app: App, source: string, context: StreamContext) {
     super(containerEl);
     this.app = app;
-    this.sourcePath = sourcePath;
+    this.context = context;
     try {
-      this.query = parseQuery(source);
+      const query = parseQuery(source);
+      // Right after parsing, before anything can run it. A block holding
+      // `active.` and a sidebar holding `this.` both name a note their context
+      // has no way to read, and resolving them anyway would report the note
+      // "has no usable Project" — blaming the reader's frontmatter for the
+      // plugin's own inability to answer.
+      assertScope(query, context.scope);
+      this.query = query;
     } catch (error) {
       this.failure = error;
     }
@@ -145,11 +182,14 @@ export class StreamChild extends MarkdownRenderChild {
     if (this.query === null) {
       throw new Error("Simple Streams: no query to run");
     }
-    // Read per refresh, not cached: editing the host note's properties is
+    // Read per refresh, not cached: editing the followed note's properties is
     // exactly the event this feature exists to follow, and `StreamRegistry`
     // already refreshes on the `metadataCache` change that carries it.
+    const note = this.context.note();
     return runStream(collectNotes(this.app), this.query, new Date(), {
-      host: noteAt(this.app, this.sourcePath),
+      host: this.context.scope === "this" ? note : null,
+      active: this.context.scope === "active" ? note : null,
+      excludePath: this.context.excludePath ?? undefined,
     });
   }
 
@@ -299,7 +339,7 @@ export class StreamChild extends MarkdownRenderChild {
         app: this.app,
         query,
         parent,
-        sourcePath: this.sourcePath,
+        sourcePath: this.context.sourcePath,
       });
       if (generation !== this.generation) {
         return;
@@ -346,7 +386,13 @@ export class StreamChild extends MarkdownRenderChild {
   }
 
   private scrollerEl(): HTMLElement | null {
-    return this.containerEl.closest<HTMLElement>(".markdown-preview-view, .cm-scroller");
+    // `.ss-sidebar-body` is this plugin's own scroller, added for the sidebar,
+    // where neither of the editor's scrollers exists. Without it the observer
+    // roots on the viewport, the sidebar's own overflow clips the sentinel
+    // first, and the 200px preload buffer does nothing.
+    return this.containerEl.closest<HTMLElement>(
+      ".markdown-preview-view, .cm-scroller, .ss-sidebar-body",
+    );
   }
 }
 

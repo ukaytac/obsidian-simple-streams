@@ -5,6 +5,7 @@ import {
   DAY_ONE,
   FakeIntersectionObserver,
   FakeVault,
+  blockContext,
   drawnTitles,
   mountBareBlock,
   mountPane,
@@ -47,7 +48,7 @@ let child: StreamChild | null = null;
 function open(source: string, notes: FakeNote[]): HTMLElement {
   vault.setNotes(notes);
   const { container } = mountPane();
-  child = new StreamChild(container, vault.app, source, "Host.md");
+  child = new StreamChild(container, vault.app, source, blockContext(vault.app, "Host.md"));
   child.load();
   return container;
 }
@@ -271,7 +272,7 @@ describe("rows", () => {
       })),
     );
     const container = mountBareBlock();
-    child = new StreamChild(container, vault.app, "display: title\ngroup: none\n", "Host.md");
+    child = new StreamChild(container, vault.app, "display: title\ngroup: none\n", blockContext(vault.app, "Host.md"));
     child.load();
     await settle();
 

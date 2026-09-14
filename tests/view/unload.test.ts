@@ -4,6 +4,7 @@ import { renderCalls, renderChildren, resetObsidianMock } from "../mocks/obsidia
 import {
   FakeIntersectionObserver,
   FakeVault,
+  blockContext,
   drawnTitles,
   mountPane,
   numberedNotes,
@@ -39,7 +40,7 @@ describe("onunload", () => {
    */
   test("stops the page that was still drawing", async () => {
     const { container } = mountPane();
-    const child = new StreamChild(container, vault.app, FULL, "Host.md");
+    const child = new StreamChild(container, vault.app, FULL, blockContext(vault.app, "Host.md"));
     child.load();
     // Part-way into the first page, and no observer yet: `watchSentinel` runs
     // only after the first page finishes, so this is the window where an
@@ -68,7 +69,7 @@ describe("onunload", () => {
 
   test("disconnects the sentinel observer", async () => {
     const { container } = mountPane();
-    const child = new StreamChild(container, vault.app, FULL, "Host.md");
+    const child = new StreamChild(container, vault.app, FULL, blockContext(vault.app, "Host.md"));
     child.load();
     await settle();
 
@@ -87,7 +88,7 @@ describe("onunload", () => {
 
   test("unloads every per-item render child it had loaded", async () => {
     const { container } = mountPane();
-    const child = new StreamChild(container, vault.app, FULL, "Host.md");
+    const child = new StreamChild(container, vault.app, FULL, blockContext(vault.app, "Host.md"));
     child.load();
     await settle();
 
@@ -102,7 +103,7 @@ describe("onunload", () => {
 
   test("a repaint unloads the previous pass's item children", async () => {
     const { container } = mountPane();
-    const child = new StreamChild(container, vault.app, FULL, "Host.md");
+    const child = new StreamChild(container, vault.app, FULL, blockContext(vault.app, "Host.md"));
     child.load();
     await settle();
 
