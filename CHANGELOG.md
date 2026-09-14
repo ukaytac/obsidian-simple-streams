@@ -6,11 +6,11 @@ The text of each GitHub release is taken from here.
 
 ## 1.3.1
 
-Fixes a compatibility slip in 1.3.0 that never reached anyone: 1.3.0's release was still a draft when this was found, so 1.3.1 is the first published version carrying the sidebar. The 1.3.0 notes below describe what it does.
+A compatibility fix for 1.3.0, which this replaces.
 
-`Workspace.revealLeaf` returns `void` through Obsidian 1.6.7 and a promise from 1.7.2 on. Opening the sidebar awaited it, which asked for a guarantee the manifest's 1.5.7 floor does not make. It was harmless in practice — awaiting a non-promise resolves a moment later and nothing followed the call — but it was a promise to users with nothing behind it, which is the thing `minAppVersion` exists to prevent.
+`Workspace.revealLeaf` returns `void` through Obsidian 1.6.7 and a promise from 1.7.2 on. Opening the sidebar awaited it, which asked for a guarantee the manifest's 1.5.7 floor does not make. Nothing misbehaved on any version — awaiting a non-promise resolves a moment later, and nothing ran after the call — so there is nothing to watch out for on 1.3.0 and no hurry about this. What it was is a promise to users with nothing behind it, which is the thing `minAppVersion` exists to prevent, and that is reason enough to correct it.
 
-**Installing or updating:** put `main.js`, `manifest.json` and `styles.css` from below into `<your vault>/.obsidian/plugins/simple-streams/`, replacing the files already there, and reload Obsidian. Requires Obsidian 1.5.7 or newer.
+**Installing or updating:** put `main.js`, `manifest.json` and `styles.css` from below into `<your vault>/.obsidian/plugins/simple-streams/`, replacing the files already there, and reload Obsidian. Requires Obsidian 1.5.7 or newer. Coming from 1.3.0, nothing else changes: the sidebar, its settings and its query syntax are identical.
 
 ## 1.3.0
 
