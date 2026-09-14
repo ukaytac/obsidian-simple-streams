@@ -1,5 +1,5 @@
 import type { DateExpr } from "../engine/dates";
-import type { StreamQuery, WhereCondition } from "./types";
+import { spell, type StreamQuery, type WhereCondition } from "./types";
 
 /**
  * The stream's filters on one line, shown when nothing matched. Only what can
@@ -62,12 +62,13 @@ function describeCondition(condition: WhereCondition): string {
     case "ref": {
       // Only an *unresolved* reference reaches here: `runStream` hands the
       // view its resolved query, where an answered reference is already an
-      // `equals` or an `anyOf` printing the host note's real value.
+      // `equals` or an `anyOf` printing the value it resolved against —
+      // the host note for `this.`, the workspace's active note for `active.`.
       //
       // Echoed in the spelling the reader used. The line's whole job is
-      // pointing at the block, and pointing at a `this.Project` that the block
-      // spells `[[this.Project]]` makes the reader hunt for a second condition.
-      const written = condition.link ? `[[this.${condition.field}]]` : `this.${condition.field}`;
+      // pointing at the condition, and pointing at a `this.Project` that was
+      // spelled `[[this.Project]]` makes the reader hunt for a second condition.
+      const written = spell(condition.scope, condition.field, condition.link);
       return `= ${written} (not set here)`;
     }
   }

@@ -25,6 +25,18 @@ export type TitleMatcher =
 export const REF_SCOPES = ["this", "active"] as const;
 export type RefScope = (typeof REF_SCOPES)[number];
 
+/**
+ * Spell a reference as a reader would write it: `scope.field`, bracketed when
+ * `link` is set. Shared because `assertScope`'s rejection message and the
+ * empty-stream summary both name the same reference to the same reader — built
+ * in two places, a change to the bracket rule (or a third scope) could update
+ * one and silently leave the other spelling it differently.
+ */
+export function spell(scope: RefScope, field: string, link: boolean): string {
+  const bare = `${scope}.${field}`;
+  return link ? `[[${bare}]]` : bare;
+}
+
 export type WhereCondition =
   | { kind: "equals"; value: string | number | boolean }
   | { kind: "anyOf"; values: Array<string | number | boolean> }

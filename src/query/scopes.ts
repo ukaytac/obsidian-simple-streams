@@ -1,4 +1,4 @@
-import { QueryError, type RefScope, type StreamQuery } from "./types";
+import { QueryError, type RefScope, spell, type StreamQuery } from "./types";
 
 /**
  * Refuse a query holding references the caller cannot answer.
@@ -36,11 +36,6 @@ export function assertScope(query: StreamQuery, allowed: RefScope): void {
       `\`where.${clause.field}\` cannot use \`${written}\` here. ${reason(condition.scope)} Use \`${wanted}\`.`,
     );
   }
-}
-
-function spell(scope: RefScope, field: string, link: boolean): string {
-  const bare = `${scope}.${field}`;
-  return link ? `[[${bare}]]` : bare;
 }
 
 function reason(rejected: RefScope): string {

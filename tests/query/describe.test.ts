@@ -86,4 +86,13 @@ describe("describeQuery — an unresolved reference", () => {
     };
     expect(describeQuery(query)).toContain("Project = [[this.Project]] (not set here)");
   });
+
+  it("echoes an unresolved active reference in its own spelling", () => {
+    expect(describeQuery(parseQuery("where:\n  Project: active.Project"))).toContain(
+      "Project = active.Project (not set here)",
+    );
+    expect(
+      describeQuery(parseQuery('where:\n  Project: "[[active.Project]]"')),
+    ).toContain("Project = [[active.Project]] (not set here)");
+  });
 });
