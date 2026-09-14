@@ -219,10 +219,15 @@ Test-driven: each behavior red first.
 | `tests/query/describe.test.ts` | unresolved link ref prints `[[this.X]]` |
 | `tests/view/this-refs.test.ts` | end to end: a host note holding a link, candidates holding the plain name, and the reverse |
 
-No new performance measurement. `unwrapLink` runs only on the string branch of a
-comparison that already builds strings, and `resolveRefs` still returns on its
-first line for a query holding no reference, so `perf.test.ts`'s budgets hold.
-The suite is the check.
+`perf.test.ts` gains a case, because it turns out not to have covered this at
+all: every query in it omits `where`, so none of them reaches `scalarEquals` or
+`compareOrder`. The reasoning that no measurement was needed — `unwrapLink` runs
+only on the string branch of a comparison that already builds strings, and
+`resolveRefs` still returns on its first line for a query holding no reference —
+was sound about the cost and wrong about the coverage. Measured: 3ms for three
+link-bearing clauses over 5000 notes, against the view's 300ms refresh debounce.
+The number is recorded beside the call site, as this file's neighbours record
+theirs.
 
 ## 7. Documentation
 

@@ -198,5 +198,13 @@ describe("matchesClause — link-valued properties", () => {
     const zebra = note({ frontmatter: { Project: "[[Zebra]]" } });
     expect(matchesClause(zebra, condition('where:\n  Project: ">Apple"'))).toBe(true);
     expect(matchesClause(zebra, condition('where:\n  Project: "<Apple"'))).toBe(false);
+
+    // `>=` and `<=` differ from `>` and `<` only where the two sides are equal,
+    // which is precisely where reducing decides the answer: raw, `[[Apple]]`
+    // sorts below `Apple` and `>=` comes out false.
+    const apple = note({ frontmatter: { Project: "[[Apple]]" } });
+    expect(matchesClause(apple, condition('where:\n  Project: ">=Apple"'))).toBe(true);
+    expect(matchesClause(apple, condition('where:\n  Project: "<=Apple"'))).toBe(true);
+    expect(matchesClause(apple, condition('where:\n  Project: ">Apple"'))).toBe(false);
   });
 });
