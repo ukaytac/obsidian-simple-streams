@@ -20,6 +20,22 @@ export function validateSidebarQuery(source: string): string | null {
   }
 }
 
+/**
+ * Rendered imperatively through `display()`, not declaratively through
+ * `getSettingDefinitions()`.
+ *
+ * Obsidian's own typings call `display()` "a fallback for plugins that need to
+ * support Obsidian versions older than 1.13.0", which is this plugin exactly:
+ * the manifest promises 1.5.7. Adopting the declarative API would put
+ * `SettingDefinitionItem` — a type that does not exist before 1.13.0 — in
+ * `src/`, and `npm run check:floor` type-checks `src/` against the typings for
+ * the version the manifest promises, so it would fail. The two are not
+ * reconcilable while the floor stands where it does.
+ *
+ * What that costs: on 1.13.0 and later these two settings do not appear in
+ * Obsidian's settings search. Worth revisiting the moment `minAppVersion`
+ * reaches 1.13.0, and not before.
+ */
 export class SimpleStreamsSettingTab extends PluginSettingTab {
   private readonly plugin: SimpleStreamsPlugin;
   private timer: number | null = null;

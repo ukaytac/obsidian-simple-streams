@@ -118,7 +118,14 @@ export default class SimpleStreamsPlugin extends Plugin {
     if (view instanceof StreamSidebarView) {
       view.follow(this.tracker?.current() ?? null);
     }
-    await this.app.workspace.revealLeaf(leaf);
+    // Not awaited, deliberately. `revealLeaf` returns `void` at the 1.5.7 floor
+    // the manifest promises and `Promise<void>` from 1.7.2 on, so awaiting it
+    // claims a guarantee the floor does not make. `await undefined` is harmless
+    // at runtime, which is exactly why this is worth a comment: nothing — not
+    // `tsc`, not `npm run check:floor`, both of which pass on the awaited
+    // version — can catch it, because awaiting a non-promise is legal
+    // TypeScript. Nothing here depends on the reveal having finished.
+    void this.app.workspace.revealLeaf(leaf);
   }
 
   /** Close every sidebar. The other half of the settings toggle. */
