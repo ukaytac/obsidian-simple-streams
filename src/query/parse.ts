@@ -312,6 +312,17 @@ function isThisRef(text: string): boolean {
   return THIS_REF.test(text) || LINK_REF.test(text);
 }
 
+/**
+ * Text reaching for a link reference without being one: `![[this.X]]`, a
+ * doubled bracket, or anything with text either side of the brackets.
+ * `LINK_REF` is anchored, so every one of these falls through to an ordinary
+ * equality against its own literal text — no match, no error, the silent empty
+ * stream this file exists to prevent, in the syntax it has just gained. Nobody
+ * writes `[[this.` meaning those characters, so the near miss is worth a
+ * sentence rather than a shrug.
+ */
+const NEAR_LINK_REF = /\[\[\s*this\./i;
+
 function parseWhere(value: unknown): WhereClause[] {
   if (value === null || value === undefined) {
     throw new QueryError(
@@ -400,6 +411,11 @@ function parseCondition(field: string, raw: unknown): WhereCondition {
       }
       return { kind: "compare", op: comparison[1] as CompareOp, operand };
     }
+    if (NEAR_LINK_REF.test(text)) {
+      throw new QueryError(
+        `\`where.${field}\` cannot use \`${text}\`. A link reference has to be the whole value, as in ${field}: "[[this.${field}]]".`,
+      );
+    }
     return { kind: "equals", value: text };
   }
 
@@ -416,7 +432,7 @@ function asAnyOfValue(field: string, item: unknown): string | number | boolean {
   const value = asScalar(field, item);
   if (typeof value === "string") {
     const text = value.trim();
-    if (isThisRef(text)) {
+    if (isThisRef(text) || NEAR_LINK_REF.test(text)) {
       throw new QueryError(
         `\`where.${field}\` cannot use \`${text}\` inside a list. A list means "any of these values"; a \`this.\` reference has to be the whole condition.`,
       );

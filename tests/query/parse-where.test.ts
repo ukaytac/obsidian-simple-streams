@@ -189,6 +189,41 @@ describe("parseQuery — where", () => {
   it("rejects a link-wrapped reference as a comparison operand", () => {
     expect(() => whereOf('where:\n  date: ">[[this.start]]"')).toThrow(/cannot compare against/);
   });
+
+  it("rejects a near miss rather than matching it literally", () => {
+    // Each of these reaches for a reference and misses. Before the guard they
+    // became equality against their own text: no match, no error.
+    expect(() => whereOf('where:\n  Project: "![[this.Project]]"')).toThrow(
+      /has to be the whole value/,
+    );
+    expect(() => whereOf('where:\n  Project: "[[this.Project]]extra"')).toThrow(
+      /has to be the whole value/,
+    );
+    expect(() => whereOf('where:\n  Project: "in [[this.Project]]"')).toThrow(
+      /has to be the whole value/,
+    );
+    expect(() => whereOf('where:\n  Project: "[[[[this.Project]]]]"')).toThrow(
+      /has to be the whole value/,
+    );
+  });
+
+  it("still reports a comparison operand as a comparison problem", () => {
+    // The near-miss guard sits after the comparison branch so this keeps its
+    // own, more specific message.
+    expect(() => whereOf('where:\n  date: ">[[this.start]]"')).toThrow(/cannot compare against/);
+  });
+
+  it("rejects a near miss inside a list too", () => {
+    expect(() => whereOf('where:\n  Project: ["![[this.Project]]", Beta]')).toThrow(
+      /inside a list/,
+    );
+  });
+
+  it("does not trip the near-miss guard on ordinary text containing the word this", () => {
+    expect(whereOf('where:\n  Note: "read this. then that"')).toEqual([
+      { field: "Note", condition: { kind: "equals", value: "read this. then that" } },
+    ]);
+  });
 });
 
 /** A smallest valid value for each field, to prove the field is wired up. */
