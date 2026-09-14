@@ -73,7 +73,11 @@ describe("resolveRefs", () => {
     ];
     for (const host of cases) {
       const resolved = resolveRefs(parseQuery(REF), host);
-      expect(resolved.query.where[0].condition).toEqual({ kind: "ref", field: "Project" });
+      expect(resolved.query.where[0].condition).toEqual({
+        kind: "ref",
+        field: "Project",
+        link: false,
+      });
       expect(resolved.unresolved).toEqual(["Project"]);
     }
   });
@@ -85,7 +89,11 @@ describe("resolveRefs", () => {
 
   it("leaves every reference unresolved when there is no host note", () => {
     const resolved = resolveRefs(parseQuery(REF), null);
-    expect(resolved.query.where[0].condition).toEqual({ kind: "ref", field: "Project" });
+    expect(resolved.query.where[0].condition).toEqual({
+      kind: "ref",
+      field: "Project",
+      link: false,
+    });
     expect(resolved.unresolved).toEqual(["Project"]);
   });
 

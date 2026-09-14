@@ -350,7 +350,7 @@ function parseCondition(field: string, raw: unknown): WhereCondition {
           `\`where.${field}\`: \`this.\` needs a property name, as in ${field}: this.${field}.`,
         );
       }
-      return { kind: "ref", field: target };
+      return { kind: "ref", field: target, link: false };
     }
     const comparison = COMPARISON.exec(text);
     if (comparison) {

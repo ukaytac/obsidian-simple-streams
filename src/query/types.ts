@@ -22,8 +22,15 @@ export type WhereCondition =
   | { kind: "exists" }
   | { kind: "missing" }
   | { kind: "compare"; op: CompareOp; operand: string }
-  /** A `this.X` value, until `resolveRefs` answers it from the host note. */
-  | { kind: "ref"; field: string };
+  /**
+   * A `this.X` value, until `resolveRefs` answers it from the host note.
+   * `link` records which spelling it was written in — `this.X` or
+   * `[[this.X]]` — so the resolved value can be written back as a link and an
+   * unresolved one can be described in the words the reader used. Required
+   * rather than optional: every site then states the answer, and the compiler
+   * finds every site.
+   */
+  | { kind: "ref"; field: string; link: boolean };
 
 export interface WhereClause {
   field: string;

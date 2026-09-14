@@ -64,7 +64,9 @@ describe("describeQuery — an unresolved reference", () => {
   it("names the reference and says the host note does not carry it", () => {
     const query = {
       ...defaultQuery(),
-      where: [{ field: "Project", condition: { kind: "ref" as const, field: "Project" } }],
+      where: [
+        { field: "Project", condition: { kind: "ref" as const, field: "Project", link: false } },
+      ],
     };
     expect(describeQuery(query)).toContain("Project = this.Project (not set here)");
   });
