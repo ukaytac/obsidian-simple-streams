@@ -88,8 +88,15 @@ which is the point.
 answers the question `=` answers. Left alone, `Project: "!=[[My Project]]"`
 would call a note holding `My Project` different from one holding
 `[[My Project]]` while `=` called them the same — an inconsistency, not a
-second opinion. The number and date branches are untouched: a wikilink is
-neither.
+second opinion.
+
+`>`, `>=`, `<` and `<=` share that branch and are reduced with it. This is
+intended, not incidental: `[` precedes every letter in collation order, so on
+raw text every link would sort ahead of every plain name and `[[Zebra]] >
+Apple` would come out false. Ordering by the note a value names is the only
+answer that agrees with what the reader sees.
+
+The number and date branches are untouched: a wikilink is neither.
 
 ### 3.4 `[[this.<field>]]`
 
