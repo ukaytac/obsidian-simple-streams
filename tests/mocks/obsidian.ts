@@ -189,6 +189,41 @@ export class MarkdownView extends Component {
   }
 }
 
+/**
+ * A leaf, as much of one as the sidebar view touches: somewhere to hang the
+ * app. The real `WorkspaceLeaf` carries the view and the tab chrome; the view
+ * under test only ever reads `this.app`, which Obsidian sets from the leaf.
+ */
+export interface MockLeaf {
+  app: unknown;
+}
+
+/**
+ * Obsidian's ItemView, to the depth the sidebar uses it: a content element to
+ * draw into, a leaf, and the Component lifecycle it inherits. `onOpen` and
+ * `onClose` are called by Obsidian in production and by the test directly.
+ */
+export class ItemView extends Component {
+  readonly leaf: MockLeaf;
+  readonly containerEl: HTMLElement;
+  readonly contentEl: HTMLElement;
+  app: unknown;
+
+  constructor(leaf: MockLeaf) {
+    super();
+    this.leaf = leaf;
+    this.app = leaf.app;
+    this.containerEl = document.createElement("div");
+    // The real contentEl is `containerEl.children[1]`, after the header.
+    this.containerEl.createDiv({ cls: "view-header" });
+    this.contentEl = this.containerEl.createDiv({ cls: "view-content" });
+  }
+
+  async onOpen(): Promise<void> {}
+
+  async onClose(): Promise<void> {}
+}
+
 /** Drop the state the mock accumulates. Call between tests in one file. */
 export function resetObsidianMock(): void {
   renderChildren.length = 0;

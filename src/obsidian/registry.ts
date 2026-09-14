@@ -55,6 +55,15 @@ export class StreamRegistry {
     this.streams.clear();
   }
 
+  /** Run a pending refresh now. For tests, and for callers that cannot wait. */
+  async flushNow(): Promise<void> {
+    if (this.timer !== null) {
+      window.clearTimeout(this.timer);
+      this.timer = null;
+    }
+    await this.flush();
+  }
+
   private schedule(): void {
     // Obsidian unsubscribes the handlers itself, through the refs `start()`
     // handed to `registerEvent`, so `stop()` cannot silence them first. An
