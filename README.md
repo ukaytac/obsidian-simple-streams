@@ -134,6 +134,12 @@ Equality looks inside a frontmatter list too: `where: {tags: book}` matches a
 note whose `tags` are `[Book, Read]`. Numbers compare as numbers and booleans
 as booleans.
 
+Values are compared as the notes they name, so a property holding
+`[[My Project]]` matches one holding `My Project`, and an alias or a heading in
+the link — `[[My Project|MP]]`, `[[My Project#Goals]]` — matches the plain link
+too. Write whichever your vault uses; a stream never depends on the two notes
+having spelled the relationship the same way.
+
 A `where` value may also name a property of the note the block sits in, by
 writing `this.` in front of it:
 
@@ -152,13 +158,26 @@ host note itself — the two file properties worth referencing this way;
 `this.file.ctime` and `this.file.mtime` resolve too, but to raw epoch
 milliseconds, which will not match anything meaningful.
 
+A reference can be written as a link — `Project: "[[this.Project]]"` — which is
+what reads naturally in a vault whose properties hold links. It resolves to
+exactly one link whether the host note's own property is `My Project` or
+`[[My Project]]`. Because values already compare as the notes they name, this
+spelling and the plain `this.Project` match the same notes; write whichever
+looks right in the block.
+
 If the host note's property holds a list, the stream matches any of its
 values. If the note has no such property — a template's note before it is
 filled in — the stream matches nothing and says so, rather than quietly
 widening to the whole vault. A `this.` reference has to be the whole
-condition: it cannot sit inside a list or after a comparison operator. A value
-starting with `this.` is always read this way, so there is no way to match a
-property whose own text genuinely starts with `this.`.
+condition, in either spelling: it cannot sit inside a list or after a
+comparison operator. A link reference names a property, so it cannot carry an
+alias or a heading either — `"[[this.Project|MP]]"` is an error, not a match.
+Text that reaches for a link reference and misses — `"![[this.Project]]"`,
+`"[[this.Project]]extra"` — is an error too, rather than a literal match that
+would quietly find nothing. A value starting with `this.` is always read this
+way, so there is no way to match a property whose own text genuinely starts
+with `this.` — nor one whose text contains `[[this.` anywhere, which is an
+error for the same reason rather than a literal match.
 
 A stream filtering on the host note's own property matches the host note
 too — its `Project` equals its own `Project` by construction. Keeping the

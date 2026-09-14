@@ -96,3 +96,25 @@ nothing. Fixed with `setCodeText`, which renders the spans as `<code>`.
 - [ ] **A vault of a few thousand notes.** The engine is measured in
       `tests/engine/perf.test.ts`, but rendering, scrolling and the paging
       sentinel are not, and they are what a reader actually waits for.
+
+### Link-valued properties
+
+- [ ] **A link-valued property matches the plain text spelling.** Make
+      `Projects/Orbit.md` and two notes in `Notes/` whose `Project` property
+      is the link `[[Orbit]]`, plus one whose `Project` is the plain text
+      `Orbit`. In `Projects/Orbit.md`, add a block with
+      `where: { Project: this.Project }`. All three notes appear — the
+      host's plain `Orbit` matches both spellings.
+- [ ] **The host note's own property can hold a link too.** Change the host
+      note's `Project` to the link `[[Orbit]]`. The same three notes appear.
+- [ ] **The link spelling of the reference resolves the same way.** Change
+      the block to `where: { Project: "[[this.Project]]" }`. Again the same
+      three notes appear, and the empty-stream summary is not shown.
+- [ ] **An unfilled property still explains itself with the link
+      spelling.** Clear the host note's `Project` property. The stream
+      empties, the notice names `Project`, and the summary line includes
+      `[[this.Project]] (not set here)`.
+- [ ] **A near-miss reference errors rather than showing an empty
+      stream.** Type the reference wrong on purpose —
+      `where: { Project: "![[this.Project]]" }`. The block shows an error
+      naming the problem, not an empty stream.

@@ -2,6 +2,24 @@
 
 The text of each GitHub release is taken from here.
 
+## Unreleased
+
+Streams now read properties that hold links. A `Project` of `[[My Project]]`
+and a `Project` of `My Project` are the same project, and an alias or a heading
+inside the link — `[[My Project|MP]]`, `[[My Project#Goals]]` — names the same
+note as the plain link does. Nothing that matched before stops matching; this
+only joins spellings that were being kept apart.
+
+A `this.` reference can be written as a link too, as
+`Project: "[[this.Project]]"`, which is what reads naturally in a vault that
+stores relationships that way. It resolves to one link whether the host note
+holds `My Project` or `[[My Project]]`.
+
+Writing a reference not quite right — an alias inside it, an embed marker in
+front, text either side of the brackets — is now an error naming the problem,
+where it used to be a match against the literal text that found nothing and
+said nothing.
+
 ## 1.1.0
 
 One new thing the filter can ask for: the note the block is sitting in. Until
