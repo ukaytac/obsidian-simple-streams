@@ -156,4 +156,23 @@ describe("parseQuery — group, display and numbers", () => {
     expect(() => parseQuery("limit: 2.5")).toThrow(/`limit` expects a whole number above zero/);
     expect(() => parseQuery("limit: many")).toThrow(/`limit` expects a whole number above zero/);
   });
+
+  it("parses a section", () => {
+    expect(parseQuery("section: Objective").section).toBe("Objective");
+  });
+
+  it("trims a section and keeps its case", () => {
+    // Case is kept because the value is echoed nowhere but matched
+    // case-insensitively; storing it lower-cased would lose the reader's
+    // spelling for no gain.
+    expect(parseQuery("section: '  Objective  '").section).toBe("Objective");
+  });
+
+  it("defaults to no section", () => {
+    expect(parseQuery("display: preview").section).toBeNull();
+  });
+
+  it("rejects an empty section", () => {
+    expect(() => parseQuery("section: ''")).toThrow(/`section` is empty/);
+  });
 });

@@ -114,6 +114,9 @@ function applyField(query: StreamQuery, key: string, value: unknown): void {
     case "display":
       query.display = parseChoice(key, value, DISPLAY_MODES);
       return;
+    case "section":
+      query.section = toSingleString(key, value);
+      return;
     case "preview-length":
       query.previewLength = toPositiveInt(key, value);
       return;

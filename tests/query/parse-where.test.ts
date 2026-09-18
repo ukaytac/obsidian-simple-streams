@@ -373,6 +373,7 @@ const MINIMAL: Record<(typeof QUERY_FIELDS)[number], string> = {
   sort: "date desc",
   group: "day",
   display: "full",
+  section: "Objective",
   "preview-length": "80",
   limit: "10",
 };

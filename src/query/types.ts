@@ -75,6 +75,12 @@ export interface StreamQuery {
   sort: SortSpec[];
   group: GroupMode;
   display: DisplayMode;
+  /**
+   * The heading whose content an item's body is taken from, or null for the
+   * whole note. Matched case-insensitively at render time; a note without it
+   * shows no body. Never a filter — `where` is the only one.
+   */
+  section: string | null;
   previewLength: number;
   limit: number;
 }
@@ -95,6 +101,7 @@ export function defaultQuery(): StreamQuery {
     sort: [{ field: "file.ctime", direction: "desc" }],
     group: "none",
     display: "preview",
+    section: null,
     previewLength: 200,
     limit: 50,
   };
@@ -114,6 +121,7 @@ export const QUERY_FIELDS = [
   "sort",
   "group",
   "display",
+  "section",
   "preview-length",
   "limit",
 ] as const;
