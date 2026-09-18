@@ -19,6 +19,21 @@ folder: Journal
 \`\`\`
 `;
 
+const HOST_BODY_WITH_SECTION = `---
+date: 2026-09-04
+---
+
+Opening context nobody wants in a column.
+
+## Objective
+
+Ship the section field, long enough to read as a preview of itself.
+
+\`\`\`stream
+folder: Journal
+\`\`\`
+`;
+
 const PREVIEW_WARNING =
   "Shown as a preview: this is the note holding the stream, and rendering it in full would nest the stream inside itself.";
 
@@ -80,6 +95,56 @@ describe("a stream that would render itself", () => {
     expect(list.querySelector(".ss-item-warning")?.textContent).toBe(PREVIEW_WARNING);
     // The guard is the absence of this call, not the presence of the warning:
     // one `MarkdownRenderer.render` of the host body is the whole recursion.
+    expect(renderCalls).toEqual([]);
+  });
+
+  /**
+   * `section` narrows before the self-reference check runs (`renderItem`
+   * slices, then branches on `display`, then checks `note.path ===
+   * sourcePath`), so the fallback preview is of the section, not of the
+   * note's opening paragraph. A host note with a `section` query is exactly
+   * the shape a dashboard note with a `folder`-less stream and a `section:`
+   * field produces, so this is a real combination, not just a code path.
+   */
+  test("a host note with a section set falls back to a preview of the section", async () => {
+    vault.setNotes([
+      { path: "Streams.md", content: HOST_BODY_WITH_SECTION },
+      { path: "Journal/x.md", content: "# x\n\nA journal entry.\n" },
+    ]);
+
+    const list = document.createElement("div");
+    list.className = "ss-list";
+    document.body.appendChild(list);
+
+    await renderItem(
+      list,
+      {
+        path: "Streams.md",
+        basename: "Streams",
+        tags: [],
+        frontmatter: {},
+        ctime: 0,
+        mtime: 0,
+      },
+      {
+        app: vault.app,
+        query: parseQuery("display: full\nsection: Objective\n"),
+        parent: new Component(),
+        sourcePath: "Streams.md",
+      },
+    );
+
+    // Spelled out rather than computed through `sliceSection` and
+    // `extractPreview`, unlike the tests above: their point is that the body is
+    // a preview at all, and this one's is what the preview contains. Deriving
+    // the expectation from the same two functions under test would pass just as
+    // happily if the slicing broke. The `stream` fence inside the section is
+    // gone because `extractPreview` drops fenced code — and its presence is the
+    // reason this note must not render in full.
+    expect(list.querySelector(".ss-item-body")?.textContent).toBe(
+      "Ship the section field, long enough to read as a preview of itself.",
+    );
+    expect(list.querySelector(".ss-item-warning")?.textContent).toBe(PREVIEW_WARNING);
     expect(renderCalls).toEqual([]);
   });
 
