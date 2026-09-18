@@ -361,6 +361,11 @@ In `src/engine/preview.ts`, add the fence pattern beside `SECTION_HEADING`:
 const SECTION_FENCE = /^[ \t]*(```+|~~~+)/;
 ```
 
+The tracker records the marker's run length alongside the marker itself, and a
+fence closes only on a marker of at least that length — CommonMark's rule, and
+what stops a nested three-backtick line from ending a four-backtick block early
+and letting the next `#` line split the section.
+
 Then, inside `sliceSection`, replace the loop body's opening — the `const match = ...` and its `if (match === null)` guard — with:
 
 ```ts
@@ -425,7 +430,11 @@ section is silently not found. Add the test:
     expect(sliceSection("## Objective ##\n\nShip it.\n", "Objective")).toBe("Ship it.");
   });
 
-  it("keeps a hash that is part of the heading text", () => {
+  it("keeps a hash that ends the heading text", () => {
+    expect(sliceSection("## C#\n\nShip it.\n", "C#")).toBe("Ship it.");
+  });
+
+  it("keeps a hash inside the heading text", () => {
     expect(sliceSection("## Sprint #3\n\nShip it.\n", "Sprint #3")).toBe("Ship it.");
   });
 ```
@@ -437,8 +446,10 @@ and strip the sequence in `sliceSection`, where the heading text is compared:
 ```
 
 The pattern requires whitespace before the hashes and nothing after them, which
-is CommonMark's rule and what keeps `## Sprint #3` intact — the second test
-exists to pin that, since an unguarded `#+$` would turn it into `Sprint`.
+is CommonMark's rule. The case the whitespace guard actually protects is a
+heading ending directly in a hash — `## C#`, which an unguarded `#+$` would cut
+down to `C`. `## Sprint #3` is safe either way, since it ends in a digit; it
+stays as a second example but pins nothing on its own.
 
 **c. Two comment repairs.** On the `let start = -1;` declaration:
 
