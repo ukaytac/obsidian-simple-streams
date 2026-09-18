@@ -395,13 +395,83 @@ And declare the tracker with the other loop state, after `let start = -1;`:
   let fence: string | null = null;
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [ ] **Step 4: Fold in the Task 2 review findings**
+
+The code-quality review of Task 2 raised three things that live in exactly these
+two files. They are folded in here rather than given their own commit.
+
+**a. The frontmatter test does not test frontmatter.** Its fixture line
+`Objective: not this` has no `#`, so `SECTION_HEADING` could never match it —
+delete the `stripFrontmatter` call inside `sliceSection` and the test still
+passes. Replace the fixture with a decoy that would match if the frontmatter
+were not stripped:
+
+```ts
+  it("ignores frontmatter", () => {
+    const note = "---\n## Objective\nnot this\n---\n\n## Objective\n\nThis one.\n";
+    expect(sliceSection(note, "Objective")).toBe("This one.");
+  });
+```
+
+Without the strip, the first match is the heading inside the frontmatter and the
+result is `"not this\n---"`, so the test now fails for the right reason.
+
+**b. An ATX closing sequence is not part of the heading.** `## Objective ##` is
+`Objective` in CommonMark, but `SECTION_HEADING` captures `Objective ##` and the
+section is silently not found. Add the test:
+
+```ts
+  it("ignores an ATX closing sequence", () => {
+    expect(sliceSection("## Objective ##\n\nShip it.\n", "Objective")).toBe("Ship it.");
+  });
+
+  it("keeps a hash that is part of the heading text", () => {
+    expect(sliceSection("## Sprint #3\n\nShip it.\n", "Sprint #3")).toBe("Ship it.");
+  });
+```
+
+and strip the sequence in `sliceSection`, where the heading text is compared:
+
+```ts
+      if (match[2].replace(/[ \t]+#+[ \t]*$/, "").trim().toLowerCase() === wanted) {
+```
+
+The pattern requires whitespace before the hashes and nothing after them, which
+is CommonMark's rule and what keeps `## Sprint #3` intact — the second test
+exists to pin that, since an unguarded `#+$` would turn it into `Sprint`.
+
+**c. Two comment repairs.** On the `let start = -1;` declaration:
+
+```ts
+  /** -1 until the heading is found, then the index of the section's first line. */
+```
+
+And in the docblock, the `normalizeTag` analogy is imprecise — that function
+lower-cases and strips a leading `#` but does not trim. Change
+
+```
+ * Matching is exact on the trimmed, lower-cased heading text — the rule
+ * `normalizeTag` already applies to tags.
+```
+
+to
+
+```
+ * Matching is exact on the trimmed, lower-cased heading text, close to what
+ * `normalizeTag` does for tags.
+```
+
+Deliberately still not handled, and both already reasoned about in the design:
+setext headings, and headings indented or nested in a blockquote. The regex is
+anchored at column zero, as `LEADING_HEADING` beside it already is.
+
+- [ ] **Step 5: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/engine/preview.test.ts`
 
 Expected: PASS, all tests in the file.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add src/engine/preview.ts tests/engine/preview.test.ts
