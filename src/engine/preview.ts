@@ -6,6 +6,54 @@ export function stripFrontmatter(content: string): string {
   return content.replace(FRONTMATTER, "");
 }
 
+const SECTION_HEADING = /^(#{1,6})[ \t]+(.+?)[ \t]*$/;
+
+/**
+ * The text under the first heading named `heading`, or null when the note has
+ * no such heading.
+ *
+ * Matching is exact on the trimmed, lower-cased heading text — the rule
+ * `normalizeTag` already applies to tags. Vaults spell headings inconsistently;
+ * they do not usually spell them approximately, so a substring rule would pull
+ * `## Project Notes` into a stream asking for `Notes`. Heading level is not
+ * part of the match, because someone asking for a section by name is not
+ * thinking about its depth.
+ *
+ * The section ends at the next heading of the same or a shallower level, so its
+ * own sub-headings stay inside it. The matched heading line itself is left out:
+ * the query already names the section, and under `display: preview` repeating
+ * it would spend the character budget on a word the reader supplied.
+ *
+ * A heading with nothing under it yields `""`, which is a different fact from
+ * the `null` above even though `renderItem` treats both as "no body".
+ */
+export function sliceSection(content: string, heading: string): string | null {
+  const wanted = heading.trim().toLowerCase();
+  const lines = stripFrontmatter(content).split(/\r?\n/);
+
+  let level = 0;
+  let start = -1;
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const match = SECTION_HEADING.exec(lines[index]);
+    if (match === null) {
+      continue;
+    }
+    if (start === -1) {
+      if (match[2].trim().toLowerCase() === wanted) {
+        level = match[1].length;
+        start = index + 1;
+      }
+      continue;
+    }
+    if (match[1].length <= level) {
+      return lines.slice(start, index).join("\n").trim();
+    }
+  }
+
+  return start === -1 ? null : lines.slice(start).join("\n").trim();
+}
+
 /**
  * Turn markdown into the words it contains. Order matters: block constructs go
  * before inline ones, and embeds before links, since `![[x]]` also matches the

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractPreview, stripFrontmatter } from "../../src/engine/preview";
+import { extractPreview, sliceSection, stripFrontmatter } from "../../src/engine/preview";
 
 describe("stripFrontmatter", () => {
   it("removes a leading frontmatter block", () => {
@@ -20,6 +20,74 @@ describe("stripFrontmatter", () => {
 
   it("removes an empty frontmatter block", () => {
     expect(stripFrontmatter("---\n---\nBody")).toBe("Body");
+  });
+});
+
+describe("sliceSection", () => {
+  const NOTE = [
+    "---",
+    "Project: Streams",
+    "---",
+    "# Weekly note",
+    "",
+    "Some opening context.",
+    "",
+    "## Objective",
+    "",
+    "Ship the section field.",
+    "",
+    "### Detail",
+    "",
+    "Including sub-headings.",
+    "",
+    "## Log",
+    "",
+    "Not part of the objective.",
+  ].join("\n");
+
+  it("returns the text under the heading, without the heading line", () => {
+    expect(sliceSection("## Objective\n\nShip it.\n", "Objective")).toBe("Ship it.");
+  });
+
+  it("matches case-insensitively", () => {
+    expect(sliceSection("## Objective\n\nShip it.\n", "objective")).toBe("Ship it.");
+    expect(sliceSection("## objective\n\nShip it.\n", "Objective")).toBe("Ship it.");
+  });
+
+  it("matches a heading at any level", () => {
+    expect(sliceSection("#### Objective\n\nShip it.\n", "Objective")).toBe("Ship it.");
+  });
+
+  it("does not match a heading that merely starts the same", () => {
+    expect(sliceSection("## Objectives\n\nShip it.\n", "Objective")).toBeNull();
+  });
+
+  it("keeps sub-headings inside the section and stops at the next sibling", () => {
+    expect(sliceSection(NOTE, "Objective")).toBe(
+      "Ship the section field.\n\n### Detail\n\nIncluding sub-headings.",
+    );
+  });
+
+  it("stops at a shallower heading", () => {
+    const note = "## Objective\n\nShip it.\n\n# Elsewhere\n\nOther.\n";
+    expect(sliceSection(note, "Objective")).toBe("Ship it.");
+  });
+
+  it("runs to the end of the note when nothing follows", () => {
+    expect(sliceSection(NOTE, "Log")).toBe("Not part of the objective.");
+  });
+
+  it("ignores frontmatter", () => {
+    const note = "---\nObjective: not this\n---\n\n## Objective\n\nThis one.\n";
+    expect(sliceSection(note, "Objective")).toBe("This one.");
+  });
+
+  it("returns null when no heading matches", () => {
+    expect(sliceSection(NOTE, "Retrospective")).toBeNull();
+  });
+
+  it("handles CRLF line endings", () => {
+    expect(sliceSection("## Objective\r\n\r\nShip it.\r\n", "Objective")).toBe("Ship it.");
   });
 });
 
