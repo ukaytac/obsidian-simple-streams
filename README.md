@@ -85,7 +85,7 @@ display: preview
 section: Objective
 ```
 
-The match is exact on the heading's text, ignoring both case and heading level, so `## Objective` and `### objective` are both found and `## Objectives` is not. The section runs to the next heading at the same or a shallower level, so its own sub-headings come with it; the heading line itself is not shown. A note without that heading shows no body, deliberately — falling back to the note's opening words would put back the arbitrary text `section` exists to remove. With `display: full` the section renders as real markdown, the same as the rest of the note would; with `display: title` the field does nothing, since no body is shown either way.
+The match is exact on the heading's text, ignoring both case and heading level, so `## Objective` and `### objective` are both found and `## Objectives` is not. The section runs to the next heading at the same or a shallower level, so its own sub-headings come with it; the heading line itself is not shown. A note without that heading — or with it but nothing underneath — keeps its title, date and tags and shows no body, deliberately: falling back to the note's opening words would put back the arbitrary text `section` exists to remove. `section` never decides which notes appear, only what each one shows; `where` is still the only filter. With `display: full` the section renders as real markdown, the same as the rest of the note would; with `display: title` the field does nothing, since no body is shown either way.
 
 ## Matching rules
 
