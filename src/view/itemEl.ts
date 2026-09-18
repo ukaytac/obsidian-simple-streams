@@ -1,6 +1,6 @@
 import { MarkdownRenderChild, MarkdownRenderer, Notice, type App, type Component } from "obsidian";
 import { resolveNoteDate } from "../engine/fields";
-import { extractPreview, stripFrontmatter } from "../engine/preview";
+import { extractPreview, sliceSection, stripFrontmatter } from "../engine/preview";
 import type { NoteMeta } from "../engine/note";
 import type { StreamQuery } from "../query/types";
 
@@ -41,6 +41,21 @@ export async function renderItem(
       text: `Could not read ${note.path}: ${error instanceof Error ? error.message : String(error)}`,
     });
     return;
+  }
+
+  if (ctx.query.section !== null) {
+    const section = sliceSection(content, ctx.query.section);
+    // A note without the section shows no body at all — not the note's opening
+    // words. The field exists to make one column comparable across notes, and
+    // a fallback would put back exactly what it was asked to remove. Silent,
+    // and deliberately so: in the case this field is for, several notes in a
+    // list lack the heading permanently, and a warning under each would be
+    // noisier than the paragraphs it replaced. The header above is still
+    // rendered, so the row keeps its title, date and tags.
+    if (section === null || section.trim() === "") {
+      return;
+    }
+    content = section;
   }
 
   const body = item.createDiv({ cls: "ss-item-body" });

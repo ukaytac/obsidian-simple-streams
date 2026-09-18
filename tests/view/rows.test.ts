@@ -206,6 +206,75 @@ describe("rows", () => {
     expect(vault.reads).toEqual(["a.md"]);
   });
 
+  const SECTIONED = [
+    "# Weekly note",
+    "",
+    "Opening context nobody wants in a column.",
+    "",
+    "## Objective",
+    "",
+    "Ship the **section** field.",
+    "",
+    "## Log",
+    "",
+    "Unrelated.",
+  ].join("\n");
+
+  test("section narrows what a preview shows", async () => {
+    const container = open("display: preview\ngroup: none\nsection: Objective\n", [
+      { path: "a.md", content: SECTIONED, ctime: JAN_10 },
+    ]);
+    await settle();
+
+    expect(container.querySelector(".ss-item-body")?.textContent).toBe("Ship the section field.");
+  });
+
+  test("section narrows what display: full renders", async () => {
+    const container = open("display: full\ngroup: none\nsection: Objective\n", [
+      { path: "a.md", content: SECTIONED, ctime: JAN_10 },
+    ]);
+    await settle();
+
+    expect(renderCalls).toHaveLength(1);
+    expect(renderCalls[0].markdown).toBe("Ship the **section** field.");
+    expect(renderCalls[0].el).toBe(container.querySelector(".ss-item-body"));
+  });
+
+  test("a note without the section keeps its header and shows no body", async () => {
+    const container = open("display: preview\ngroup: none\nsection: Objective\n", [
+      { path: "a.md", content: "Just an opening paragraph.\n", ctime: JAN_10 },
+    ]);
+    await settle();
+
+    // The row is still there, still clickable, still dated.
+    expect(container.querySelectorAll(".ss-item")).toHaveLength(1);
+    expect(container.querySelector(".ss-item-title")?.textContent).toBe("a");
+    // No body, and no warning either: a missing section is a fact about the
+    // vault, not a fault.
+    expect(container.querySelector(".ss-item-body")).toBeNull();
+    expect(container.querySelector(".ss-item-warning")).toBeNull();
+  });
+
+  test("a section with nothing under it shows no body", async () => {
+    const container = open("display: preview\ngroup: none\nsection: Objective\n", [
+      { path: "a.md", content: "## Objective\n\n## Log\n\nOther.\n", ctime: JAN_10 },
+    ]);
+    await settle();
+
+    expect(container.querySelector(".ss-item-body")).toBeNull();
+  });
+
+  test("display: title ignores section and still reads no files", async () => {
+    const container = open("display: title\ngroup: none\nsection: Objective\n", [
+      { path: "a.md", content: SECTIONED, ctime: JAN_10 },
+    ]);
+    await settle();
+
+    expect(container.querySelectorAll(".ss-item")).toHaveLength(1);
+    expect(container.querySelector(".ss-item-body")).toBeNull();
+    expect(vault.reads).toEqual([]);
+  });
+
   test("a row carries the note's title, resolved date and tags", async () => {
     const container = open("display: title\ngroup: none\n", [
       { path: "Journal/a.md", ctime: JAN_10, tags: ["Daily", "#book"] },
