@@ -4,6 +4,10 @@ The text of each GitHub release is taken from here.
 
 ## [Unreleased]
 
+A stream's body has always started at the top of each note, which is rarely the useful part in a project's index, where every note answers the same question somewhere further down. `section: <heading>` takes the body from under a named heading instead, so what shows in the stream is the column you actually want to read down and compare, rather than whatever words a note happens to open with.
+
+The match is on the heading's text alone: case and heading level are both ignored, so `section: objective` finds `## Objective` or `### objective` wherever it sits, though not `## Objectives`. It works the same way under `display: preview`, where the section is clipped like any other preview text, and under `display: full`, where it renders as the section's real markdown. A note that lacks the heading — or has it with nothing underneath — shows no body at all, just its title, date and tags, rather than falling back to its opening words and putting back the very thing this field exists to remove.
+
 ## 1.4.0
 
 Raises the minimum Obsidian version to 1.7.2, and fixes what the old floor was hiding.

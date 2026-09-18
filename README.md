@@ -63,6 +63,7 @@ None of that is a claim you have to take on trust. The test suite and the type c
 | `sort`           | text or list             | `file.ctime desc` | `"<field> <asc\|desc>"`, direction defaults to `asc` |
 | `group`          | `day\|month\|year\|none` | `none`            | Date headers, using `date-field` |
 | `display`        | `full\|preview\|title`   | `preview`         | How much of the body to show |
+| `section`        | text                     | —                 | Take the body from under this heading |
 | `preview-length` | number                   | `200`             | Character budget for previews |
 | `limit`          | number                   | `50`              | Maximum items |
 
@@ -72,6 +73,19 @@ Two things worth knowing about `date-field`, because they surprise people:
 
 - **`group` reads `date-field`, not your `sort` field.** If you sort by a frontmatter `date` but leave `date-field` at its default, the headers say file-creation dates and the stream is reordered to match them — your declared sort survives only inside each group. Set `date-field` to the same field you sort by, as the example above does.
 - **`from` and `to` also read `date-field`**, and so does the date shown beside each item.
+
+### section
+
+A stream's body normally starts at the top of each note, which is rarely the useful part in a project's index, where every note answers the same question somewhere further down. `section` takes the body from under a named heading instead, so the stream becomes a column you can read down and compare.
+
+```stream
+where:
+  Project: this.Project
+display: preview
+section: Objective
+```
+
+The match is exact on the heading's text, ignoring both case and heading level, so `## Objective` and `### objective` are both found and `## Objectives` is not. The section runs to the next heading at the same or a shallower level, so its own sub-headings come with it; the heading line itself is not shown. A note without that heading shows no body, deliberately — falling back to the note's opening words would put back the arbitrary text `section` exists to remove. With `display: full` the section renders as real markdown, the same as the rest of the note would; with `display: title` the field does nothing, since no body is shown either way.
 
 ## Matching rules
 
