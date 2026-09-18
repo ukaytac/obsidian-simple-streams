@@ -78,7 +78,7 @@ describe("sliceSection", () => {
   });
 
   it("ignores frontmatter", () => {
-    const note = "---\nObjective: not this\n---\n\n## Objective\n\nThis one.\n";
+    const note = "---\n## Objective\nnot this\n---\n\n## Objective\n\nThis one.\n";
     expect(sliceSection(note, "Objective")).toBe("This one.");
   });
 
@@ -88,6 +88,57 @@ describe("sliceSection", () => {
 
   it("handles CRLF line endings", () => {
     expect(sliceSection("## Objective\r\n\r\nShip it.\r\n", "Objective")).toBe("Ship it.");
+  });
+
+  it("does not treat a # line inside a backtick fence as a heading", () => {
+    const note = [
+      "## Objective",
+      "",
+      "```sh",
+      "# Objective: not a heading",
+      "grep -r x .",
+      "```",
+      "",
+      "Still the objective.",
+      "",
+      "## Log",
+      "",
+      "Other.",
+    ].join("\n");
+    expect(sliceSection(note, "Objective")).toBe(
+      "```sh\n# Objective: not a heading\ngrep -r x .\n```\n\nStill the objective.",
+    );
+  });
+
+  it("does not treat a # line inside a tilde fence as a heading", () => {
+    const note = "~~~\n## Objective\n~~~\n\n## Objective\n\nThe real one.\n";
+    expect(sliceSection(note, "Objective")).toBe("The real one.");
+  });
+
+  it("does not let a tilde line close a backtick fence", () => {
+    const note = "## Objective\n\n```\n~~~\n## Log\n```\n\nStill here.\n";
+    expect(sliceSection(note, "Objective")).toBe("```\n~~~\n## Log\n```\n\nStill here.");
+  });
+
+  it("returns the first of two identically named headings", () => {
+    const note = "## Objective\n\nFirst.\n\n## Objective\n\nSecond.\n";
+    expect(sliceSection(note, "Objective")).toBe("First.");
+  });
+
+  it("returns an empty string for a heading with nothing under it", () => {
+    expect(sliceSection("## Objective\n\n## Log\n\nOther.\n", "Objective")).toBe("");
+  });
+
+  it("returns an empty string for an empty heading at end of file", () => {
+    expect(sliceSection("Opening.\n\n## Objective\n", "Objective")).toBe("");
+  });
+
+  it("ignores an ATX closing sequence", () => {
+    expect(sliceSection("## Objective ##\n\nShip it.\n", "Objective")).toBe("Ship it.");
+  });
+
+  it("keeps a hash that is part of the heading text", () => {
+    expect(sliceSection("## Sprint #3\n\nShip it.\n", "Sprint #3")).toBe("Ship it.");
   });
 });
 

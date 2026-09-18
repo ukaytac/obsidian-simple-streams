@@ -7,13 +7,14 @@ export function stripFrontmatter(content: string): string {
 }
 
 const SECTION_HEADING = /^(#{1,6})[ \t]+(.+?)[ \t]*$/;
+const SECTION_FENCE = /^[ \t]*(```+|~~~+)/;
 
 /**
  * The text under the first heading named `heading`, or null when the note has
  * no such heading.
  *
- * Matching is exact on the trimmed, lower-cased heading text — the rule
- * `normalizeTag` already applies to tags. Vaults spell headings inconsistently;
+ * Matching is exact on the trimmed, lower-cased heading text, close to what
+ * `normalizeTag` does for tags. Vaults spell headings inconsistently;
  * they do not usually spell them approximately, so a substring rule would pull
  * `## Project Notes` into a stream asking for `Notes`. Heading level is not
  * part of the match, because someone asking for a section by name is not
@@ -32,15 +33,40 @@ export function sliceSection(content: string, heading: string): string | null {
   const lines = stripFrontmatter(content).split(/\r?\n/);
 
   let level = 0;
+  /** -1 until the heading is found, then the index of the section's first line. */
   let start = -1;
+  /** The fence marker currently open — "`" or "~" — or null outside a fence. */
+  let fence: string | null = null;
 
   for (let index = 0; index < lines.length; index += 1) {
+    const fenceMatch = SECTION_FENCE.exec(lines[index]);
+    if (fenceMatch !== null) {
+      // The marker is remembered rather than a boolean toggled, because a
+      // `~~~` line inside a ``` block is code, not a closing fence, and a
+      // toggle would end the block there and let the next `#` line split the
+      // section.
+      const marker = fenceMatch[1][0];
+      if (fence === null) {
+        fence = marker;
+      } else if (fence === marker) {
+        fence = null;
+      }
+      continue;
+    }
+    if (fence !== null) {
+      continue;
+    }
+
     const match = SECTION_HEADING.exec(lines[index]);
     if (match === null) {
       continue;
     }
     if (start === -1) {
-      if (match[2].trim().toLowerCase() === wanted) {
+      // A trailing ATX closing sequence (`## Objective ##`) is punctuation,
+      // not part of the heading text; CommonMark requires whitespace before
+      // it, which is also what keeps `Sprint #3` intact instead of losing
+      // its hash to an unguarded `#+$`.
+      if (match[2].replace(/[ \t]+#+[ \t]*$/, "").trim().toLowerCase() === wanted) {
         level = match[1].length;
         start = index + 1;
       }
