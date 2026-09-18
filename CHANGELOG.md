@@ -4,9 +4,21 @@ The text of each GitHub release is taken from here.
 
 ## [Unreleased]
 
+## 1.5.0
+
 A stream's body has always started at the top of each note, which is rarely the useful part in a project's index, where every note answers the same question somewhere further down. `section: <heading>` takes the body from under a named heading instead, so what shows in the stream is the column you actually want to read down and compare, rather than whatever words a note happens to open with.
 
-The match is on the heading's text alone: case and heading level are both ignored, so `section: objective` finds `## Objective` or `### objective` wherever it sits, though not `## Objectives`. It works the same way under `display: preview`, where the section is clipped like any other preview text, and under `display: full`, where it renders as the section's real markdown. A note that lacks the heading — or has it with nothing underneath — shows no body at all, just its title, date and tags, rather than falling back to its opening words and putting back the very thing this field exists to remove.
+Put `section: Objective` in a project note's stream and every linked note contributes its own Objective, one per row. The match is on the heading's text alone: case and heading level are both ignored, so `section: objective` finds `## Objective` or `### objective` wherever it sits, though not `## Objectives`. The section runs to the next heading at the same or a shallower level, so its sub-headings come with it, and its own heading line is not repeated in the row.
+
+It works the same way under `display: preview`, where the section is clipped like any other preview text, and under `display: full`, where it renders as the section's real markdown — a list stays a list and a link stays clickable. A note that lacks the heading, or has it with nothing underneath, keeps its title, date and tags and shows no body at all, rather than falling back to its opening words and putting back the very thing this field exists to remove. It is never a filter: `where` still decides which notes appear, and `section` only decides what each one shows.
+
+**Installing or updating:** put `main.js`, `manifest.json` and `styles.css` from below into `<your vault>/.obsidian/plugins/simple-streams/`, replacing the files already there, and reload Obsidian. Requires Obsidian 1.7.2 or newer. Every existing block keeps working unchanged: without a `section` field, a stream shows exactly what it showed in 1.4.0.
+
+### Added
+
+- `section: <heading>` takes each item's body from under the named heading. Matched on the heading's text, ignoring case and heading level; bounded by the next heading at the same or a shallower level; the heading line itself is not shown.
+- A note without that heading shows no body, keeping its title, date and tags. There is no warning: in the case the field exists for, several notes in a list lack the heading permanently, and a marker under each would be noisier than the paragraphs it replaced.
+- A `#` line inside a fenced code block is not treated as a heading, so a shell example holding a comment cannot end a section early.
 
 ## 1.4.0
 
