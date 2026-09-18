@@ -37,6 +37,7 @@ export function sliceSection(content: string, heading: string): string | null {
   let start = -1;
   /** The fence marker currently open — "`" or "~" — or null outside a fence. */
   let fence: string | null = null;
+  let fenceLength = 0;
 
   for (let index = 0; index < lines.length; index += 1) {
     const fenceMatch = SECTION_FENCE.exec(lines[index]);
@@ -44,11 +45,16 @@ export function sliceSection(content: string, heading: string): string | null {
       // The marker is remembered rather than a boolean toggled, because a
       // `~~~` line inside a ``` block is code, not a closing fence, and a
       // toggle would end the block there and let the next `#` line split the
-      // section.
+      // section. The run length is tracked alongside it because CommonMark
+      // only closes a fence with one at least as long as it opened with — a
+      // note about markdown that nests a ``` example inside a ```` fence
+      // would otherwise have that inner fence read as the close, exposing
+      // its own `#` lines as headings.
       const marker = fenceMatch[1][0];
       if (fence === null) {
         fence = marker;
-      } else if (fence === marker) {
+        fenceLength = fenceMatch[1].length;
+      } else if (fence === marker && fenceMatch[1].length >= fenceLength) {
         fence = null;
       }
       continue;
@@ -64,8 +70,9 @@ export function sliceSection(content: string, heading: string): string | null {
     if (start === -1) {
       // A trailing ATX closing sequence (`## Objective ##`) is punctuation,
       // not part of the heading text; CommonMark requires whitespace before
-      // it, which is also what keeps `Sprint #3` intact instead of losing
-      // its hash to an unguarded `#+$`.
+      // it. The guard keeps that whitespace mandatory so a heading that
+      // simply ends in a hash, like `## C#`, is not mistaken for one and
+      // stripped down to `C`.
       if (match[2].replace(/[ \t]+#+[ \t]*$/, "").trim().toLowerCase() === wanted) {
         level = match[1].length;
         start = index + 1;

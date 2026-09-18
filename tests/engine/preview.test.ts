@@ -120,6 +120,13 @@ describe("sliceSection", () => {
     expect(sliceSection(note, "Objective")).toBe("```\n~~~\n## Log\n```\n\nStill here.");
   });
 
+  it("does not let a shorter fence close a longer one", () => {
+    const note = "## Objective\n\n````\n```\n## Log\n```\n````\n\nStill here.\n";
+    expect(sliceSection(note, "Objective")).toBe(
+      "````\n```\n## Log\n```\n````\n\nStill here.",
+    );
+  });
+
   it("returns the first of two identically named headings", () => {
     const note = "## Objective\n\nFirst.\n\n## Objective\n\nSecond.\n";
     expect(sliceSection(note, "Objective")).toBe("First.");
@@ -137,7 +144,11 @@ describe("sliceSection", () => {
     expect(sliceSection("## Objective ##\n\nShip it.\n", "Objective")).toBe("Ship it.");
   });
 
-  it("keeps a hash that is part of the heading text", () => {
+  it("keeps a hash that ends the heading text", () => {
+    expect(sliceSection("## C#\n\nShip it.\n", "C#")).toBe("Ship it.");
+  });
+
+  it("keeps a hash inside the heading text", () => {
     expect(sliceSection("## Sprint #3\n\nShip it.\n", "Sprint #3")).toBe("Ship it.");
   });
 });
