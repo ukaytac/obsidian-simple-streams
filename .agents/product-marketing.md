@@ -1,6 +1,6 @@
 # Product Marketing Context
 
-**Document version:** v5
+**Document version:** v6
 **Last updated:** 2026-09-20
 
 > **Draft status:** auto-drafted from the repository (README, CHANGELOG, design specs, manifest), then corrected by the author. Remaining **[GAP]** markers are things neither the repo nor the author could supply yet.
@@ -103,7 +103,16 @@ Copy should carry all three. Leading on looks alone undersells it; leading on th
 
 ## Objections
 
-**None observed in the wild yet** — no issues, no directory complaints, no forum pushback as of 2026-09-20. The table below is *anticipated*, kept as ready answers if someone asks directly in an issue or thread. It is not copy, and per the positioning rule above, published material does not raise these comparisons unprompted.
+**One objection is live and public, and it is machine-generated.** The community directory page displays "2 issues found by automated scans of the latest release" alongside the otherwise-Satisfactory review. Every prospective installer sees this. Both were traced on 2026-09-20 and neither is a defect:
+
+| Flag shown publicly | What it actually is |
+|---|---|
+| "Code uses runtime base64 encode or decode calls — sometimes used to hide API keys, URLs, or code payloads from static analysis." | The `yaml` dependency's handler for YAML's standard `!!binary` tag (`tag:yaml.org,2002:binary`), which calls `atob`/`btoa`. It is not in `src/` at all — there is no base64 anywhere in the plugin's own code — and it hides nothing. |
+| "This `PluginSettingTab` does not implement `getSettingDefinitions()`; its settings will not appear in Obsidian's settings search for users on 1.13.0 or later." | A deliberate, documented decision, with the reasoning written out at length in `src/view/SettingsTab.ts`: adopting the declarative API needs a type that does not exist before 1.13.0, which would break the 1.7.2 floor the manifest promises. The cost is two settings missing from search; the benefit is not abandoning everyone who has not updated in months. |
+
+This matters more than its size suggests. "Trustworthy by construction" is the differentiator nothing else on the shelf offers, and the first word a stranger reads next to it is *issues*, in security language. The answer exists — in the code comment, in the README — but not where the doubt is raised. **Connecting the two is a marketing job, not an engineering one.**
+
+**Everything below is anticipated, not observed** — no human has raised any of it. Kept as ready answers if someone asks directly in an issue or thread. It is not copy, and per the positioning rule above, published material does not raise these comparisons unprompted.
 
 | Anticipated objection | Response if asked directly |
 |-----------|----------|
@@ -168,10 +177,14 @@ Two things in that sentence should survive into copy. The complaint is **aesthet
 ## Proof Points
 
 **Metrics** *(snapshot 2026-09-20)*:
-- **306 downloads** through the Obsidian Community directory since listing on 2026-09-05 — roughly 15 days.
-- Per-version curve: 1.0.0 (19), 1.0.1 (21), 1.0.2 (65), 1.1.0 (50), 1.2.0 (32), 1.3.0 (17), 1.3.1 (17), 1.4.0 (63), 1.5.0 (22, just out).
+- **35 installations.** This is the real installed base, reported by the community directory on the plugin's own page.
+- **306 cumulative downloads** across all nine versions. **These are not 306 users.** A user who installs once and then takes every update is counted ten times, which is most of the gap between 35 and 306. Quote 35 when you mean reach; use the download curve only to see which releases moved.
+- Per-version downloads: 1.0.0 (19), 1.0.1 (21), 1.0.2 (65), 1.1.0 (50), 1.2.0 (32), 1.3.0 (17), 1.3.1 (17), 1.4.0 (63), 1.5.0 (22, just out).
 - **4 GitHub stars**, 0 forks, 0 open issues. Repository created 2026-09-04.
 - **9 releases in 16 days**, 1.0.0 → 1.5.0.
+- Directory review status **Satisfactory**: 6 automated checks passed, including signed attestations on both release assets, no suspicious network patterns, no vulnerable dependencies, and — the strongest of them — **the build reproduced the release `main.js` byte for byte**, which the directory annotates as "This confirms users are running exactly the code visible in the repository."
+
+**Two automated flags are displayed publicly on the directory page** — see Objections. Neither is a defect, but both are visible to every prospective installer.
 
 **Customers:** None named. No user is publicly identified yet.
 
@@ -183,7 +196,7 @@ Two things in that sentence should survive into copy. The complaint is **aesthet
 | No language to learn | The whole query schema is one table of 16 optional YAML fields; an empty block is a valid query |
 | Reading, not querying | `display: full\|preview\|title`, `group: day\|month\|year`, previews with a character budget |
 | Write once, works everywhere | `this.Property` in a template; `active.Property` in the sidebar |
-| Trustworthy by construction | Named call sites, no network, no writes, CI type-check + tests, `gh attestation verify` on every release asset |
+| Trustworthy by construction | Byte-for-byte reproducible build, confirmed by the directory's own scan; named call sites, no network, no writes, CI type-check + tests, signed attestation on every release asset |
 | Actively maintained | 9 releases in the first 16 days; every one documented in prose in the CHANGELOG |
 
 ## Goals
@@ -203,6 +216,7 @@ Three implications that should shape every downstream decision:
 ## Changelog
 
 *Newest first. One line per revision: what changed and why.*
+- v6 (2026-09-20) — Corrected the headline metric: 35 installations, not 306 downloads, which are cumulative and count each update again. Added the directory's reproducible-build result as the strongest trust proof, and recorded the two public scan flags, both traced and neither a defect.
 - v5 (2026-09-20) — Widened the core promise from presentational-only to three simultaneous claims (looks, ease of writing, breadth of options) after the author's correction, and noted why holding all three is the position.
 - v4 (2026-09-20) — Rendered the author's founding quote in English; the document is now English throughout.
 - v3 (2026-09-20) — Recorded the origin: scratch-your-own-itch, with the author's verbatim as the first customer quote. Named Bases' listing as the real internal reference point and reframed the core promise as presentational rather than functional.
