@@ -4,3 +4,8 @@ main.js
 data.json
 .DS_Store
 .obsidian/
+
+# Locally installed agent skills (npx skills add)
+.agents/
+.claude/skills/
+skills-lock.json
