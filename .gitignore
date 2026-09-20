@@ -6,6 +6,6 @@ data.json
 .obsidian/
 
 # Locally installed agent skills (npx skills add)
-.agents/
+.agents/skills/
 .claude/skills/
 skills-lock.json
