@@ -1,6 +1,6 @@
 # Community Strategy
 
-**Document version:** v3
+**Document version:** v4
 **Last updated:** 2026-09-20
 **Context:** reads [product-marketing.md](product-marketing.md). Goal, voice and positioning come from there; this document only decides where to show up and what to do there.
 
@@ -12,7 +12,7 @@
 
 **Do not build a community. Join the ones that exist, and keep one cheap owned surface.**
 
-The numbers make this decision for us. As of 2026-09-20 there are 306 directory downloads, 4 stars, zero issues and zero identified users. The standard launch playbook says recruit 20–50 founding members by hand before opening the doors — there is nobody to recruit. Obsidian's directory does not tell you who installed your plugin, so the contactable user list is genuinely empty, not merely small.
+The numbers make this decision for us, and they are smaller than they first looked. As of 2026-09-20 the directory reports **35 installations** — not the 306 cumulative downloads, which count every user again on every update. Four stars, zero issues, zero identified users. The standard launch playbook says recruit 20–50 founding members by hand before opening the doors — there is nobody to recruit. Obsidian's directory does not tell you who installed your plugin, so the contactable user list is genuinely empty, not merely small.
 
 A Discord or Slack opened now would be an empty room with the author talking to himself. That is worse than no community: it is a visible signal that nothing is happening here, sitting permanently on the README.
 
@@ -89,7 +89,7 @@ That second clause is a hard gate, and it is worth reading precisely: the ban is
 3. **Only then consider a post**, and make it a workflow post that stands on its own — the kind of thing that would be worth reading with the plugin removed. By then the account is visibly not a drive-by.
 4. **Write every word yourself.** Rule 4's first clause removes AI-generated content on sight, and Reddit readers are unusually good at spotting it.
 
-If that sounds like a lot of patience for one venue, it is — which is exactly why the forum is the engine and Reddit is a later, optional addition. Do not let it displace steps 4–6.
+If that sounds like a lot of patience for one venue, it is — which is exactly why the forum is the engine and Reddit is a later, optional addition. Do not let it displace steps 5–7.
 
 ---
 
@@ -112,17 +112,26 @@ Do not drive anyone anywhere until what they land on is right.
 
    Seed each with two or three of your own posts so the first visitor sees a room with something in it.
 
-3. **Decide the attribution line.** Per Goals, the author's name travelling with the plugin is a first-class objective, not a nicety. Settle on one form — name plus uka.dev — and use it identically in the forum profile, the GitHub profile and every post signature. Inconsistent attribution is how a widely used plugin ends up anonymous.
+3. **Answer the directory's two flags where they are seen.** The plugin's directory page — the page every prospective installer lands on — says "2 issues found by automated scans." Both were traced and neither is a defect (product-marketing.md → Objections has the detail: one is the `yaml` dependency's `!!binary` handler, the other a deliberate choice documented in `src/view/SettingsTab.ts`). The problem is not the code. The problem is that a stranger reads the word *issues*, in security language, directly beneath the one claim no competing plugin makes.
+
+   Fix it where the doubt lands, not where the answer already lives:
+   - Add a short, unexcited paragraph to the README's existing "What it reads, and what it never does" section naming both flags and what they are. That section's whole method is stating the awkward thing before anyone has to find it; this belongs to it.
+   - Open a GitHub Discussion titled for what someone would actually search — "Why the directory scan shows two issues" — so the answer is findable by someone who never reads the whole README.
+   - Consider whether the `yaml` flag is worth engineering away, but treat that as a separate question with its own cost. It is a dependency's standard tag handler, not a problem to be panicked about.
+
+   Do this before step 5. Driving traffic to a page that raises an unanswered doubt wastes the traffic.
+
+4. **Decide the attribution line.** Per Goals, the author's name travelling with the plugin is a first-class objective, not a nicety. Settle on one form — name plus uka.dev — and use it identically in the forum profile, the GitHub profile and every post signature. Inconsistent attribution is how a widely used plugin ends up anonymous.
 
 ### Phase 2 — Presence (Weeks 3–8, ~3h/wk)
 
-4. **The weekly ritual: two answered questions.** Twice a week, open Forum → Help, find a thread about listing, indexing, journals, MOCs, project notes or daily notes, and answer it properly — with a working block, tailored to what they asked. Mention the plugin once, plainly, at the end. If the question is better answered without Simple Streams, answer it without Simple Streams; that is what builds the reputation the goal is actually about.
+5. **The weekly ritual: two answered questions.** Twice a week, open Forum → Help, find a thread about listing, indexing, journals, MOCs, project notes or daily notes, and answer it properly — with a working block, tailored to what they asked. Mention the plugin once, plainly, at the end. If the question is better answered without Simple Streams, answer it without Simple Streams; that is what builds the reputation the goal is actually about.
 
    This is roughly 40 answers over the quarter. It is the whole engine.
 
-5. **Build the stream recipes collection.** Every question you answer produces a block. Add it to the Stream recipes discussion with a one-line description of the problem it solves. By the end of the quarter this should be twenty-plus blocks — a genuine reference that earns links on its own, and the thing you paste instead of retyping.
+6. **Build the stream recipes collection.** Every question you answer produces a block. Add it to the Stream recipes discussion with a one-line description of the problem it solves. By the end of the quarter this should be twenty-plus blocks — a genuine reference that earns links on its own, and the thing you paste instead of retyping.
 
-6. **One workflow post per month**, in Share & showcase → **Workflows & Templates**, not the Plugins board. Write it as a workflow, because that is what it is:
+7. **One workflow post per month**, in Share & showcase → **Workflows & Templates**, not the Plugins board. Write it as a workflow, because that is what it is:
    - Month 1: *Project notes that keep their own history* — the `this.Property` template pattern. This is the strongest single story the plugin has.
    - Month 2: *Reading one section across many notes* — the `section:` field, as a comparison column.
    - Month 3: *A sidebar that follows what you are reading* — `active.Property`.
@@ -131,13 +140,13 @@ Do not drive anyone anywhere until what they land on is right.
 
 ### Phase 3 — Compounding (Weeks 9–13, ~3h/wk)
 
-7. **Keep the ritual running.** Steps 4–6 do not stop. Consistency is the only thing that turns presence into recognition.
+8. **Keep the ritual running.** Steps 5–7 do not stop. Consistency is the only thing that turns presence into recognition.
 
-8. **Notice and invest in the first real users.** The moment someone posts their own block, files a thoughtful issue, or answers a question about Simple Streams for you — that is your first community member, and there will be very few of them at this scale. Reply personally. Credit them by name in the CHANGELOG when their input changes something; the changelog is already written in prose, so this costs one sentence and is worth far more than it costs.
+9. **Notice and invest in the first real users.** The moment someone posts their own block, files a thoughtful issue, or answers a question about Simple Streams for you — that is your first community member, and there will be very few of them at this scale. Reply personally. Credit them by name in the CHANGELOG when their input changes something; the changelog is already written in prose, so this costs one sentence and is worth far more than it costs.
 
-9. **Close the loop in public.** When a request from the forum or Discussions ships, say so in the release notes and link back to where it was raised. This is the single cheapest trust-builder available, and it is entirely consistent with how the CHANGELOG is already written.
+10. **Close the loop in public.** When a request from the forum or Discussions ships, say so in the release notes and link back to where it was raised. This is the single cheapest trust-builder available, and it is entirely consistent with how the CHANGELOG is already written.
 
-10. **Re-evaluate at day 90** against the metrics below.
+11. **Re-evaluate at day 90** against the metrics below.
 
 ---
 
@@ -145,18 +154,20 @@ Do not drive anyone anywhere until what they land on is right.
 
 The standard community health metrics — DAU/MAU, thread reply rate, lurker ratio — assume a community you host. They do not apply here and tracking them would be theatre. These do:
 
-**Baseline, 2026-09-20:** 306 downloads · 4 stars · 0 issues · 0 discussions.
+**Baseline, 2026-09-20:** **35 installations** · 306 cumulative downloads · 4 stars · 0 issues · 0 discussions.
+
+Track installations, not downloads. Downloads rise on their own every time you ship a release, because existing users are counted again — which makes them a flattering number that measures your own activity rather than anyone else's interest.
 
 | Signal | What it tells you | 90-day target |
 |---|---|---|
-| Directory downloads | Reach. The headline number. | 1,000 |
+| Directory installations | Reach. The headline number. | 150 |
 | GitHub stars | Deliberate approval — someone bothered. | 25 |
 | Discussions started by someone else | The first real sign of a community | 3 |
 | Blocks posted by other people | **The loop turning.** The truest signal on this list. | 5 |
 | Forum questions answered | Your own input. The only one fully in your control. | 40 |
 | Unprompted mentions by others | Recognition, which is the actual goal | 1 |
 
-The fourth row is the one to watch. Downloads can rise from a directory placement; someone writing their own `stream` block in public means the thing spread on its own.
+The fourth row is the one to watch. Installations can rise from a directory placement; someone writing their own `stream` block in public means the thing spread on its own.
 
 **Warning signs:** every Discussions thread is yours after eight weeks; answered questions produce no clicks through to the repo; the same forum post format stops getting replies. Any of these means the message is wrong, not that the effort is insufficient.
 
@@ -175,11 +186,12 @@ The fourth row is the one to watch. Downloads can rise from a directory placemen
 
 ## Open questions
 
-- **Directory review visibility** — unclear whether the community directory exposes reviews publicly. If it does, that is a proof-point source (product-marketing.md → Proof Points → Testimonials, currently a gap).
+- **User testimonials** — the directory's "Review" turns out to be an automated code scan, not user reviews, so it is not a testimonial source after all. product-marketing.md → Proof Points → Testimonials stays a gap, and GitHub Discussions is now the likeliest first place a quotable sentence appears.
 
 ## Changelog
 
 *Newest first.*
+- v4 (2026-09-20) — Rebased every number on installations (35) rather than cumulative downloads (306), which double-count updates, and cut the 90-day target accordingly. Added a Phase 1 step to answer the directory page's two automated flags where they are seen.
 - v3 (2026-09-20) — Dropped Discord entirely: the author does not use it. The forum absorbs the role, and loses nothing that mattered, since Discord messages were never going to compound anyway.
 - v2 (2026-09-20) — r/ObsidianMD rules verified: promotion-as-first-post is an instant ban and AI-generated content is removed, so Reddit becomes a gated, history-first venue rather than an early one. Added a project-wide rule against publishing generated prose.
 - v1 (2026-09-20) — Initial strategy. Verdict: participate rather than build, on the grounds that the goal is reach and there is no user base to convene. Venues verified against the live forum; GitHub description mismatch found and flagged.
