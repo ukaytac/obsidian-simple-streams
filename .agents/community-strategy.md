@@ -1,6 +1,6 @@
 # Community Strategy
 
-**Document version:** v1
+**Document version:** v2
 **Last updated:** 2026-09-20
 **Context:** reads [product-marketing.md](product-marketing.md). Goal, voice and positioning come from there; this document only decides where to show up and what to do there.
 
@@ -71,9 +71,26 @@ Verified against the live forum and GitHub on 2026-09-20.
 | **Obsidian Discord** | — | Real-time question answering. Higher velocity, zero durability — messages are not indexed and do not compound. | Opportunistic |
 | **GitHub Discussions** | already enabled | The one owned surface. Indexed by search, attached to the repo, attribution built in. | ~30 min/wk |
 | **Forum → Devs: Plugins & API** | 1,177 topics | Peer visibility among plugin authors. Not a promotion venue — a reputation one. | Occasional |
-| **r/ObsidianMD** | not verified | Likely worthwhile, **but check the self-promotion rules yourself before posting.** I could not read them from here (Reddit blocked the request), and subreddit promo rules are exactly the thing that gets a first post removed and an account flagged. | Verify first |
+| **r/ObsidianMD** | large | **Gated.** Rules verified — promoting your project as your first post is an instant ban, and AI-written posts are removed. Requires earning a history first. See below. | Months 2–3, low |
 
 **The single most important line in that table is the first one.** Help carries more posts than every other category combined. It is also the least self-promotional thing on the list: you are answering a stranger's actual question. For a goal of recognition, sustained visible helpfulness in the busiest room beats any announcement.
+
+### r/ObsidianMD, specifically
+
+The subreddit's rules were checked on 2026-09-20 and two of them decide how we use it:
+
+> **Rule 3 — Don't shill.** "If you are just here to advertise your product, don't."
+>
+> **Rule 4 — No slop.** "Don't post AI-generated content, it will be removed. […] If your first and only post is to promote your project (vibe-coded or otherwise), you will be immediately banned."
+
+That second clause is a hard gate, and it is worth reading precisely: the ban is for a *first and only* post that promotes. The way through is not a cleverer post — it is a history. So:
+
+1. **Do not mention Simple Streams on Reddit for the first two months.** Not once.
+2. **Build a comment history instead.** Answer other people's questions in comments, about Obsidian generally, with no link and no mention. Comments are participation; this is the same thing you are already doing on the forum, in a room with stricter manners.
+3. **Only then consider a post**, and make it a workflow post that stands on its own — the kind of thing that would be worth reading with the plugin removed. By then the account is visibly not a drive-by.
+4. **Write every word yourself.** Rule 4's first clause removes AI-generated content on sight, and Reddit readers are unusually good at spotting it.
+
+If that sounds like a lot of patience for one venue, it is — which is exactly why the forum is the engine and Reddit is a later, optional addition. Do not let it displace steps 4–6.
 
 ---
 
@@ -152,17 +169,18 @@ The fourth row is the one to watch. Downloads can rise from a directory placemen
 - **No bare links.** Every appearance carries a runnable block.
 - **No named comparisons.** product-marketing.md's positioning rule applies fully in public threads, and it is most tempting to break exactly where it matters most: someone asks "how is this different from X" and the honest-looking answer is a list of X's failings. Answer by describing what this does, and let them draw the comparison.
 - **No answering questions that are not ours.** Capability questions belong to other tools. Answering them badly, or bending the plugin to fit, dilutes the identity that makes this findable.
-- **No posting in r/ObsidianMD before reading its rules.** Unverified; see the venue table.
+- **No promoting on r/ObsidianMD without a history there.** Instant ban, per its Rule 4. See the section above.
+- **No AI-written posts, anywhere — not just Reddit.** r/ObsidianMD removes them by rule, but the real reason is broader: product-marketing.md's first goal implication is that *craft is the marketing*. Publishing generated prose under your own name contradicts the entire thesis of this project, whose README is the proof of care. Use assistance to decide what to say; write the sentences yourself.
 
 ---
 
 ## Open questions
 
-- **r/ObsidianMD's self-promotion rules** — could not be retrieved; must be checked manually before first post.
 - **Obsidian Discord channel structure** — not verified from here. Worth ten minutes before the first message, to find where plugin questions actually live.
 - **Directory review visibility** — unclear whether the community directory exposes reviews publicly. If it does, that is a proof-point source (product-marketing.md → Proof Points → Testimonials, currently a gap).
 
 ## Changelog
 
 *Newest first.*
+- v2 (2026-09-20) — r/ObsidianMD rules verified: promotion-as-first-post is an instant ban and AI-generated content is removed, so Reddit becomes a gated, history-first venue rather than an early one. Added a project-wide rule against publishing generated prose.
 - v1 (2026-09-20) — Initial strategy. Verdict: participate rather than build, on the grounds that the goal is reach and there is no user base to convene. Venues verified against the live forum; GitHub description mismatch found and flagged.
