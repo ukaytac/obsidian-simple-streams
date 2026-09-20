@@ -1,10 +1,10 @@
 # Community Strategy
 
-**Document version:** v2
+**Document version:** v3
 **Last updated:** 2026-09-20
 **Context:** reads [product-marketing.md](product-marketing.md). Goal, voice and positioning come from there; this document only decides where to show up and what to do there.
 
-**Inputs from the author:** 3–5 hours per week. Comfortable posting publicly under his own name.
+**Inputs from the author:** 3–5 hours per week. Comfortable posting publicly under his own name. Not on Discord, and not planning to be — so it is out of scope entirely.
 
 ---
 
@@ -18,7 +18,7 @@ A Discord or Slack opened now would be an empty room with the author talking to 
 
 There is a second reason, and it is the stronger one. The goal is **recognition and reach** (product-marketing.md → Goals), not retention or support deflection. A community you own serves retention — it keeps people you already have. Communities you join serve reach — they put the work in front of people who have never heard of it. The scarce resource here is being seen at all, so effort belongs where the audience already is.
 
-**What this means concretely:** no Discord, no Slack, no Circle, no forum of our own. Show up in the Obsidian forum and Discord; keep GitHub Discussions as the one owned surface, because it is already enabled and costs nothing to run.
+**What this means concretely:** no Discord, no Slack, no Circle, no forum of our own. Show up in the Obsidian forum; keep GitHub Discussions as the one owned surface, because it is already enabled and costs nothing to run.
 
 Revisit this decision at roughly **2,000 downloads or 20 unsolicited GitHub Discussions threads**, whichever comes first. Below that there is no community to host.
 
@@ -42,7 +42,7 @@ This is a real and underserved identity in the Obsidian world, which is heavily 
 
 The unit that spreads is not the plugin. **It is the block.**
 
-A `stream` block is five lines of YAML. It can be pasted into a forum reply, a Reddit comment, a Discord message or a blog post; it survives copy-paste intact; and the person receiving it can run it in ten seconds and then change one line to make it theirs. Nothing else about this product travels that well.
+A `stream` block is five lines of YAML. It can be pasted into a forum reply, a Reddit comment or a blog post; it survives copy-paste intact; and the person receiving it can run it in ten seconds and then change one line to make it theirs. Nothing else about this product travels that well.
 
 ```
 Someone asks how to list notes  →  you answer with a working block
@@ -68,7 +68,6 @@ Verified against the live forum and GitHub on 2026-09-20.
 | **Obsidian Forum → Help** | 24,168 topics / 93,440 posts | **The engine.** Biggest surface on the forum by a wide margin. People arrive with the exact problem the plugin solves. | Sustained, ~1–2h/wk |
 | **Forum → Share & showcase → Workflows & Templates** | 1,886 topics | **The highest-leverage posts.** Busier than the Plugins board, and a workflow post is on-identity in a way a plugin announcement is not. | 1 post/month |
 | **Forum → Share & showcase → Plugins** | 1,063 topics | Release announcements. Necessary, not where the reach is. | 1 post/release |
-| **Obsidian Discord** | — | Real-time question answering. Higher velocity, zero durability — messages are not indexed and do not compound. | Opportunistic |
 | **GitHub Discussions** | already enabled | The one owned surface. Indexed by search, attached to the repo, attribution built in. | ~30 min/wk |
 | **Forum → Devs: Plugins & API** | 1,177 topics | Peer visibility among plugin authors. Not a promotion venue — a reputation one. | Occasional |
 | **r/ObsidianMD** | large | **Gated.** Rules verified — promoting your project as your first post is an instant ban, and AI-written posts are removed. Requires earning a history first. See below. | Months 2–3, low |
@@ -113,7 +112,7 @@ Do not drive anyone anywhere until what they land on is right.
 
    Seed each with two or three of your own posts so the first visitor sees a room with something in it.
 
-3. **Decide the attribution line.** Per Goals, the author's name travelling with the plugin is a first-class objective, not a nicety. Settle on one form — name plus uka.dev — and use it identically in the forum profile, the Discord profile, the GitHub profile and every post signature. Inconsistent attribution is how a widely used plugin ends up anonymous.
+3. **Decide the attribution line.** Per Goals, the author's name travelling with the plugin is a first-class objective, not a nicety. Settle on one form — name plus uka.dev — and use it identically in the forum profile, the GitHub profile and every post signature. Inconsistent attribution is how a widely used plugin ends up anonymous.
 
 ### Phase 2 — Presence (Weeks 3–8, ~3h/wk)
 
@@ -165,7 +164,7 @@ The fourth row is the one to watch. Downloads can rise from a directory placemen
 
 ## What not to do
 
-- **No Discord or Slack of our own.** Covered above. Empty rooms are negative signal.
+- **No Discord or Slack — ours or anyone else's.** Ours would be an empty room; the official Obsidian one is off the table because the author does not use Discord. Nothing in this plan depends on it, and the forum covers the same questions with the advantage of being indexed and permanent.
 - **No bare links.** Every appearance carries a runnable block.
 - **No named comparisons.** product-marketing.md's positioning rule applies fully in public threads, and it is most tempting to break exactly where it matters most: someone asks "how is this different from X" and the honest-looking answer is a list of X's failings. Answer by describing what this does, and let them draw the comparison.
 - **No answering questions that are not ours.** Capability questions belong to other tools. Answering them badly, or bending the plugin to fit, dilutes the identity that makes this findable.
@@ -176,11 +175,11 @@ The fourth row is the one to watch. Downloads can rise from a directory placemen
 
 ## Open questions
 
-- **Obsidian Discord channel structure** — not verified from here. Worth ten minutes before the first message, to find where plugin questions actually live.
 - **Directory review visibility** — unclear whether the community directory exposes reviews publicly. If it does, that is a proof-point source (product-marketing.md → Proof Points → Testimonials, currently a gap).
 
 ## Changelog
 
 *Newest first.*
+- v3 (2026-09-20) — Dropped Discord entirely: the author does not use it. The forum absorbs the role, and loses nothing that mattered, since Discord messages were never going to compound anyway.
 - v2 (2026-09-20) — r/ObsidianMD rules verified: promotion-as-first-post is an instant ban and AI-generated content is removed, so Reddit becomes a gated, history-first venue rather than an early one. Added a project-wide rule against publishing generated prose.
 - v1 (2026-09-20) — Initial strategy. Verdict: participate rather than build, on the grounds that the goal is reach and there is no user base to convene. Venues verified against the live forum; GitHub description mismatch found and flagged.
