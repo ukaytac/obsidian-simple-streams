@@ -1,6 +1,6 @@
 # Product Marketing Context
 
-**Document version:** v3
+**Document version:** v4
 **Last updated:** 2026-09-20
 
 > **Draft status:** auto-drafted from the repository (README, CHANGELOG, design specs, manifest), then corrected by the author. Remaining **[GAP]** markers are things neither the repo nor the author could supply yet.
@@ -117,12 +117,10 @@ Single-persona product; the B2B stakeholder table does not apply.
 
 **How they describe the problem:**
 
-*The author, as the first user — n=1, verbatim (Turkish):*
-> "Benim problemimdi bu daha güzel listelemeler istiyordum bases listelemesinden daha farklı bir şey istiyordum."
->
-> — "This was my own problem. I wanted nicer listings; I wanted something different from Bases' listing."
+*The author, as the first user — n=1 (translated from the author's Turkish):*
+> "This was my own problem. I wanted nicer listings; I wanted something different from Bases' listing."
 
-Two things in that sentence should survive into copy. The complaint is **aesthetic and experiential** — *güzel*, nicer, better to look at and read — not functional. And the thing being compared against is **a listing**, not a query engine. The promise is therefore about the result on the page, not about capability.
+Two things in that sentence should survive into copy. The complaint is **aesthetic and experiential** — nicer, better to look at and read — not functional. And the thing being compared against is **a listing**, not a query engine. The promise is therefore about the result on the page, not about capability.
 
 - **[GAP]** — still nothing from anyone but the author. Sources worth mining, in order of likely yield: r/ObsidianMD, the Obsidian forum's Plugins and Share & showcase boards, the Obsidian Discord, and this repo's own issues once they exist. Look for phrasings like "I just want to list my notes," "without learning a query language," "my MOC is out of date."
 
@@ -193,6 +191,7 @@ Three implications that should shape every downstream decision:
 ## Changelog
 
 *Newest first. One line per revision: what changed and why.*
+- v4 (2026-09-20) — Rendered the author's founding quote in English; the document is now English throughout.
 - v3 (2026-09-20) — Recorded the origin: scratch-your-own-itch, with the author's verbatim as the first customer quote. Named Bases' listing as the real internal reference point and reframed the core promise as presentational rather than functional.
 - v2 (2026-09-20) — Author corrections: goal set to reference project + recognition, with three implications spelled out; added a no-named-comparisons positioning rule and de-named the competitive copy throughout; objections relabelled as anticipated rather than observed; filled Proof Points with real directory and GitHub numbers.
 - v1 (2026-09-20) — Initial context, auto-drafted from README, CHANGELOG, design specs and manifest; gaps flagged for the author.
