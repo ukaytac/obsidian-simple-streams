@@ -1,6 +1,6 @@
 # Product Marketing Context
 
-**Document version:** v2
+**Document version:** v3
 **Last updated:** 2026-09-20
 
 > **Draft status:** auto-drafted from the repository (README, CHANGELOG, design specs, manifest), then corrected by the author. Remaining **[GAP]** markers are things neither the repo nor the author could supply yet.
@@ -49,6 +49,8 @@ Single-persona product; the B2B stakeholder table does not apply.
 
 ## Problems & Pain Points
 
+**Origin — scratch your own itch.** The author is the first user. Simple Streams exists because the listings available in Obsidian were not nice enough to read, and the specific reference point was the listing a properties table gives you. Worth holding on to when weighing any feature: the founding complaint was about how a list *reads and looks*, not about what it can compute. Nobody said "I need more filters."
+
 **Core problem:** A vault accumulates notes faster than anyone maintains indexes for them. The notes exist; finding and comparing them later does not happen by itself.
 
 **Why alternatives fall short:**
@@ -67,7 +69,7 @@ Single-persona product; the B2B stakeholder table does not apply.
 
 **Direct:** **Dataview** — same problem, same surface (a code block in a note), far more power. Where it is heavier: DQL/DataviewJS is a language to learn, and the default output is tabular.
 
-**Direct:** **Obsidian Bases** (core, 1.9+) — Obsidian's own database view. A different surface: a table/board over properties, in its own view, rather than prose inside the note you are writing.
+**Direct:** **Obsidian Bases** (core, 1.9+) — Obsidian's own database view. A different surface: a table/board over properties, in its own view, rather than prose inside the note you are writing. **This is the real reference point**, not the query plugins: it is the listing the author found wanting, and the one Simple Streams was built to be unlike. The difference is presentational, and that is not a weakness of the position — it is the position.
 
 **Secondary:** **Projects plugin, DB Folder, embedded search queries** — different solution shapes (boards, databases, search results) for the same "find my notes" problem. Each optimizes structure or search over readability.
 
@@ -114,7 +116,15 @@ Single-persona product; the B2B stakeholder table does not apply.
 ## Customer Language
 
 **How they describe the problem:**
-- **[GAP]** — no verbatim quotes captured yet. Sources worth mining, in order of likely yield: r/ObsidianMD, the Obsidian forum's Plugins and Share & showcase boards, the Obsidian Discord, and this repo's own issues once they exist. Look for phrasings like "I just want to list my notes," "without learning a query language," "my MOC is out of date."
+
+*The author, as the first user — n=1, verbatim (Turkish):*
+> "Benim problemimdi bu daha güzel listelemeler istiyordum bases listelemesinden daha farklı bir şey istiyordum."
+>
+> — "This was my own problem. I wanted nicer listings; I wanted something different from Bases' listing."
+
+Two things in that sentence should survive into copy. The complaint is **aesthetic and experiential** — *güzel*, nicer, better to look at and read — not functional. And the thing being compared against is **a listing**, not a query engine. The promise is therefore about the result on the page, not about capability.
+
+- **[GAP]** — still nothing from anyone but the author. Sources worth mining, in order of likely yield: r/ObsidianMD, the Obsidian forum's Plugins and Share & showcase boards, the Obsidian Discord, and this repo's own issues once they exist. Look for phrasings like "I just want to list my notes," "without learning a query language," "my MOC is out of date."
 
 **How they describe us:**
 - **[GAP]** — nothing captured. First likely sources: directory reviews and any social mention. Worth revisiting once installs grow past the current few hundred.
@@ -183,5 +193,6 @@ Three implications that should shape every downstream decision:
 ## Changelog
 
 *Newest first. One line per revision: what changed and why.*
+- v3 (2026-09-20) — Recorded the origin: scratch-your-own-itch, with the author's verbatim as the first customer quote. Named Bases' listing as the real internal reference point and reframed the core promise as presentational rather than functional.
 - v2 (2026-09-20) — Author corrections: goal set to reference project + recognition, with three implications spelled out; added a no-named-comparisons positioning rule and de-named the competitive copy throughout; objections relabelled as anticipated rather than observed; filled Proof Points with real directory and GitHub numbers.
 - v1 (2026-09-20) — Initial context, auto-drafted from README, CHANGELOG, design specs and manifest; gaps flagged for the author.
