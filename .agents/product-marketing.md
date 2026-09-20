@@ -1,6 +1,6 @@
 # Product Marketing Context
 
-**Document version:** v4
+**Document version:** v5
 **Last updated:** 2026-09-20
 
 > **Draft status:** auto-drafted from the repository (README, CHANGELOG, design specs, manifest), then corrected by the author. Remaining **[GAP]** markers are things neither the repo nor the author could supply yet.
@@ -49,7 +49,7 @@ Single-persona product; the B2B stakeholder table does not apply.
 
 ## Problems & Pain Points
 
-**Origin — scratch your own itch.** The author is the first user. Simple Streams exists because the listings available in Obsidian were not nice enough to read, and the specific reference point was the listing a properties table gives you. Worth holding on to when weighing any feature: the founding complaint was about how a list *reads and looks*, not about what it can compute. Nobody said "I need more filters."
+**Origin — scratch your own itch.** The author is the first user. Simple Streams exists because the listings available in Obsidian were not nice enough to read, and the specific reference point was the listing a properties table gives you. Worth holding on to when weighing any feature: the itch itself was presentational — how a list *reads and looks*. What got built to answer it had to be easy to write and generous with options as well, but nobody started from "I need more filters."
 
 **Core problem:** A vault accumulates notes faster than anyone maintains indexes for them. The notes exist; finding and comparing them later does not happen by itself.
 
@@ -69,13 +69,23 @@ Single-persona product; the B2B stakeholder table does not apply.
 
 **Direct:** **Dataview** — same problem, same surface (a code block in a note), far more power. Where it is heavier: DQL/DataviewJS is a language to learn, and the default output is tabular.
 
-**Direct:** **Obsidian Bases** (core, 1.9+) — Obsidian's own database view. A different surface: a table/board over properties, in its own view, rather than prose inside the note you are writing. **This is the real reference point**, not the query plugins: it is the listing the author found wanting, and the one Simple Streams was built to be unlike. The difference is presentational, and that is not a weakness of the position — it is the position.
+**Direct:** **Obsidian Bases** (core, 1.9+) — Obsidian's own database view. A different surface: a table/board over properties, in its own view, rather than prose inside the note you are writing. **This is the real reference point**, not the query plugins: it is the listing the author found wanting, and the one Simple Streams was built to be unlike. The difference starts presentational; the position is wider than that — see **The promise, in three parts** below.
 
 **Secondary:** **Projects plugin, DB Folder, embedded search queries** — different solution shapes (boards, databases, search results) for the same "find my notes" problem. Each optimizes structure or search over readability.
 
 **Indirect:** **Hand-maintained MOCs and index notes, and Templater-generated lists.** Conflicting approach: do the work yourself, once, and accept the drift.
 
 ## Differentiation
+
+**The promise, in three parts.** This is not one claim but three, and they normally trade against each other:
+
+1. **It looks better.** The output reads as a page — title, date, tags, prose, date headings — rather than rows in a table. This is where the product started.
+2. **It is fluid and easy to write.** Plain YAML, every field optional, an empty block is already a valid query. Nothing has to be learned before the first stream works.
+3. **It gives you plenty of options.** Sixteen fields, `where` comparisons, `this.` and `active.` references, three display modes, date grouping, relative date offsets, `section`. Enough to ask a real question.
+
+Most tools hold one or two of these and pay for it with the third. A query language buys (3) at the cost of (2). A fixed template buys (1) and (2) at the cost of (3). A properties table buys (2) and (3) at the cost of (1). **Holding all three at once is the position.** The mechanism that allows it: every field is optional and has a working default, so nobody pays for an option until they reach for it. Depth is there when wanted and invisible when not.
+
+Copy should carry all three. Leading on looks alone undersells it; leading on the field list makes it sound like the very thing it was built to be unlike.
 
 **Key differentiators:**
 - **No query language.** The block is plain YAML. If you can write frontmatter, you can write a stream.
@@ -120,7 +130,9 @@ Single-persona product; the B2B stakeholder table does not apply.
 *The author, as the first user — n=1 (translated from the author's Turkish):*
 > "This was my own problem. I wanted nicer listings; I wanted something different from Bases' listing."
 
-Two things in that sentence should survive into copy. The complaint is **aesthetic and experiential** — nicer, better to look at and read — not functional. And the thing being compared against is **a listing**, not a query engine. The promise is therefore about the result on the page, not about capability.
+Two things in that sentence should survive into copy. The complaint is **aesthetic and experiential** — nicer, better to look at and read. And the thing being compared against is **a listing**, not a query engine. That is where the product started.
+
+*Author's clarification, on reviewing this document:* the promise is not presentational alone — it is nicer output **and** fluid, easy writing **and** plenty of options, together. An earlier revision of this document reduced it to presentation only, which was too narrow. See **Differentiation → The promise, in three parts**.
 
 - **[GAP]** — still nothing from anyone but the author. Sources worth mining, in order of likely yield: r/ObsidianMD, the Obsidian forum's Plugins and Share & showcase boards, the Obsidian Discord, and this repo's own issues once they exist. Look for phrasings like "I just want to list my notes," "without learning a query language," "my MOC is out of date."
 
@@ -191,6 +203,7 @@ Three implications that should shape every downstream decision:
 ## Changelog
 
 *Newest first. One line per revision: what changed and why.*
+- v5 (2026-09-20) — Widened the core promise from presentational-only to three simultaneous claims (looks, ease of writing, breadth of options) after the author's correction, and noted why holding all three is the position.
 - v4 (2026-09-20) — Rendered the author's founding quote in English; the document is now English throughout.
 - v3 (2026-09-20) — Recorded the origin: scratch-your-own-itch, with the author's verbatim as the first customer quote. Named Bases' listing as the real internal reference point and reframed the core promise as presentational rather than functional.
 - v2 (2026-09-20) — Author corrections: goal set to reference project + recognition, with three implications spelled out; added a no-named-comparisons positioning rule and de-named the competitive copy throughout; objections relabelled as anticipated rather than observed; filled Proof Points with real directory and GitHub numbers.
